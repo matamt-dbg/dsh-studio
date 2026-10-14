@@ -114,6 +114,8 @@ export class PresetStore {
   save(payload: string) { return this.serial(async () => {
     const value = JSON.parse(payload);
     if (!value || typeof value.name !== 'string' || !value.name.trim() || value.name.length > 120 || typeof value.description !== 'string') throw new Error('Invalid preset name or description');
+    // Optimized is a locked built-in; customize it through a copy.
+    if (value.id === OPTIMIZED_PRESET_ID) throw new Error('Optimized is a locked built-in preset; create a copy to customize it');
     const old = value.id ? this.find(value.id) : undefined;
     const row: StoredPreset = { ...old, id: old?.id ?? `studio-user-${randomUUID()}`, name: value.name.trim(), description: value.description,
       request: parsePreviewRequest(value.request), conveniences: value.conveniences ?? {}, agents: parseRoles(value.agents ?? old?.agents ?? []).map(role => {

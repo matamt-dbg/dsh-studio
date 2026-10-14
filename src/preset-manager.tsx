@@ -71,10 +71,10 @@ export function PresetList({ locale, api, revision, onEdit, onCopy }: { locale: 
     </li>)}</ul>}
     <div className="studio-tool-cards studio-card-pair" aria-busy={load.phase === 'loading' || busy}>{items.map(item => <article className="studio-preset-card" key={item.id}>
       <div className="studio-card-head"><h3>{item.name}</h3>{item.readOnly && <Badge tone="outline">{t('읽기 전용', 'Read-only', '只读')}</Badge>}{item.template && !item.readOnly && <Badge tone="info">{t('기본 제공', 'Built-in', '内置')}</Badge>}<Badge tone={tone[item.status]}>{status(item)}</Badge></div>
-      {item.template ? <p className="studio-card-text">{t('Studio가 권장하는 기본 구성입니다. 편집하거나 복사해 쓸 수 있습니다.', 'Studio optimized default preset', 'Studio 推荐的默认配置，可编辑或复制')}</p> : item.description && !item.readOnly && <p className="studio-card-text">{item.description}</p>}
+      {item.template ? <p className="studio-card-text">{t('Studio가 권장하는 코딩 에이전트용 기본 구성입니다. 고치려면 복사해서 쓰세요.', 'Studio optimized default for coding agents. Create a copy to customize it.', 'Studio 推荐的编码代理默认配置。如需修改，请创建副本')}</p> : item.description && !item.readOnly && <p className="studio-card-text">{item.description}</p>}
       <p className="studio-card-meta">{t('도구', 'Tools', '工具')} {item.request.tools.length} · {t('서브에이전트 역할', 'Subagent roles', '子代理角色')} {Array.isArray(item.agents) ? item.agents.length : 0}</p>
       {item.readOnly ? <p className="studio-card-meta studio-card-note">{t('DSH에 설치된 모든 도구를 담은 기준 프리셋입니다. 편집하거나 삭제할 수 없습니다.', 'Reference preset with every installed DSH tool. It cannot be edited or deleted.', '包含所有已安装 DSH 工具的基准预设，无法编辑或删除')}</p> : <div className="studio-card-footer">
-        <Button small disabled={busy || item.readOnly || !onEdit} onClick={() => onEdit?.(item)}>{t('편집', 'Edit', '编辑')}</Button>
+        <Button small disabled={busy || item.readOnly || item.template || !onEdit} title={item.template ? t('기본 제공 프리셋은 편집할 수 없습니다. 복사해서 고쳐 쓰세요.', 'Built-in presets cannot be edited. Create a copy to customize it.', '内置预设无法编辑，请创建副本后修改') : undefined} onClick={() => onEdit?.(item)}>{t('편집', 'Edit', '编辑')}</Button>
         <Button small disabled={busy || !onCopy} onClick={() => onCopy?.(item)}>{t('복사', 'Create copy', '创建副本')}</Button>
         <Button small disabled={busy || !api || item.readOnly || item.nonDeletable} title={item.nonDeletable ? t('기본 제공 프리셋은 삭제할 수 없습니다.', 'Built-in presets cannot be deleted.', '内置预设无法删除') : undefined} onClick={() => { setDeleting(item); setConfirming(true); }}>{t('삭제', 'Delete', '删除')}</Button>
         <span className="studio-card-footer-end">

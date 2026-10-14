@@ -38,18 +38,18 @@ test('Optimized seeds once, supports edit/apply/unapply, survives restart, and o
   assert.equal(a.registrations.get(template.id).plugins[0].config.maxInlineTokens, 2500);
   assert.equal(seeded.status, 'applied'); assert.ok(a.registrations.has(template.id));
   await assert.rejects(store.delete(template.id), /non-deletable/);
-  const edited = await store.save(JSON.stringify({ ...seeded, name: 'Customized Optimized', request: { ...seeded.request, prompt: 'User-edited instruction' } }));
-  assert.equal(edited.status, 'modified'); assert.equal(edited.nonDeletable, true);
+  await assert.rejects(store.save(JSON.stringify({ ...seeded, name: 'Customized Optimized', request: { ...seeded.request, prompt: 'User-edited instruction' } })), /locked built-in/);
+  assert.equal((await store.list())[0].request.prompt, seeded.request.prompt);
   assert.equal((await store.apply(template.id)).applyWarning, undefined); await store.dispose();
   const b = runtime(); const restored = new PresetStore(b.ctx, file);
   await restored.ensureOptimized(['read'], []);
-  assert.equal((await restored.list())[0].request.prompt, 'User-edited instruction');
-  assert.equal(b.registrations.get(template.id).name, 'Customized Optimized');
+  assert.equal((await restored.list())[0].request.prompt, seeded.request.prompt);
+  assert.equal(b.registrations.get(template.id).name, 'Optimized');
   await restored.unapply(template.id); await restored.dispose();
   const c = runtime(); const reopened = new PresetStore(c.ctx, file);
   const retained = await reopened.ensureOptimized(['different'], []);
   assert.equal(retained.status, 'draft'); assert.equal(c.registrations.size, 0);
-  assert.equal(retained.name, 'Customized Optimized');
+  assert.equal(retained.name, 'Optimized');
   const { id, ...copy } = retained;
   const saved = await reopened.save(JSON.stringify(copy));
   assert.match(saved.id, /^studio-user-/); assert.equal(saved.nonDeletable, undefined);
@@ -59,7 +59,7 @@ test('Optimized seeds once, supports edit/apply/unapply, survives restart, and o
   await reopened.dispose();
 });
 
-test('Optimized has separate edit/copy actions and disables only Delete', async () => {
+test('Optimized is locked: Edit and Delete are disabled, Create copy stays available', async () => {
   const dom = new JSDOM('<div id="root"></div>');
   globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const root = createRoot(document.getElementById('root'));
@@ -68,9 +68,9 @@ test('Optimized has separate edit/copy actions and disables only Delete', async 
   try {
     await act(async () => root.render(React.createElement(PresetList, { locale: 'ko', revision: 0, api, onEdit: value => { edited = value; }, onCopy: value => { copied = value; } })));
     const buttons = [...document.querySelectorAll('article button')].filter(button => !button.closest('.studio-split'));
-    assert.deepEqual(buttons.filter(button => button.disabled).map(button => button.textContent), ['삭제']);
+    assert.deepEqual(buttons.filter(button => button.disabled).map(button => button.textContent), ['편집', '삭제']);
     await act(async () => buttons.find(button => button.textContent === '편집').click());
     await act(async () => buttons.find(button => button.textContent === '복사').click());
-    assert.equal(edited.id, template.id); assert.equal(copied.id, template.id);
+    assert.equal(edited, undefined); assert.equal(copied.id, template.id);
   } finally { await act(async () => root.unmount()); dom.window.close(); }
 });

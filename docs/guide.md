@@ -36,12 +36,12 @@ The list shows every preset Studio manages:
 | Preset | What it is |
 |---|---|
 | **Studio Master** | Read-only reference that contains every tool Studio can offer. Use it to see what is available. |
-| **Optimized** | Built-in starting point for coding agents: 22 everyday tools, tuned tool descriptions and execution defaults, and short working instructions. You can edit it, but not delete it. See [Adapt Optimized to your work](#adapt-optimized-to-your-work). |
+| **Optimized** | Built-in starting point for coding agents: 22 everyday tools, tuned tool descriptions and execution defaults, and short working instructions. It is locked: copy it to make changes. See [Adapt Optimized to your work](#adapt-optimized-to-your-work). |
 | Your presets | Anything you create or copy. |
 
 Each card shows its status — **Applied**, **Needs reapply** (saved changes not yet in DSH), or **Not applied** — and the number of tools and subagent roles. The card buttons:
 
-- **Edit** opens the preset in the editor.
+- **Edit** opens the preset in the editor. Built-in presets cannot be edited.
 - **Create copy** opens a new, unsaved preset prefilled from this one. Copies can be copied again.
 - **Delete** removes the preset from Studio and from DSH. Existing conversations are kept.
 - **Apply to DSH / Reapply to DSH** registers the saved preset with DSH. The arrow next to it offers **Unapply from DSH**.
@@ -117,7 +117,7 @@ Models are checked when you apply the preset and again before each call, so an u
 
 ## Adapt Optimized to your work
 
-Optimized is tuned for **coding-agent work**: reading and editing code, running commands, and checking results. For anything else, treat it as a starting point. Select **Create copy** on Optimized and adjust the copy with the same screens described above — nothing in Optimized is fixed.
+Optimized is tuned for **coding-agent work**: reading and editing code, running commands, and checking results. For anything else, treat it as a starting point. Select **Create copy** on Optimized and adjust the copy with the same screens described above — everything in the copy can be changed.
 
 | If you want to… | Change this |
 |---|---|

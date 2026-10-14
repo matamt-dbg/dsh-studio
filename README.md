@@ -54,7 +54,7 @@ Restart the web GUI, then open **DSH Studio** from the sidebar.
 
 ![Preset list](docs/images/en/preset-list.png)
 
-- **Presets** — a read-only *Studio Master* with every available tool, a built-in *Optimized* preset (22 everyday tools), and your own presets. Edit, copy, delete, apply to DSH, or unapply.
+- **Presets** — a read-only *Studio Master* with every available tool, a locked built-in *Optimized* preset (22 everyday tools) to copy from, and your own presets. Edit, copy, delete, apply to DSH, or unapply.
 - **Prompts & tools** — edit persona and additional instructions, pick tools (or whole built-in tool sets), and rewrite the descriptions the model sees for each tool and parameter.
 - **Prompt preview** — see the exact system prompt and tool schemas a preset produces, without starting an agent.
 - **Execution settings** — override plugin configuration for one preset only.
@@ -68,7 +68,7 @@ Restart the web GUI, then open **DSH Studio** from the sidebar.
 
 ## Quick start
 
-1. Open **DSH Studio** and select **Edit** (or **Create copy**) on *Optimized*.
+1. Open **DSH Studio** and select **Create copy** on *Optimized* (the built-in itself is locked).
 2. Adjust instructions, tools, execution settings and subagent roles, then **Save preset**.
 3. In **Preset list**, select **Apply to DSH**.
 4. Start a new session and choose your preset in DSH's preset picker.

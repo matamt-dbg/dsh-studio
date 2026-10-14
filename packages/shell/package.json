@@ -1,6 +1,6 @@
 {
   "name": "@matamt-dbg/dsh-studio",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DSH Studio: build, edit and apply DeepSeek Harness agent presets — tools, prompts, Configs and role-based subagents — from the web GUI.",
   "keywords": [
     "deepseek-harness",
