@@ -38,7 +38,6 @@ test('invalid overrides and excess scoped tools fail without leaving restriction
   const {ctx, parent, child, key} = await setup(); ctx.tools.register(tool('read')); ctx.tools.register(tool('write'));
   try {
     assert.throws(() => installPolicy(child.ctx, key, policy({ toolOverrides: { read: { parameters: { typo: 'x' } } } })), /Unknown parameter/);
-    assert.throws(() => installPolicy(child.ctx, key, policy({ tools: ['missing'] })), /Unavailable/);
     assert.throws(() => installPolicy(child.ctx, key, policy({ sections: { unknown: 'x' } })), /Unsupported/);
     parent.ctx.tools.register(tool('inherited'));
     const release = installPolicy(child.ctx, key, policy({}));
@@ -49,11 +48,23 @@ test('invalid overrides and excess scoped tools fail without leaving restriction
     assert.ok(ctx.tools.get('write', key));
   } finally { await child.dispose(); await parent.dispose(); }
 });
+test('a tool this host does not provide is skipped so the preset stays portable', async () => {
+  const {ctx, parent, child, key} = await setup(); ctx.tools.register(tool('read'));
+  const warnings = []; const originalWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.join(' '));
+  try {
+    const release = installPolicy(child.ctx, key, policy({ tools: ['read', 'missing'] }));
+    assert.deepEqual(ctx.tools.schemas(key).map(t => t.name), ['read']);
+    assert.match(warnings.join('\n'), /missing/);
+    release();
+    assert.ok(ctx.tools.get('read', key));
+  } finally { console.warn = originalWarn; await child.dispose(); await parent.dispose(); }
+});
 test('download bundle adds policy dependency and preset declaration without mutating compiled rows', () => {
   const plugins = load('- name: "@deepseek-ai/dsh-persona"\n  disabled: !!js process.platform === "win32"\n  config:\n    complete: false\n', { schema: entryListSchema });
   const {files} = createPresetBundle({ id: 'my-policy', title: 'My policy', plugins, policy: policy({}) });
   assert.equal(plugins.length, 1);
-  assert.equal(JSON.parse(files['package.json']).dependencies['@matamt-dbg/dsh-studio'], '0.2.1');
+  assert.equal(JSON.parse(files['package.json']).dependencies['@matamt-dbg/dsh-studio'], '0.2.2');
   assert.match(files['cordis.patch.yml'], /!!js/);
   const config = load(files['cordis.patch.yml'], { schema: entryListSchema })[0].insert[0].config;
   assert.deepEqual(config.plugins[0].disabled, plugins[0].disabled);

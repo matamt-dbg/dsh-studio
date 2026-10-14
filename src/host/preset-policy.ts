@@ -56,10 +56,16 @@ function patchParameter(parameters: Record<string, unknown>, path: string, descr
 export function installPolicy(ctx: Context, scopeKey: object, config: PresetPolicyConfig): () => void {
   validatePolicy(config);
   if (scopeOf(ctx) !== scopeKey) throw new Error('Studio policy requires its owning scoped context');
-  const selected = new Set(config.tools);
-  const definitions = config.tools.map(name => {
-    const definition = ctx.tools.get(name, scopeKey);
-    if (!definition) throw new Error(`Unavailable selected tool: ${name}`);
+  // A preset travels between hosts. A tool the author selected may simply not be
+  // provided here — another bundle owns it on the host where the preset was authored,
+  // or this host has no such plugin at all. Drop it and keep the preset portable;
+  // failing the agent would make an environment difference look like a preset defect.
+  const missing = config.tools.filter(name => ctx.tools.get(name, scopeKey) === undefined);
+  if (missing.length) console.warn(`Studio policy: ${missing.length} selected tool(s) unavailable on this host, skipped: ${missing.join(', ')}`);
+  const available = config.tools.filter(name => !missing.includes(name));
+  const selected = new Set(available);
+  const definitions = available.map(name => {
+    const definition = ctx.tools.get(name, scopeKey)!;
     const override = config.toolOverrides[name];
     const defaults = config.execution?.defaults[name];
     const batch = config.execution?.batch?.tool === name ? config.execution.batch : undefined;
@@ -88,7 +94,7 @@ export function installPolicy(ctx: Context, scopeKey: object, config: PresetPoli
   const disposers: Array<() => void> = [];
   const dispose = () => { for (const release of disposers.splice(0).reverse()) release(); };
   try {
-    disposers.push(ctx.tools.restrict({ allow: config.tools }));
+    disposers.push(ctx.tools.restrict({ allow: available }));
     // Restrictions mask ancestors, but leave this layer's own definitions visible.
     const excess = ctx.tools.schemas(scopeKey).filter(tool => !selected.has(tool.name));
     if (excess.length) throw new Error(`Unselected scoped tools must be removed from preset plugins: ${excess.map(tool => tool.name).join(', ')}`);
