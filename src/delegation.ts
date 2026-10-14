@@ -6,6 +6,8 @@ export const GENERIC_DELEGATION_TOOLS: readonly string[] = ['subagent', 'subagen
 import { ROLE_PLUGIN } from './package-name.ts';
 export { ROLE_PLUGIN };
 const SUBAGENT_PLUGIN = '@deepseek-ai/dsh-tool-subagent';
+/** Plugins whose role subagent_role takes over; their Config never reaches a Studio preset. */
+export const isDelegationPlugin = (name: string) => name === SUBAGENT_PLUGIN || name === ROLE_PLUGIN;
 
 /** Tools no longer offered by the Studio Master; saved presets drop them instead of failing to apply. */
 export const WITHDRAWN_TOOLS: readonly string[] = ['task_run'];
@@ -20,7 +22,7 @@ export function delegationTools(tools: readonly string[], hasRoles = false): str
 type Row = { name: string; group?: boolean; config?: unknown };
 /** Drop generic subagent tool plugins and any baseline role tool so the preset's own role plugin is the only provider. */
 export function withoutDelegationPlugins<T extends Row>(rows: T[]): T[] {
-  return rows.filter(row => row.name !== SUBAGENT_PLUGIN && row.name !== ROLE_PLUGIN)
+  return rows.filter(row => !isDelegationPlugin(row.name))
     .map(row => row.group && Array.isArray(row.config) ? { ...row, config: withoutDelegationPlugins(row.config as T[]) } : row);
 }
 

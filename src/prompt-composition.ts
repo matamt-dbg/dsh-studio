@@ -12,7 +12,7 @@ export const promptProviderModules = [
 ] as const;
 export interface PromptProvider { name: string; description: string; fields?: ProviderField[] }
 export interface ToolOverride { description?: string; parameters?: Record<string, string> }
-export interface PreviewRequest { configOverrides?: ConfigOverrides; preset: string; providers: string[]; tools: string[]; prompt: string; model: string; persona?: string; toolOverrides?: Record<string, ToolOverride>; sections?: Record<string, string>; providerConfigs?: Record<string, Record<string, unknown>>; execution?: ExecutionDefaults }
+export interface PreviewRequest { configOverrides?: ConfigOverrides; preset: string; providers: string[]; tools: string[]; prompt: string; model: string; persona?: string; toolOverrides?: Record<string, ToolOverride>; sections?: Record<string, string>; providerConfigs?: Record<string, Record<string, unknown>>; execution?: ExecutionDefaults; subagentToolFilter?: { deny: string[] } }
 export interface PresetBundle { files: Record<string, string> }
 export type ExportAction = (request: PreviewRequest) => Promise<PresetBundle>;
 /** Runtime schema used by the public Remote input codec. */
@@ -28,11 +28,14 @@ export function parsePreviewRequest(value: unknown): PreviewRequest {
   if (row.providerConfigs !== undefined && (!record(row.providerConfigs) || Object.values(row.providerConfigs).some(v => !record(v)))) throw new Error('Invalid provider configs');
   if (row.configOverrides !== undefined) validateConfigOverrides(row.configOverrides);
   if (row.execution !== undefined) validateExecutionDefaults(row.execution);
+  const filter = row.subagentToolFilter as { deny?: unknown } | undefined;
+  if (filter !== undefined && (!record(filter) || !strings(filter.deny) || filter.deny.some(name => !name))) throw new Error('Invalid subagent tool filter');
   return { ...(row.configOverrides !== undefined ? { configOverrides: row.configOverrides as ConfigOverrides } : {}), ...(row.execution !== undefined ? { execution: row.execution } : {}), preset: row.preset, providers: [...row.providers], tools: [...row.tools], prompt: row.prompt, model: row.model,
     ...(row.persona !== undefined ? { persona: row.persona as string } : {}),
     ...(row.sections !== undefined ? { sections: row.sections as Record<string,string> } : {}),
     ...(row.toolOverrides !== undefined ? { toolOverrides: row.toolOverrides as Record<string,ToolOverride> } : {}),
     ...(row.providerConfigs !== undefined ? { providerConfigs: row.providerConfigs as Record<string,Record<string,unknown>> } : {}),
+    ...(filter !== undefined && (filter.deny as string[]).length ? { subagentToolFilter: { deny: [...new Set(filter.deny as string[])] } } : {}),
   };
 }
 export interface PreviewResult { prompt: string; sections: { name: string; text: string }[]; context: string; tools: { name: string; description: string; parameters: Record<string, unknown> }[] }

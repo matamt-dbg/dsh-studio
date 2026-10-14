@@ -1,6 +1,5 @@
 node_modules/
 dist/
-.dsh-home/
 packages/*/client.js
 packages/*/index.js
 packages/*/delegation-tool.js

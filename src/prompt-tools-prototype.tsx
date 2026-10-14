@@ -44,7 +44,8 @@ export function PromptToolsPrototype({ locale, prompt, onPromptChange, provided,
   const labels = { filter: t('보기', 'Show', '显示'), search: t('도구 검색', 'Search tools', '搜索工具'), searchHint: t('이름, 설명, 인자로 검색', 'Search names, descriptions or parameters', '按名称、描述或参数搜索'), all: t('전체', 'All', '全部'), selected: t('선택됨', 'Selected', '已选'), modified: t('변경됨', 'Modified', '已修改'), settings: t('설정', 'Details', '详情'), done: t('완료', 'Close', '关闭'), empty: t('항목이 없습니다.', 'No items', '无项目'), noResults: t('검색 결과가 없습니다.', 'No matching results.', '没有匹配结果。'), modifiedTag: t('변경됨', 'Modified', '已修改'), clear: t('전체 보기', 'Show all', '显示全部') };
   // A tool set counts as included whenever all its tools are selected, so copied or edited presets toggle the same as fresh drafts.
   // Generic subagent tools are folded into subagent_role, so a set's delegation tools map to that one tool.
-  const presetTools = (presetId: string) => delegationTools(presets.find(p => p.id === presetId)?.tools.map(tool => tool.name) ?? []);
+  const unsupportedToolReason = t('현재 Studio에서 run_code는 지원하지 않습니다. PTC를 사용하려면 DSH의 PTC 프리셋으로 새 세션을 시작해 주세요. 이미 선택된 경우에는 해제해 주세요.', 'Studio does not currently support run_code. To use PTC, start a new session with DSH’s PTC preset. If run_code is already selected, deselect it.', 'Studio 目前不支持 run_code。如需使用 PTC，请使用 DSH 的 PTC 预设启动新会话。若已选择 run_code，请取消选择。');
+  const presetTools = (presetId: string) => delegationTools(presets.find(p => p.id === presetId)?.tools.map(tool => tool.name) ?? []).filter(name => name !== 'run_code');
   const togglePreset = (presetId: string) => {
     const names = presetTools(presetId);
     onProvidedChange(includesPreset(presetId) ? provided.filter(name => !names.includes(name)) : [...new Set([...provided, ...names])]);
@@ -66,7 +67,7 @@ export function PromptToolsPrototype({ locale, prompt, onPromptChange, provided,
   return <React.Fragment>
     {catalogError ? <Note>{catalogError}</Note> : !catalog ? <Note>{t('불러오는 중…', 'Loading…', '正在加载…')}</Note> : null}
     <section className="studio-form-section">
-    <SectionHead title={t('프롬프트', 'Prompt composition', '提示词组装')} description={t('에이전트에게 전달할 지침을 편집합니다. 미리보기로 조립 결과를 확인할 수 있습니다.', 'Edit Persona and Studio instructions, then preview the assembled result.', '编辑 Persona 与 Studio 专用指令，并预览组装结果。')} actions={<Button small disabled={!onPreview || !current || busy} onClick={() => void preview()}>{busy ? t('조립 중…', 'Assembling…', '组装中…') : t('프롬프트 미리보기', 'Preview prompt', '预览提示词')}</Button>} />
+    <SectionHead title={t('프롬프트', 'Prompt composition', '提示词组装')} description={t('에이전트에게 전달할 지침을 편집합니다. 미리보기로 조립 결과를 확인할 수 있습니다.', 'Edit the instructions the agent receives, then preview the assembled result.', '编辑 Persona 与 Studio 专用指令，并预览组装结果。')} actions={<Button small disabled={!onPreview || !current || busy} onClick={() => void preview()}>{busy ? t('조립 중…', 'Assembling…', '组装中…') : t('프롬프트 미리보기', 'Preview prompt', '预览提示词')}</Button>} />
     {(['prefix', 'suffix'] as const).map(key => {
       const name = providers[0]!;
       const config = providerConfigs[name] ?? {};
@@ -77,9 +78,9 @@ export function PromptToolsPrototype({ locale, prompt, onPromptChange, provided,
     <label className="studio-field"><span>{t('추가 지침', 'Additional Studio instructions', 'Studio 附加指令')}</span><textarea rows={6} value={prompt} onChange={e => onPromptChange(e.target.value)} /></label>
     </section>
     <section className="studio-form-section">
-    <SectionHead title={t('도구', 'Provided tools', '提供的工具')} description={t('에이전트가 쓸 도구를 고릅니다. 설정에서 모델에 보이는 설명을 바꿀 수 있으며, 도구 동작은 바뀌지 않습니다.', 'Choose tools. Details edits model-facing descriptions only; tool behavior is unchanged.', '选择工具。详情只编辑模型可见的描述，工具行为不变。')} />
-    <div className="studio-field"><span>{t('기본 프리셋에서 한 번에 추가', 'Include a built-in preset tool set', '引入内置预设工具集')}</span><div className="studio-inline-actions">{toolSources.map(p => <Button small key={p.id} disabled={!!p.error} aria-pressed={includesPreset(p.id)} onClick={() => togglePreset(p.id)}>{p.id === 'cordis' ? 'creator (cordis)' : p.id}</Button>)}</div></div>
-    <ItemPicker label={t('도구', 'Provided tools', '提供的工具')} items={[...tools.map(tool => ({ ...tool, searchText: JSON.stringify(tool.parameters), ...(GENERIC_DELEGATION_TOOLS.includes(tool.name) ? { disabledReason: t(`${ROLE_TOOL}로 통합되었습니다. 서브에이전트 위임은 ${ROLE_TOOL}을 선택하세요.`, `Merged into ${ROLE_TOOL}. Select ${ROLE_TOOL} for subagent delegation.`, `已合并到 ${ROLE_TOOL}。请选择 ${ROLE_TOOL} 进行子代理委派。`) } : {}) })), ...provided.filter(name => !tools.some(tool => tool.name === name)).map(name => ({ name, description: t('현재 설치된 도구 목록에 없습니다.', 'Absent from current catalog', '不在当前目录中') }))]} selected={provided} onChange={changeTools} labels={labels} isModified={name => {
+    <SectionHead title={t('도구', 'Provided tools', '提供的工具')} description={t('에이전트가 쓸 도구를 고릅니다. 설정에서 모델에 보이는 설명을 바꿀 수 있으며, 도구 동작은 바뀌지 않습니다.', 'Choose the tools the agent can use. Details changes only the descriptions the model sees; tool behavior stays the same.', '选择工具。详情只编辑模型可见的描述，工具行为不变。')} />
+    <div className="studio-field"><span>{t('기본 프리셋에서 한 번에 추가', 'Include a built-in preset tool set', '引入内置预设工具集')}</span><div className="studio-inline-actions">{toolSources.map(p => <Button small key={p.id} disabled={!!p.error || !presetTools(p.id).length} aria-pressed={includesPreset(p.id)} onClick={() => togglePreset(p.id)}>{p.id === 'cordis' ? 'creator (cordis)' : p.id}</Button>)}</div></div>
+    <ItemPicker label={t('도구', 'Provided tools', '提供的工具')} items={[...tools.map(tool => ({ ...tool, searchText: JSON.stringify(tool.parameters), ...(tool.name === 'run_code' ? { description: unsupportedToolReason, disabledReason: unsupportedToolReason } : {}), ...(GENERIC_DELEGATION_TOOLS.includes(tool.name) ? { disabledReason: t(`${ROLE_TOOL}로 통합되었습니다. 서브에이전트 위임은 ${ROLE_TOOL}을 선택하세요.`, `Merged into ${ROLE_TOOL}. Select ${ROLE_TOOL} for subagent delegation.`, `已合并到 ${ROLE_TOOL}。请选择 ${ROLE_TOOL} 进行子代理委派。`) } : {}) })), ...provided.filter(name => !tools.some(tool => tool.name === name)).map(name => ({ name, description: name === 'run_code' ? unsupportedToolReason : t('현재 프로필에 없는 도구입니다. 이대로 반영하면 실패합니다.', 'Not available in this profile. Applying will fail.', '当前配置文件中没有此工具，直接应用会失败。'), ...(name === 'run_code' ? { disabledReason: unsupportedToolReason } : {}) }))]} selected={provided} onChange={changeTools} labels={labels} hasDetails={name => name !== 'run_code'} isModified={name => {
       const tool = tools.find(item => item.name === name);
       const override = toolOverrides[name];
       const parameters = parameterFields(tool?.parameters);
@@ -97,13 +98,13 @@ export function PromptToolsPrototype({ locale, prompt, onPromptChange, provided,
         <SectionHead title={t('인자 설명', 'Parameter descriptions', '参数描述')} description={t('설명 문구만 바꿀 수 있습니다. 이름, 타입, 필수 여부는 그대로입니다.', 'Edit only description text within the tool schema. Names, types, required status and constraints remain unchanged.', '仅编辑工具定义中的说明文字。名称、类型、必填状态与约束保持不变。')} />
         {!parameters.length && <Note>{t('편집 가능한 인자가 없습니다.', 'No editable parameters.', '没有可编辑的参数。')}</Note>}
         {parameters.map(parameter => <label className="studio-field" key={parameter.path}><span>{parameter.path} <span className="studio-schema-meta">{parameter.type} · {parameter.required ? t('필수', 'required', '必填') : t('선택', 'optional', '可选')}</span></span><textarea aria-label={parameter.path} value={override?.parameters?.[parameter.path] ?? parameter.description} onChange={e => setToolOverrides({ ...toolOverrides, [name]: { ...override, parameters: { ...override?.parameters, [parameter.path]: e.target.value } } })} /></label>)}
-        <Button small disabled={!override} onClick={() => { const next = { ...toolOverrides }; delete next[name]; setToolOverrides(next); }}>{t('설명 모두 원래대로', 'Use original', '使用原始值')}</Button>
+        <Button small disabled={!override} onClick={() => { const next = { ...toolOverrides }; delete next[name]; setToolOverrides(next); }}>{t('설명 모두 원래대로', 'Reset all descriptions', '全部恢复原始描述')}</Button>
       </>;
 
     }} />
     </section>
 
-    <DetailDialog wide open={previewOpen} title={t('프롬프트 미리보기', 'Prompt result preview', '提示词结果预览')} closeLabel={t('닫기', 'Close preview', '关闭预览')} onClose={closePreview}
+    <DetailDialog wide open={previewOpen} title={t('프롬프트 미리보기', 'Prompt preview', '提示词结果预览')} closeLabel={t('닫기', 'Close preview', '关闭预览')} onClose={closePreview}
       subtitle={result ? t(`섹션 ${result.sections.length}개 · 도구 ${result.tools.length}개`, `${result.sections.length} sections · ${result.tools.length} tools`, `${result.sections.length} 个章节 · ${result.tools.length} 个工具`) : undefined}>
       {busy && <p role="status" className="studio-muted">{t('조립 중…', 'Assembling…', '组装中…')}</p>}
       {error && <p role="alert">{error}</p>}

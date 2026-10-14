@@ -5,6 +5,41 @@ import { JSDOM } from 'jsdom';
 import { PromptToolsPrototype, defaultProvidedTools } from '../src/prompt-tools-prototype.tsx';
 import { promptProviders, selectPromptProviders } from '../src/prompt-composition.ts';
 
+test('run_code cannot be selected directly or via presets; legacy selections can only be removed', async () => {
+  const dom = new JSDOM('<div id="root"></div>');
+  globalThis.window = dom.window; globalThis.document = dom.window.document;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const { createRoot } = await import('react-dom/client');
+  const root = createRoot(document.getElementById('root'));
+  const tools = ['read', 'run_code'].map(name => ({ name, description: name }));
+  const catalog = { tools, presets: [
+    { id: 'studio-master', tools, sections: [] },
+    { id: 'standard', tools, sections: [] },
+    { id: 'ptc', tools: [tools[1]], sections: [] },
+  ] };
+  let selected;
+  function Harness({ initial = [] }) {
+    const [provided, onProvidedChange] = React.useState(initial); selected = provided;
+    return React.createElement(PromptToolsPrototype, { catalog, locale: 'en', prompt: '', onPromptChange() {}, provided, onProvidedChange });
+  }
+  const toggle = () => document.querySelector('button[role="switch"][aria-label="run_code"]');
+  try {
+    await act(async () => root.render(React.createElement(Harness)));
+    assert.equal(toggle().disabled, true);
+    assert.match(toggle().textContent, /does not currently support run_code/);
+    assert.match(toggle().textContent, /start a new session with DSH’s PTC preset/);
+    await act(async () => toggle().click()); assert.deepEqual(selected, []);
+    const preset = name => [...document.querySelectorAll('button')].find(button => button.textContent === name);
+    assert.equal(preset('ptc').disabled, true);
+    await act(async () => preset('standard').click()); assert.deepEqual(selected, ['read']);
+    await act(async () => root.render(React.createElement(Harness, { key: 'legacy', initial: ['run_code'] })));
+    assert.equal(toggle().disabled, false);
+    assert.equal(document.querySelector('button[aria-label="Details: run_code"]'), null);
+    await act(async () => toggle().click()); assert.deepEqual(selected, []);
+    assert.equal(toggle().disabled, true);
+  } finally { await act(async () => root.unmount()); dom.window.close(); }
+});
+
 test('prompt providers are explicitly classified and nested dependencies preserved', () => {
   const rows = [{ name: 'cordis:group', group: true, config: [{ name: '@deepseek-ai/dsh-persona', config: { prefix: 'Hello' } }, { name: 'tool-provider' }] }];
   assert.equal(promptProviders(rows)[0].name, '@deepseek-ai/dsh-persona');

@@ -30,11 +30,13 @@ Studio also ships **Optimized**, a starting preset built on a simple idea: an ag
 
 Compared with the stock setup, Optimized
 
-- **trims the tool surface** to 22 everyday tools, dropping goal/todo tracking, runtime introspection and plugin management tools that rarely help a coding task (they stay available in Studio Master);
+- **keeps a fixed tool surface**: an allow list of 22 everyday tools, so installing another plugin never enlarges the preset. It drops goal/todo tracking, runtime introspection, plugin management and environment/media tools that rarely help a coding task (you can still select them from Studio Master when your profile provides them);
 - **folds delegation into one tool**, `subagent_role`, instead of several generic subagent tools;
 - **adds working instructions and tunes tool descriptions** so the model batches independent reads, waits for background work instead of polling it, collects the jobs it starts, and keeps checks proportional before reporting.
 
 In our early internal benchmarks, this preset performed noticeably better than DSH's stock `standard` preset.
+
+Optimized is locked and follows the installed Studio version: on startup Studio resets it to that version's tools and defaults, and never touches your copies.
 
 Optimized is tuned for **coding-agent work**. It is a starting point, not a fixed recipe: copy it and adjust the tools, instructions, tool descriptions and plugin Configs to fit your own tasks. See [Adapt Optimized to your work](docs/guide.md#adapt-optimized-to-your-work).
 
@@ -45,16 +47,17 @@ Optimized is tuned for **coding-agent work**. It is a starting point, not a fixe
 Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.
 
 ```sh
-dsh plugin --profile web add @matamt-dbg/dsh-studio
+dsh plugin --profile web add @matamt-dbg/dsh-studio       # dsh web
+dsh plugin --profile desktop add @matamt-dbg/dsh-studio   # desktop app: quit the app first
 ```
 
-Restart the web GUI, then open **DSH Studio** from the sidebar.
+Restart the web GUI or the app, then open **DSH Studio** from the sidebar. Each profile keeps its own presets and its own set of tools.
 
 ## Features
 
 ![Preset list](docs/images/en/preset-list.png)
 
-- **Presets** — a read-only *Studio Master* with every available tool, a locked built-in *Optimized* preset (22 everyday tools) to copy from, and your own presets. Edit, copy, delete, apply to DSH, or unapply.
+- **Presets** — a read-only *Studio Master* with every tool available in this profile, a locked built-in *Optimized* preset (22 everyday tools) to copy from, and your own presets. Edit, copy, delete, apply to DSH, or unapply.
 - **Prompts & tools** — edit persona and additional instructions, pick tools (or whole built-in tool sets), and rewrite the descriptions the model sees for each tool and parameter.
 - **Prompt preview** — see the exact system prompt and tool schemas a preset produces, without starting an agent.
 - **Execution settings** — override plugin configuration for one preset only.
@@ -74,6 +77,8 @@ Restart the web GUI, then open **DSH Studio** from the sidebar.
 4. Start a new session and choose your preset in DSH's preset picker.
 
 Presets are stored per profile in `studio-data/`. Applying a preset registers a Studio-owned DSH agent preset; it never edits other presets or the profile's packages.
+
+A preset runs only with the tools it selects. If the profile does not provide one of them (for example `load_workspace_dependencies` outside the desktop app), applying or starting the preset fails instead of silently dropping the tool. See [Tools that depend on your profile](docs/guide.md#tools-that-depend-on-your-profile).
 
 ## Development
 

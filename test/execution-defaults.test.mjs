@@ -48,8 +48,10 @@ test('scoped adapter preserves definition callbacks, original receiver, and disp
     presentCall() {}, presentResult() {}, finalizeContent() {}, projectContent() {}, isConcurrencySafe() { return false; } };
   ctx.provide('tools');
   ctx.provide('systemPrompt');
-  ctx.set('tools', { get: () => original, schemas: () => [original],
-    restrict: () => () => releases.push('restrict'), guard: () => () => releases.push('guard'),
+  const restrictions = new Set();
+  ctx.set('tools', { get: name => name === original.name ? original : undefined,
+    schemas: () => [...restrictions].every(filter => filter.allow.includes(original.name)) ? [original] : [],
+    restrict: filter => { restrictions.add(filter); return () => { restrictions.delete(filter); releases.push('restrict'); }; }, guard: () => () => releases.push('guard'),
     register: definition => { registrations.push(definition); return () => releases.push('tool'); } });
   ctx.set('systemPrompt', { section: () => () => releases.push('section') });
   try {
@@ -63,7 +65,7 @@ test('scoped adapter preserves definition callbacks, original receiver, and disp
     assert.equal(observed.args.timeoutMs, 50);
     assert.equal(original.parameters.properties.timeoutMs.default, undefined);
     dispose(); dispose();
-    assert.deepEqual(releases, ['section', 'tool', 'guard', 'restrict']);
+    assert.deepEqual(releases, ['restrict', 'section', 'tool', 'guard', 'restrict']);
     original.name = 'read_batch';
     original.parameters = { type: 'object', properties: { calls: { type: 'array', minItems: 1, maxItems: 8 } } };
     const disposeBatch = installPolicy(child.ctx, key, { tools: ['read_batch'], toolOverrides: {}, sections: {}, prompt: '', execution: { defaults: {}, batch: { tool: 'read_batch', parameter: 'calls', maxItems: 2 } } });

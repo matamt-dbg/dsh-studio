@@ -1,4 +1,4 @@
-import { applyConfigOverrides } from '../config-overrides.ts';
+import { applyConfigOverrides, configEntries } from '../config-overrides.ts';
 import { MASTER_PRESET_ID } from '../master-preset.ts';
 import { providerFields } from '../provider-fields.ts';
 import type { Context } from '@deepseek-ai/cordis';
@@ -17,13 +17,27 @@ function findProviders(rows: CompositionRow[]): CompositionRow[] {
   return rows.flatMap(row => row.disabled === true ? [] : row.group && Array.isArray(row.config)
     ? findProviders(row.config) : (promptProviderModules as readonly string[]).includes(row.name) ? [row] : []);
 }
+function normalizeRetention(config: Record<string, unknown>, overrides?: Record<string, unknown>) {
+  if (overrides?.retainTokens !== undefined && overrides.retainRatio !== undefined) {
+    throw new Error('Compaction retainRatio and retainTokens are mutually exclusive');
+  }
+  if (overrides?.retainTokens !== undefined) delete config.retainRatio;
+  if (overrides?.retainRatio !== undefined) delete config.retainTokens;
+}
 /** Server-owned declarations only; client input never supplies module names or executable YAML. */
 export async function compositionPlan(ctx: Context, input: PreviewRequest) {
   const request = parsePreviewRequest(input);
-  const base = request.preset === MASTER_PRESET_ID ? MASTER_PRESET_ID : 'minimal';
+  const base = request.preset;
   if (request.configOverrides && base !== MASTER_PRESET_ID) throw new Error('Config overrides require Studio Master');
-  const minimal = applyConfigOverrides(parseComposition((await ctx.agentPresets.readDocument(base)).content), request.configOverrides ?? {});
-  const available = new Map(findProviders(minimal).map(row => [row.name, row]));
+  const source = applyConfigOverrides(parseComposition((await ctx.agentPresets.readDocument(base)).content), request.configOverrides ?? {});
+  if (request.configOverrides && Object.keys(request.configOverrides).length) {
+    for (const { id, row } of configEntries(source)) {
+      if (row.name === '@deepseek-ai/dsh-compaction-basic') {
+        normalizeRetention(row.config as Record<string, unknown>, request.configOverrides[id]);
+      }
+    }
+  }
+  const available = new Map(findProviders(source).map(row => [row.name, row]));
   const presets = await ctx.agentPresets.list();
   for (const preset of presets) {
     if (base === MASTER_PRESET_ID || !['minimal', 'standard', 'ptc', 'cordis'].includes(preset.id)) continue;
@@ -53,33 +67,21 @@ export async function compositionPlan(ctx: Context, input: PreviewRequest) {
       if (request.persona !== undefined) config.prefix = request.persona;
     }
     if (name === '@deepseek-ai/dsh-compaction-basic') {
-      if (overrides?.retainTokens !== undefined && overrides.retainRatio === undefined) delete config.retainRatio;
-      if (overrides?.retainRatio !== undefined && overrides.retainTokens === undefined) delete config.retainTokens;
+      normalizeRetention(config, overrides);
     }
     return { ...row, id: `studio-provider-${index}`, config };
   });
   if (request.persona !== undefined && !request.providers.includes('@deepseek-ai/dsh-persona')) throw new Error('Select persona before editing its prefix');
   for (const name of Object.keys(request.providerConfigs ?? {})) if (!request.providers.includes(name)) throw new Error(`Unselected provider override: ${name}`);
-  const globalNames = new Set(ctx.tools.schemas().map(tool => tool.name));
-  const missing = request.tools.filter(name => !globalNames.has(name));
-  if (missing.length || base === MASTER_PRESET_ID) {
-    // Keep provider closures and dependency realms together; never transplant live definitions
-    // from a different preset scope. Prefer minimal, otherwise one compatible source composition.
-    let source: CompositionRow[] | undefined;
-    const candidates = base === MASTER_PRESET_ID ? [MASTER_PRESET_ID] : ['minimal', ...presets.map(p => p.id).filter(id => id !== 'minimal' && !id.startsWith('studio-'))];
-    for (const id of candidates) {
-      let lease: Awaited<ReturnType<typeof ctx.agentPresets.acquireScope>> | undefined;
-      try {
-        lease = await ctx.agentPresets.acquireScope(id);
-        const names = new Set(ctx.tools.schemas(lease.key).map(tool => tool.name));
-        if (missing.every(name => names.has(name))) {
-          source = id === base ? minimal : parseComposition((await ctx.agentPresets.readDocument(id)).content);
-          break;
-        }
-      } catch { /* Try another registered composition. */ }
-      finally { await lease?.[Symbol.asyncDispose](); }
-    }
-    if (!source) throw new Error(`No compatible installed tool composition supplies: ${missing.join(', ')}. Tools from incompatible source scopes cannot be combined safely.`);
+  if (request.tools.length || base === MASTER_PRESET_ID) {
+    // Bind tool implementations and their dependency realms to the requested declaration,
+    // even when a same-named global tool exists. Never substitute another preset.
+    const lease = await ctx.agentPresets.acquireScope(base);
+    try {
+      const names = new Set(ctx.tools.schemas(lease.key).map(tool => tool.name));
+      const missing = request.tools.filter(name => !names.has(name));
+      if (missing.length) throw new Error(`Requested preset ${base} does not supply tools: ${missing.join(', ')}. Tools from other source scopes cannot be substituted safely.`);
+    } finally { await lease[Symbol.asyncDispose](); }
     plugins.push(...selectPromptProviders(source, []) as typeof plugins);
   }
   // Preserve private service ownership when hoisting selected providers out of preset groups.

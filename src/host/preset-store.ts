@@ -1,4 +1,6 @@
 import { OPTIMIZED_PRESET_ID, optimizedTemplate } from '../optimized-preset.ts';
+import { createScope } from '@deepseek-ai/dsh-scope';
+import { installPolicy, type PresetPolicyConfig } from './preset-policy.ts';
 import { applyConfigOverrides } from '../config-overrides.ts';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
@@ -8,7 +10,7 @@ import { dump } from 'js-yaml';
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include';
 import { parsePreviewRequest, type PreviewRequest } from '../prompt-composition.ts';
 import { compositionPlan, parseComposition } from './composition-plan.ts';
-import { executableRoles, parseRoles } from '../role-settings.ts';
+import { executableRoles, parseRoles, roleToolFilter } from '../role-settings.ts';
 import { delegationTools, migratePolicyConfig, renameLegacyRoleKey, ROLE_PLUGIN, ROLE_TOOL, withoutDelegationPlugins } from '../delegation.ts';
 import type { CompositionRow } from '../prompt-composition.ts';
 
@@ -20,7 +22,7 @@ export interface StudioPreset {
 }
 interface StoredPreset extends StudioPreset { applied?: { name: string; description: string; plugins: string } }
 const owned = (id: string) => id === OPTIMIZED_PRESET_ID || /^studio-user-[a-f0-9-]{36}$/.test(id);
-const warning = 'Work convenience settings are saved but not applied yet. Legacy role overrides are stored only; roles apply only their supported settings.';
+const retiredLegacyWarning = 'Work convenience settings are saved but not applied yet. Legacy role overrides are stored only; roles apply only their supported settings.';
 
 import { validateRoleModel } from './role-validation.ts';
 import { currentPluginName, LEGACY_PACKAGE_NAME, POLICY_PLUGIN } from '../package-name.ts';
@@ -64,6 +66,7 @@ export class PresetStore {
           if (!owned(row.id)) throw new Error('Invalid Studio preset ownership');
           parsePreviewRequest(row.request);
           migrateLegacyNames(row);
+          if (row.applyWarning === retiredLegacyWarning) delete row.applyWarning;
         }
       } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
       for (const row of this.rows) if (row.applied) {
@@ -73,10 +76,30 @@ export class PresetStore {
     })();
   }
   private async mount(id: string, definition: NonNullable<StoredPreset['applied']>) {
-    const dispose = await this.ctx.agentPresets.register({ id, name: definition.name, description: definition.description, plugins: parseComposition(definition.plugins) as never });
+    const plugins = parseComposition(definition.plugins);
+    const dispose = await this.ctx.agentPresets.register({ id, name: definition.name, description: definition.description, plugins: plugins as never });
     try {
       const preset = await this.ctx.agentPresets.resolve(id);
       if (preset.broken) throw new Error(preset.broken);
+      // Loader activation does not create an Agent: validate its policy in a disposable
+      // child as well, so missing tools and invalid overrides cannot appear applied.
+      const policies = (rows: CompositionRow[]): PresetPolicyConfig[] => rows.flatMap(row => row.disabled === true ? []
+        : row.group && Array.isArray(row.config) ? policies(row.config as CompositionRow[])
+          : row.name === POLICY_PLUGIN ? [row.config as unknown as PresetPolicyConfig] : []);
+      const configs = policies(plugins);
+      if (configs.length) {
+        const lease = await this.ctx.agentPresets.acquireScope(id);
+        try {
+          const key = {};
+          const child = createScope(this.ctx, key, { parent: lease.key });
+          const releases: Array<() => void> = [];
+          try { for (const config of configs) releases.push(installPolicy(child.ctx, key, config)); }
+          finally {
+            try { for (const release of releases.reverse()) release(); }
+            finally { await child.dispose(); }
+          }
+        } finally { await lease[Symbol.asyncDispose](); }
+      }
       this.disposers.set(id, dispose);
     } catch (error) { await dispose(); throw error; }
   }
@@ -94,21 +117,49 @@ export class PresetStore {
     return result;
   }
   private public(row: StoredPreset): StudioPreset & { template?: boolean; nonDeletable?: boolean } { const { applied, ...value } = row; return structuredClone({ ...value, ...(row.id === OPTIMIZED_PRESET_ID ? { template: true, nonDeletable: true } : {}) }); }
-  /** Seed once. Later startups retain user edits and explicit unapplied state. */
-  ensureOptimized(tools: string[], plugins: CompositionRow[]) { return this.serial(async () => {
-    const existing = this.rows.find(row => row.id === OPTIMIZED_PRESET_ID);
-    if (existing) return this.public(existing);
-    const template = optimizedTemplate(tools);
-    const request = template.request;
+  /** Compose the Optimized applied snapshot: the template request over the current base composition. */
+  private optimizedApplied(request: PreviewRequest, plugins: CompositionRow[]) {
     const delegates = request.tools.includes(ROLE_TOOL);
     const base = applyConfigOverrides(plugins, request.configOverrides ?? {});
-    const applied = { name: template.name, description: template.description, plugins: dump([...(delegates ? [...withoutDelegationPlugins(base), { id: 'studio-roles', name: ROLE_PLUGIN, config: { roles: [] } }] : base), { id: 'studio-optimized-policy', name: POLICY_PLUGIN, config: { tools: request.tools, toolOverrides: request.toolOverrides, sections: {}, prompt: request.prompt, execution: request.execution } }], { schema: entryListSchema, noRefs: true }) };
+    return dump([...(delegates ? [...withoutDelegationPlugins(base), { id: 'studio-roles', name: ROLE_PLUGIN, config: { roles: [] } }] : base), { id: 'studio-optimized-policy', name: POLICY_PLUGIN, config: { tools: request.tools, toolOverrides: request.toolOverrides, sections: {}, prompt: request.prompt, execution: request.execution } }], { schema: entryListSchema, noRefs: true });
+  }
+  /**
+   * Seed the built-in on first run, then keep it aligned with the shipped template. Optimized is
+   * locked against editing, so its stored request carries no user content — only the applied or
+   * unapplied choice is the user's, and that survives. Without the alignment a profile plugin that
+   * registers a new tool would enlarge the preset forever after its first seed.
+   */
+  ensureOptimized(tools: string[], plugins: CompositionRow[]) { return this.serial(async () => {
+    const template = optimizedTemplate(tools);
+    const existing = this.rows.find(row => row.id === OPTIMIZED_PRESET_ID);
+    if (existing && JSON.stringify(existing.request) === JSON.stringify(template.request)) return this.public(existing);
     const now = new Date().toISOString();
-    const row: StoredPreset = { id: template.id, name: template.name, description: template.description, request: template.request, conveniences: {}, agents: [], updatedAt: now, appliedAt: now, status: 'applied', applied, ...(template.applyWarning ? { applyWarning: template.applyWarning } : {}) };
-    await this.mount(row.id, applied);
-    try { await this.persist([...this.rows, row]); }
-    catch (error) { await this.disposers.get(row.id)?.(); this.disposers.delete(row.id); throw error; }
-    return this.public(row);
+    // Compose the applied snapshot lazily: an unapplied draft never needs the base composition.
+    const buildApplied = () => ({ name: template.name, description: template.description, plugins: this.optimizedApplied(template.request, plugins) });
+    if (!existing) {
+      const applied = buildApplied();
+      const row: StoredPreset = { id: template.id, name: template.name, description: template.description, request: template.request, conveniences: {}, agents: [], updatedAt: now, appliedAt: now, status: 'applied', applied, ...(template.applyWarning ? { applyWarning: template.applyWarning } : {}) };
+      await this.mount(row.id, applied);
+      try { await this.persist([...this.rows, row]); }
+      catch (error) { await this.disposers.get(row.id)?.(); this.disposers.delete(row.id); throw error; }
+      return this.public(row);
+    }
+    const refresh: StoredPreset = { ...existing, name: template.name, description: template.description, request: template.request, updatedAt: now };
+    if (template.applyWarning) refresh.applyWarning = template.applyWarning; else delete refresh.applyWarning;
+    if (existing.applied) {
+      const applied = buildApplied();
+      await this.disposers.get(existing.id)?.(); this.disposers.delete(existing.id);
+      try { await this.mount(existing.id, applied); }
+      catch (error) { try { await this.mount(existing.id, existing.applied); } catch { /* report the original failure */ } throw error; }
+      refresh.applied = applied; refresh.appliedAt = now; refresh.status = 'applied';
+    }
+    try { await this.persist(this.rows.map(row => row.id === existing.id ? refresh : row)); }
+    catch (error) {
+      await this.disposers.get(existing.id)?.(); this.disposers.delete(existing.id);
+      if (existing.applied) { try { await this.mount(existing.id, existing.applied); } catch { /* report the original failure */ } }
+      throw error;
+    }
+    return this.public(refresh);
   }); }
   list() { return this.serial(async () => this.rows.map(row => this.public(row))); }
   save(payload: string) { return this.serial(async () => {
@@ -141,18 +192,24 @@ export class PresetStore {
     const delegates = tools.includes(ROLE_TOOL);
     const keep = <T>(entries: Record<string, T>) => Object.fromEntries(Object.entries(entries).filter(([name]) => tools.includes(name)));
     // Generic subagent tools never ship with a Studio preset; the role tool replaces them, even with no saved roles.
-    const rolePlugins: CompositionRow[] = delegates ? [{ id: 'studio-roles', name: ROLE_PLUGIN, config: { roles } }] : [];
+    // Tools hidden from every subagent. They must be tools the preset selects: DSH rejects a child
+    // filter naming a tool the child could not inherit, so check here instead of at the first call.
+    const presetHidden = old.request.subagentToolFilter?.deny ?? [];
+    const lists = [presetHidden, ...roles.map(role => roleToolFilter(role, presetHidden))];
+    const unknownHidden = [...new Set(lists.flat().filter(name => !tools.includes(name) || name === ROLE_TOOL))];
+    if (delegates && unknownHidden.length) throw new Error(`Subagent Tool Filter may only list tools selected in this preset: ${unknownHidden.join(', ')}`);
+    // The policy may hide any tool some role (or the default) filters; each child hides only its own list.
+    const hideable = delegates ? [...new Set(lists.flat())] : [];
+    const childToolFilter = hideable.length ? { deny: hideable } : undefined;
+    const rolePlugins: CompositionRow[] = delegates ? [{ id: 'studio-roles', name: ROLE_PLUGIN, config: { roles, ...(presetHidden.length ? { toolFilter: { deny: [...presetHidden] } } : {}) } }] : [];
     const execution = request.execution && { ...request.execution, defaults: keep(request.execution.defaults),
       ...(request.execution.batch && !tools.includes(request.execution.batch.tool) ? { batch: undefined } : {}) };
-    const applied = { name: old.name, description: old.description, plugins: dump([...withoutDelegationPlugins(plugins), ...rolePlugins, { id: 'studio-policy', name: POLICY_PLUGIN, config: { tools: [...new Set(tools)], toolOverrides: keep(request.toolOverrides ?? {}), sections: request.sections ?? {}, prompt: request.prompt, ...(execution ? { execution } : {}) } }], { schema: entryListSchema, noRefs: true }) };
+    const applied = { name: old.name, description: old.description, plugins: dump([...withoutDelegationPlugins(plugins), ...rolePlugins, { id: 'studio-policy', name: POLICY_PLUGIN, config: { tools: [...new Set(tools)], toolOverrides: keep(request.toolOverrides ?? {}), sections: request.sections ?? {}, prompt: request.prompt, ...(execution ? { execution } : {}), ...(childToolFilter ? { childToolFilter } : {}) } }], { schema: entryListSchema, noRefs: true }) };
     await this.disposers.get(id)?.(); this.disposers.delete(id);
     try {
       await this.mount(id, applied);
-      const hasLegacySettings = (old.conveniences != null && Object.keys(Object(old.conveniences)).length > 0)
-        || (Array.isArray(old.agents) && old.agents.some(role => role && Object.hasOwn(role, 'overrides')));
       const row: StoredPreset = { ...old, applied, appliedAt: new Date().toISOString(), status: 'applied' };
-      if (hasLegacySettings) row.applyWarning = warning;
-      else delete row.applyWarning;
+      delete row.applyWarning;
       await this.persist(this.rows.map(item => item.id === id ? row : item));
       return this.public(row);
     } catch (error) {

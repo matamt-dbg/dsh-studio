@@ -263,3 +263,30 @@ test('every projected shape edits as a fixed control and replaces the inherited 
     assert.deepEqual(entries[2].config, { modelPolicies: [{ provider: 'route', model: 'model/variant', retainRatio: 0.2 }] }, 'the inherited list is never mutated');
   } finally { await act(async () => root.unmount()); dom.window.close(); }
 });
+
+test('Configs folded into subagent_role are listed but cannot be turned on', async () => {
+  const dom = new JSDOM('<div id="root"></div>');
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const { createRoot } = await import('react-dom/client');
+  const root = createRoot(document.getElementById('root'));
+  const schema = { type: 'object', properties: { maxDepth: { type: 'number' } } };
+  const entries = [
+    { id: 'delegation/tool-subagent', name: '@deepseek-ai/dsh-tool-subagent', schema },
+    { id: 'delegation/tool-subagent-fork', name: '@deepseek-ai/dsh-tool-subagent', schema },
+    { id: 'delegation/studio-master-roles', name: '@matamt-dbg/dsh-studio/roles', schema },
+    { id: 'delegation/tool-subagent-control', name: '@deepseek-ai/dsh-tool-subagent-control', schema },
+  ];
+  let changed = false;
+  try {
+    await act(async () => root.render(React.createElement(ConfigEditor, { entries, value: {}, onChange() { changed = true; }, locale: 'en' })));
+    const toggle = id => document.querySelector(`button[role=switch][aria-label="${entries.find(e => e.id === id).name}"]`);
+    const rows = [...document.querySelectorAll('.studio-picker-row')];
+    const disabled = rows.filter(row => row.querySelector('button[role=switch]').disabled).map(row => row.textContent);
+    assert.equal(disabled.length, 3);
+    for (const text of disabled) assert.match(text, /Merged into subagent_role/);
+    // Subagent control (send_message & co.) is not folded into subagent_role and stays editable.
+    assert.equal(rows.find(row => row.textContent.includes('tool-subagent-control')).querySelector('button[role=switch]').disabled, false);
+    await act(async () => toggle('delegation/tool-subagent')?.click());
+    assert.equal(changed, false);
+  } finally { await act(async () => root.unmount()); dom.window.close(); }
+});
