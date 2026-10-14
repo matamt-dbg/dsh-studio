@@ -5,11 +5,11 @@ import React from 'react';
 export interface DetailPage { id: string; label: string; group?: string; content: React.ReactNode }
 
 /** Render a service's left navigation and independently scrolling detail pages.
- * @param props Service title and subtitle, navigation label, and controlled page selection.
+ * @param props Service title and subtitle, navigation label, controlled page selection, and an optional navigation footer.
  * @returns Navigation with retained inactive pages.
  */
-export function DetailLayout({ title, subtitle, navigation, pages, selected, onSelect }: {
-  title: string; subtitle?: string; navigation: string; pages: readonly DetailPage[];
+export function DetailLayout({ title, subtitle, navigation, pages, selected, onSelect, footer }: {
+  title: string; subtitle?: string; navigation: string; pages: readonly DetailPage[]; footer?: React.ReactNode;
   selected: string; onSelect: (id: string) => void;
 }) {
   const id = React.useId();
@@ -24,6 +24,7 @@ export function DetailLayout({ title, subtitle, navigation, pages, selected, onS
           aria-current={selected === page.id ? 'page' : undefined} aria-controls={`${id}-${page.id}`}
           onClick={() => onSelect(page.id)}>{page.label}</button>
       </React.Fragment>)}
+      {footer}
     </nav>
     <div className="studio-scroller" ref={scroller} data-studio-scroller="">
       <div className="studio-content">

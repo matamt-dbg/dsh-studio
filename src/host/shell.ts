@@ -16,6 +16,7 @@ import type { PreviewRequest } from '../prompt-composition.ts';
 import { executionCapabilities } from '../execution-capabilities.ts';
 import { PresetStore, studioStorePath } from './preset-store.ts';
 import { MASTER_PRESET_ID, MASTER_PRESET_NAME } from '../master-preset.ts';
+import { StudioUpdater } from './studio-update.ts';
 
 
 /** Catalog reads and temporary composition previews; no Agents or model calls. */
@@ -27,6 +28,7 @@ export default class StudioCatalog extends TypertRemoteService {
   private stopped = false;
   private extensions: MasterExtensions;
   private changes: Promise<unknown> = Promise.resolve();
+  private updater = new StudioUpdater(this.ctx);
   constructor(ctx: Context) {
     super(ctx, 'studioCatalog');
     // Shell environment variables are not the Desktop Host's launch environment.
@@ -57,6 +59,10 @@ export default class StudioCatalog extends TypertRemoteService {
     if (!service) throw new Error('Model catalog API unavailable');
     return service.modelCatalog();
   }
+  @Remote
+  async updateStatus(force: string) { return this.updater.status(force === 'force'); }
+  @Remote
+  async updateStudio(version: string) { return this.updater.update(version); }
   @Remote
   async deletePreset(id: string) { return this.store.delete(id); }
   @Remote

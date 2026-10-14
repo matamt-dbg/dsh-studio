@@ -21,7 +21,7 @@ test('built client mounts read-only catalog and registers Studio optimization', 
   vm.runInNewContext(read('../packages/shell/client.js'), {
     window: { __ModuleLoader__: { load({ factory }) {
       plugin = factory(name => {
-        if (name === 'react' || name === 'react/jsx-runtime') return {};
+        if (name === 'react' || name === 'react/jsx-runtime' || name === 'react-dom') return {};
         if (name === '@deepseek-ai/dsh-client-ui-slots') return { resolveSlotLabel: value => value };
         throw new Error(`Unexpected runtime dependency: ${name}`);
       });

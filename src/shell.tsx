@@ -7,7 +7,9 @@ import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots';
 import { ServiceLayout, type StudioServiceItem } from './service-layout.tsx';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { StudioContext, IconProps } from "./contracts.js";
-import { PACKAGE_NAME } from './package-name.ts';
+import { PACKAGE_NAME, STUDIO_VERSION } from './package-name.ts';
+import { createUpdateStore, type UpdateActions } from './update-store.ts';
+import { SidebarIcon, VersionFooter } from './update-indicator.tsx';
 
 export const inject = ["slots", "locale", "remote"];
 const panel = "local-dsh-studio";
@@ -20,7 +22,10 @@ export async function apply(ctx: StudioContext) {
         id: `${PACKAGE_NAME}#studioCatalog/preview`, service: 'studioCatalog', namespace: 'studioCatalog', method: 'preview',
         invocation: { kind: 'direct' }, parameters: [{ name: 'request', wire: 'request', source: 'json', codec: { mode: 'strict', typeSymbol: 'PreviewRequest', create: () => ({ parse: parsePreviewRequest }) } }], result: { mode: 'src-json' },
 
-    }, ...['listPresets', 'savePreset', 'applyPreset', 'unapplyPreset', 'roleModels', 'deletePreset', 'readExtensions', 'saveExtensions'].map(method => ({
+    }, ...['updateStatus', 'updateStudio'].map(method => ({
+        id: `${PACKAGE_NAME}#studioCatalog/${method}`, service: 'studioCatalog', namespace: 'studioCatalog', method,
+        invocation: { kind: 'direct' }, parameters: [{ name: method === 'updateStatus' ? 'force' : 'version', wire: method === 'updateStatus' ? 'force' : 'version', source: 'json', codec: { mode: 'strict', typeSymbol: 'string', create: () => ({ parse: (value: unknown) => { if (typeof value !== 'string') throw new TypeError('Expected a string'); return value; } }) } }], result: { mode: 'src-json' },
+    })), ...['listPresets', 'savePreset', 'applyPreset', 'unapplyPreset', 'roleModels', 'deletePreset', 'readExtensions', 'saveExtensions'].map(method => ({
         id: `${PACKAGE_NAME}#studioCatalog/${method}`, service: 'studioCatalog', namespace: 'studioCatalog', method,
         invocation: { kind: 'direct' }, parameters: ['listPresets', 'readExtensions', 'roleModels'].includes(method) ? [] : [{ name: ['savePreset', 'saveExtensions'].includes(method) ? 'payload' : 'id', wire: ['savePreset', 'saveExtensions'].includes(method) ? 'payload' : 'id', source: 'json', codec: { mode: 'strict', typeSymbol: 'string', create: () => ({ parse: (value: unknown) => { if (typeof value !== 'string') throw new TypeError('Expected a string'); return value; } }) } }], result: { mode: 'src-json' },
     }))] });
@@ -35,6 +40,23 @@ export async function apply(ctx: StudioContext) {
     };
     ctx.effect(() => ctx.slots.subscribe('local.dsh-studio.services', syncServices));
     ctx.effect(() => ctx.locale.subscribe(syncServices));
+    const updateActions: UpdateActions = (() => {
+        const call = async (method: string, arg: string) => {
+            const service = ctx.get('remote.studioCatalog' as never) as unknown as Record<string, ((arg: string) => Promise<{ ok: boolean; value: unknown; error?: { message: string } }>) | undefined> | undefined;
+            const fn = service?.[method];
+            if (!fn) throw new Error('Studio update API unavailable');
+            const result = await fn(arg);
+            if (!result.ok) throw new Error(result.error?.message ?? 'Update request failed');
+            return result.value;
+        };
+        return {
+            status: force => call('updateStatus', force ? 'force' : '') as ReturnType<UpdateActions['status']>,
+            update: version => call('updateStudio', version) as ReturnType<UpdateActions['update']>,
+        };
+    })();
+    const updates = createUpdateStore(updateActions, STUDIO_VERSION);
+    // The sidebar mark needs the answer before Studio opens; the Host caches registry answers.
+    void updates.refresh();
     function StudioServices({ renderSlot }: PropsRenderSlots<'local.dsh-studio.services'>) {
         const items = React.useSyncExternalStore(listener => { serviceListeners.add(listener); return () => { serviceListeners.delete(listener); }; }, () => services);
         const locale = React.useSyncExternalStore(listener => ctx.locale.subscribe(listener), () => ctx.locale.getLocale().active);
@@ -43,22 +65,8 @@ export async function apply(ctx: StudioContext) {
         </main></StudioSurface>;
     }
     function Icon({ size = 20 }: IconProps) {
-        return (
-            <svg
-                width={size}
-                height={size}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                aria-hidden="true"
-            >
-                <rect x="3" y="3" width="7" height="7" rx="2" />
-                <rect x="14" y="3" width="7" height="7" rx="2" />
-                <rect x="3" y="14" width="7" height="7" rx="2" />
-                <path d="M17.5 14v7M14 17.5h7" />
-            </svg>
-        );
+        const locale = React.useSyncExternalStore(listener => ctx.locale.subscribe(listener), () => ctx.locale.getLocale().active);
+        return <SidebarIcon size={size} store={updates} locale={locale} />;
     }
     ctx.slots.inject("main", () =>
         ctx.slots.register(
@@ -108,7 +116,8 @@ export async function apply(ctx: StudioContext) {
             };
             return { read: () => call('readExtensions'), save: async (payload: string) => { setCatalog(await call('saveExtensions', payload) as import('./preset-catalog.ts').PresetCatalog); } };
         }, []);
-        return <OptimizationPrototype extensionActions={extensionActions} presetActions={presetActions} locale={locale} catalog={catalog} catalogError={catalogError} onPreview={async request => {
+        React.useEffect(() => { void updates.refresh(); }, []);
+        return <OptimizationPrototype navFooter={<VersionFooter store={updates} locale={locale} />} extensionActions={extensionActions} presetActions={presetActions} locale={locale} catalog={catalog} catalogError={catalogError} onPreview={async request => {
             const service = ctx.get('remote.studioCatalog' as never) as unknown as { preview(request: import('./prompt-composition.ts').PreviewRequest): Promise<{ ok: boolean; value: import('./prompt-composition.ts').PreviewResult; error?: { message: string } }> };
             const response = await service.preview(request);
             if (!response.ok) throw new Error(response.error?.message ?? 'Preview failed');

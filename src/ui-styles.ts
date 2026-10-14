@@ -1,6 +1,6 @@
 /** Scoped Studio stylesheet embedded in distributable Client JavaScript. */
-export const studioStyles = `/* Only this adapter references host tokens. Studio never installs a global theme. */
-.studio-ui {
+/** Host token adapter: the only place Studio references `--dsw-*` tokens. */
+const adapter = `.studio-ui {
   --studio-bg: var(--dsw-alias-bg-base);
   --studio-surface: var(--dsw-alias-bg-layer-1);
   --studio-inset: var(--dsw-alias-bg-layer-2);
@@ -32,7 +32,9 @@ export const studioStyles = `/* Only this adapter references host tokens. Studio
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: border-box; }
+`;
+export const studioStyles = `/* Only this adapter references host tokens. Studio never installs a global theme. */
+${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: border-box; }
 .studio-ui .studio-tool-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
 .studio-ui .studio-tool-card { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--studio-line); border-radius: var(--studio-radius); cursor: pointer; min-width: 0; }
 .studio-ui .studio-tool-card[data-selected="true"] { background: var(--studio-hover); border-color: var(--studio-ink); }
@@ -101,6 +103,14 @@ export const studioStyles = `/* Only this adapter references host tokens. Studio
 .studio-ui .studio-service-panel[hidden] { display: none; }
 .studio-ui .studio-service-panel > .studio-ui { max-width: 960px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px) 48px; }
 .studio-ui .studio-layout { display: grid; grid-template-columns: 208px minmax(0, 1fr); height: 100%; }
+/* Version footer pinned to the bottom of the Studio navigation. */
+.studio-ui .studio-nav-footer { display: flex; align-items: center; gap: 6px; margin-top: auto; padding: 12px 10px 0; color: var(--studio-subtle); font-size: 12px; }
+.studio-ui .studio-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--studio-small-radius); background: none; color: var(--studio-info); cursor: pointer; }
+.studio-ui .studio-icon-button:hover:not(:disabled) { background: var(--studio-hover); }
+.studio-ui .studio-icon-button[data-tone=success] { color: var(--studio-success); }
+.studio-ui .studio-icon-button[data-tone=error] { color: var(--studio-error); }
+.studio-ui .studio-icon-button:disabled { cursor: default; opacity: 1; }
+.studio-ui .studio-icon-button[aria-busy=true] { opacity: .5; }
 .studio-ui nav.studio-nav { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 2px; margin: 0; padding: 24px 12px; border-inline-end: .5px solid var(--studio-line); overflow-y: auto; }
 .studio-ui .studio-nav-head { display: grid; gap: 2px; padding: 0 10px 8px; }
 .studio-ui .studio-nav-title { font-size: 14px; }
@@ -491,6 +501,7 @@ export const studioStyles = `/* Only this adapter references host tokens. Studio
   .studio-ui nav.studio-nav { flex-direction: row; overflow-x: auto; padding: 8px 12px; border-inline-end: 0; border-bottom: .5px solid var(--studio-line); }
   .studio-ui .studio-nav-title, .studio-ui .studio-nav-group { display: none; }
   .studio-ui .studio-nav-item { flex: 0 0 auto; }
+  .studio-ui .studio-nav-footer { margin: 0 0 0 auto; padding: 0 0 0 8px; }
   .studio-ui .studio-scroller { overflow: visible; }
 }
 @container studio-main (max-width: 560px) {
@@ -508,4 +519,13 @@ export const studioStyles = `/* Only this adapter references host tokens. Studio
   .studio-ui dl { grid-template-columns: 1fr; gap: 4px; }
   .studio-ui dd { margin-bottom: 8px; }
 }
+`;
+
+/** Styles for the update mark Studio places inside the host sidebar's own row; scoped like the rest. */
+export const sidebarMarkStyles = `${adapter}
+.studio-ui.studio-sidebar-glyph { display: inline-flex; color: inherit; line-height: 0; }
+.studio-ui .studio-sidebar-dot { fill: var(--studio-info); }
+/* order keeps the mark last even if the sidebar later appends its own label. */
+.studio-ui.studio-sidebar-update { display: inline-flex; flex: none; align-items: center; order: 99; margin-left: auto; color: var(--studio-info); line-height: 0; }
+.studio-ui.studio-sidebar-update[data-phase=failed] { color: var(--studio-error); }
 `;

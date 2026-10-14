@@ -32,6 +32,10 @@ dsh plugin --profile desktop add @matamt-dbg/dsh-studio   # desktop app: quit th
 
 Restart the web GUI or the app, then select **DSH Studio** in the sidebar. Each profile keeps its own presets and its own set of tools, so install Studio in every profile where you want to use it.
 
+### Update Studio
+
+The installed version (for example `v0.2.7`) is shown at the bottom of the Studio menu. When a newer release that supports your DSH version is on the npm registry your profile uses, an update icon appears beside **DSH Studio** in the sidebar and beside the version. Select the icon next to the version to install that exact release into this profile, then restart the web GUI or the app to load it. Hover the icon for details. Studio installed from a local file or by another tool shows only the version; reinstall it with `dsh plugin add`.
+
 ## Preset list
 
 ![Preset list](images/en/preset-list.png)

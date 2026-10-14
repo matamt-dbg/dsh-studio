@@ -197,6 +197,16 @@ export function SplitButton({ label, onClick, primary = false, disabled = false,
   </span>;
 }
 
+/** Square icon-only button; the label is its accessible name and tooltip.
+ * @param props Localized label, tone, disabled and busy states, click handler, and the icon.
+ * @returns Compact button for footers and rows.
+ */
+export function IconButton({ label, tone = 'info', disabled = false, busy = false, onClick, children }: React.PropsWithChildren<{
+  label: string; tone?: 'info' | 'success' | 'error'; disabled?: boolean; busy?: boolean; onClick: () => void;
+}>) {
+  return <button type="button" className="studio-icon-button" data-tone={tone} title={label} aria-label={label} aria-busy={busy || undefined} disabled={disabled} onClick={onClick}>{children}</button>;
+}
+
 /** Native modal dialog for editing one item without growing the page layout.
  * The element stays inside the Studio surface, so scoped styles apply in the top layer.
  * @param props Open state, title, optional subtitle, close callback with optional header close label, body, and footer actions.
