@@ -1,0 +1,743 @@
+[
+  {
+    "id": "tool-subagent",
+    "name": "Subagent delegation",
+    "config": {
+      "provider": "spawn",
+      "toolName": "subagent",
+      "modelSelectionSettings": true,
+      "toolFilter": {
+        "deny": [
+          "schedule_create",
+          "schedule_delete",
+          "schedule_list",
+          "schedule_update"
+        ]
+      }
+    },
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "default": {},
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "toolName": {
+              "default": "subagent",
+              "anyOf": [
+                {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "modelSelectionSettings": {
+              "default": false,
+              "anyOf": [
+                {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "agentOptions": {
+              "anyOf": [
+                {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        {
+                          "$ref": "#/$defs/loaderExpression"
+                        }
+                      ]
+                    },
+                    "model": {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        {
+                          "$ref": "#/$defs/loaderExpression"
+                        }
+                      ]
+                    },
+                    "reasoningEffort": {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "minLength": 1
+                        },
+                        {
+                          "$ref": "#/$defs/loaderExpression"
+                        }
+                      ]
+                    },
+                    "maxTokens": {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "$ref": "#/$defs/loaderExpression"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "persona": {
+              "anyOf": [
+                {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "toolFilter": {
+              "anyOf": [
+                {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "allow": {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "$ref": "#/$defs/loaderExpression"
+                        }
+                      ]
+                    },
+                    "deny": {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "$ref": "#/$defs/loaderExpression"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "maxDepth": {
+              "x-cordis": {
+                "branchSelection": "first-success"
+              },
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "anyOf": [
+                            {
+                              "const": "provider-managed"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            }
+          },
+          "required": [
+            "provider"
+          ]
+        },
+        {
+          "$ref": "#/$defs/loaderExpression"
+        }
+      ],
+      "$defs": {
+        "loaderExpression": {
+          "type": "object",
+          "properties": {
+            "__jsExpr": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "__jsExpr"
+          ],
+          "description": "Inert representation of a YAML !!js scalar from the Cordis entry-list parser. Its result is evaluated and validated only at runtime. Extra marker-object fields are ignored by interpolation."
+        }
+      }
+    }
+  },
+  {
+    "id": "tool-jobs",
+    "name": "Background jobs",
+    "config": {},
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "default": {},
+      "anyOf": [
+        {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "waitTimeoutMs": {
+              "default": 30000,
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "maxWaitTimeoutMs": {
+              "default": 600000,
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "completionDelivery": {
+              "default": "wakeup",
+              "x-cordis": {
+                "branchSelection": "first-success"
+              },
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "const": "quiet",
+                          "not": {
+                            "type": "null"
+                          }
+                        },
+                        {
+                          "const": "wakeup",
+                          "not": {
+                            "type": "null"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "maxConsecutiveWakes": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/loaderExpression"
+        }
+      ],
+      "$defs": {
+        "loaderExpression": {
+          "type": "object",
+          "properties": {
+            "__jsExpr": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "__jsExpr"
+          ],
+          "description": "Inert representation of a YAML !!js scalar from the Cordis entry-list parser. Its result is evaluated and validated only at runtime. Extra marker-object fields are ignored by interpolation."
+        }
+      }
+    }
+  },
+  {
+    "id": "compaction/compaction-basic",
+    "name": "Basic compaction",
+    "config": {
+      "modelPolicies": [
+        {
+          "provider": "route",
+          "model": "model/variant",
+          "retainRatio": 0.2
+        }
+      ]
+    },
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "default": {},
+      "anyOf": [
+        {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "thresholdRatio": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "headroomTokens": {
+              "anyOf": [
+                {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "retainRatio": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "retainTokens": {
+              "anyOf": [
+                {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "summarizationProvider": {
+              "anyOf": [
+                {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "summarizationModel": {
+              "anyOf": [
+                {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "maxTokens": {
+              "anyOf": [
+                {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "compactionRetries": {
+              "anyOf": [
+                {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "maxOverflowRetries": {
+              "anyOf": [
+                {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "modelPolicies": {
+              "default": [],
+              "anyOf": [
+                {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "default": {},
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "provider": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "model": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "thresholdRatio": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "headroomTokens": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "retainRatio": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "retainTokens": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "summarizationProvider": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "summarizationModel": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "maxTokens": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 1
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "compactionRetries": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          },
+                          "maxOverflowRetries": {
+                            "anyOf": [
+                              {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              {
+                                "$ref": "#/$defs/loaderExpression"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "provider",
+                          "model"
+                        ]
+                      },
+                      {
+                        "$ref": "#/$defs/loaderExpression"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            },
+            "auto": {
+              "anyOf": [
+                {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/loaderExpression"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/loaderExpression"
+        }
+      ],
+      "$defs": {
+        "loaderExpression": {
+          "type": "object",
+          "properties": {
+            "__jsExpr": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "__jsExpr"
+          ],
+          "description": "Inert representation of a YAML !!js scalar from the Cordis entry-list parser. Its result is evaluated and validated only at runtime. Extra marker-object fields are ignored by interpolation."
+        }
+      }
+    }
+  }
+]

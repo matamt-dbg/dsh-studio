@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+allowBuilds:
+  'esbuild': true
+  '@deepseek-ai/dsh-subprocess-local': false
+  '@google/genai': false
+  'koffi': false
+  'node-pty': false
+  'protobufjs': false

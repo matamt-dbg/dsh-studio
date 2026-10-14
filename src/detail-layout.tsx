@@ -1,0 +1,35 @@
+/** Shared two-column service layout: grouped left navigation and an independently scrolling detail column. */
+import React from 'react';
+
+/** Mounted page, its navigation label, and the optional group caption it starts under. */
+export interface DetailPage { id: string; label: string; group?: string; content: React.ReactNode }
+
+/** Render a service's left navigation and independently scrolling detail pages.
+ * @param props Service title and subtitle, navigation label, and controlled page selection.
+ * @returns Navigation with retained inactive pages.
+ */
+export function DetailLayout({ title, subtitle, navigation, pages, selected, onSelect }: {
+  title: string; subtitle?: string; navigation: string; pages: readonly DetailPage[];
+  selected: string; onSelect: (id: string) => void;
+}) {
+  const id = React.useId();
+  const scroller = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; }, [selected]);
+  return <div className="studio-layout">
+    <nav className="studio-nav" aria-label={navigation}>
+      <div className="studio-nav-head"><strong className="studio-nav-title">{title}</strong>{subtitle && <span className="studio-nav-subtitle">{subtitle}</span>}</div>
+      {pages.map((page, index) => <React.Fragment key={page.id}>
+        {page.group && page.group !== pages[index - 1]?.group && <span className="studio-nav-group">{page.group}</span>}
+        <button type="button" className="studio-nav-item"
+          aria-current={selected === page.id ? 'page' : undefined} aria-controls={`${id}-${page.id}`}
+          onClick={() => onSelect(page.id)}>{page.label}</button>
+      </React.Fragment>)}
+    </nav>
+    <div className="studio-scroller" ref={scroller} data-studio-scroller="">
+      <div className="studio-content">
+        {pages.map(page => <section key={page.id} id={`${id}-${page.id}`} aria-label={page.label}
+          hidden={selected !== page.id}>{page.content}</section>)}
+      </div>
+    </div>
+  </div>;
+}

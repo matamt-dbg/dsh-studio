@@ -1,0 +1,73 @@
+{
+  "name": "@matamt-dbg/dsh-studio",
+  "version": "0.2.0",
+  "description": "DSH Studio: build, edit and apply DeepSeek Harness agent presets — tools, prompts, Configs and role-based subagents — from the web GUI.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "dsh-studio",
+    "agent-preset"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matamt-dbg/dsh-studio.git"
+  },
+  "homepage": "https://github.com/matamt-dbg/dsh-studio#readme",
+  "bugs": {
+    "url": "https://github.com/matamt-dbg/dsh-studio/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./policy": "./policy.js",
+    "./roles": "./roles.js",
+    "./batch": "./batch.js"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "policy.js",
+    "roles.js",
+    "batch.js",
+    "cordis.patch.yml"
+  ],
+  "dependencies": {
+    "js-yaml": "^4.3.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-app-boot": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-scope": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-jobs": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-alpha.2",
+    "@deepseek-ai/cordis-plugin-include": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh": "0.2.0-rc.2"
+  }
+}
