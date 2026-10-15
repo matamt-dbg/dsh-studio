@@ -45,11 +45,6 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui .studio-selection-detail { padding: 16px; margin-top: 12px; border: 1px solid var(--studio-line); border-radius: var(--studio-radius); }
 .studio-ui .studio-schema-tool { margin-top: 12px; padding: 10px; border: 1px solid var(--studio-line); border-radius: var(--studio-small-radius); }
 .studio-ui .studio-schema-tool summary { cursor: pointer; overflow-wrap: anywhere; }
-.studio-ui .studio-schema-fields { margin: 8px 0; }
-.studio-ui .studio-schema-fields > div { display: grid; grid-template-columns: minmax(70px, 120px) minmax(0, 1fr); gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--studio-line); }
-.studio-ui .studio-schema-fields dt { color: var(--studio-muted); overflow-wrap: anywhere; }
-.studio-ui .studio-schema-fields dd { margin: 0; min-width: 0; }
-.studio-ui .studio-schema-list { padding-inline-start: 20px; }
 .studio-ui .studio-schema-meta { color: var(--studio-muted); font-size: 12px; }
 .studio-ui .studio-row button[aria-pressed="true"] { background: var(--studio-hover); border-color: var(--studio-ink); }
 .studio-ui .studio-tool-description { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -491,7 +486,17 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui .studio-preview .studio-schema-tool { margin-top: 6px; padding: 8px 10px; background: var(--studio-bg); }
 .studio-ui .studio-preview .studio-schema-tool summary { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .studio-ui .studio-preview .studio-schema-tool p { font-size: 12px; }
-.studio-ui .studio-preview .studio-schema-fields > div { grid-template-columns: minmax(60px, 90px) minmax(0, 1fr); font-size: 12px; }
+.studio-ui .studio-schema-params { display: grid; gap: 8px; margin-top: 8px; font-size: 12px; }
+.studio-ui .studio-schema-param { display: grid; gap: 4px; min-width: 0; }
+.studio-ui .studio-schema-param .studio-schema-param { margin-top: 4px; padding-inline-start: 10px; border-inline-start: 1px solid var(--studio-line); }
+.studio-ui .studio-schema-param-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
+.studio-ui .studio-schema-param-head code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 500; overflow-wrap: anywhere; }
+.studio-ui .studio-schema-required { color: var(--studio-warn); font-size: 11px; }
+.studio-ui .studio-schema-param p { margin: 0; color: var(--studio-muted); line-height: 1.5; }
+.studio-ui .studio-schema-constraints { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.studio-ui .studio-schema-constraints li { padding: 0 6px; border-radius: var(--studio-small-radius); background: var(--studio-neutral-fill); color: var(--studio-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; overflow-wrap: anywhere; }
+.studio-ui .studio-schema-constraints li > span { color: var(--studio-subtle); }
+.studio-ui .studio-schema-constraint { color: var(--studio-muted); overflow-wrap: anywhere; }
 @container studio-shell (max-width: 900px) { .studio-ui .studio-preview { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 1fr); } }
 
 /* Width rules follow the Studio surface and its content column, which the host sidebar and the Studio navigation narrow. */

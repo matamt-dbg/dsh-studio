@@ -95,7 +95,7 @@ Edited tools are marked **Modified**. Changes apply to this preset only.
 
 ![Prompt preview](images/en/prompt-preview.png)
 
-**Preview prompt** assembles the system prompt exactly as DSH would for this preset, without starting an agent or calling a model. The left side lists every section in order; the right side lists the tool schemas the model receives. If you change settings while the preview is open, it tells you to run it again.
+**Preview prompt** assembles the system prompt exactly as DSH would for this preset, without starting an agent or calling a model. The left side lists every section in order; the right side lists the tools the model receives. Expand a tool to see its description and parameters (name, type, required, description) as an indented list. If you change settings while the preview is open, it tells you to run it again.
 
 ### Execution settings
 
@@ -218,6 +218,8 @@ Use **Preview prompt** after each change to confirm what the model will receive,
 1. Save the preset.
 2. In **Preset list**, select **Apply to DSH** (or **Reapply to DSH** after changes).
 3. Start a new session and choose the preset in DSH's preset picker.
+
+An applied preset also appears under **CUSTOM** in DSH **Settings → Agent presets**. Select its card to make it the default for new tasks; it then shows **New task default**.
 
 If applying fails, the previously applied version stays in effect and the list explains why. **Unapply from DSH** removes the preset from DSH but keeps it in Studio.
 

@@ -113,17 +113,47 @@ export function PromptToolsPrototype({ locale, prompt, onPromptChange, provided,
         <div className="studio-prompt-document" tabIndex={0} aria-label={t('조립 순서와 내용', 'Assembly order and content', '组装顺序和内容')}>
           {result.sections.map((section, index) => <section key={section.name} className="studio-prompt-section"><h3><span className="studio-prompt-index">{index + 1}</span>{section.name}</h3><p className="studio-tool-description">{section.text}</p></section>)}
         </div>
-        <aside className="studio-prompt-tools"><h3>{t('모델에 전달되는 도구', 'Model-facing tool schemas', '提供给模型的工具定义')}<span className="studio-count">{result.tools.length}</span></h3>{result.tools.length ? result.tools.map(tool => <details className="studio-schema-tool" key={tool.name}><summary>{tool.name}</summary><p className="studio-tool-description">{tool.description}</p><SchemaValue value={tool.parameters} /></details>) : <p className="studio-muted">{labels.empty}</p>}</aside>
+        <aside className="studio-prompt-tools"><h3>{t('모델에 전달되는 도구', 'Model-facing tool schemas', '提供给模型的工具定义')}<span className="studio-count">{result.tools.length}</span></h3>{result.tools.length ? result.tools.map(tool => <details className="studio-schema-tool" key={tool.name}><summary>{tool.name}</summary><p className="studio-tool-description">{tool.description}</p><SchemaValue value={tool.parameters} requiredLabel={t('필수', 'required', '必填')} /></details>) : <p className="studio-muted">{labels.empty}</p>}</aside>
       </section>}
     </DetailDialog>
   </React.Fragment>;
 }
 
-/** Render every schema keyword recursively without hiding constraints in raw JSON. */
-function SchemaValue({ value }: { value: unknown }): React.ReactElement {
-  if (Array.isArray(value)) return <ul className="studio-schema-list">{value.map((entry, index) => <li key={index}><SchemaValue value={entry} /></li>)}</ul>;
-  if (value !== null && typeof value === 'object') return <dl className="studio-schema-fields">{Object.entries(value).map(([key, entry]) => <div key={key}><dt>{key}</dt><dd>{key === 'properties' || key === 'items' || key === '$defs' ? <details><summary>{key}</summary><SchemaValue value={entry} /></details> : <SchemaValue value={entry} />}</dd></div>)}</dl>;
-  return <span className="studio-tool-description">{String(value)}</span>;
+/** Render a tool schema as an indented parameter list; every keyword stays visible, structural ones as rows and the rest as constraints. */
+function SchemaValue({ value, requiredLabel }: { value: unknown; requiredLabel: string }): React.ReactElement {
+  return <div className="studio-schema-params"><SchemaBody schema={value} requiredLabel={requiredLabel} /></div>;
+}
+
+const STRUCTURAL_KEYS = new Set(['type', 'description', 'properties', 'items', 'required']);
+function schemaType(schema: Record<string, unknown>): string {
+  if (Array.isArray(schema.type)) return schema.type.join(' | ');
+  if (typeof schema.type === 'string') return schema.type;
+  return Array.isArray(schema.enum) ? 'enum' : '';
+}
+function constraintText(value: unknown): string {
+  if (Array.isArray(value) && value.every(entry => entry === null || typeof entry !== 'object')) return value.map(String).join(', ');
+  return value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value);
+}
+function SchemaBody({ schema, requiredLabel }: { schema: unknown; requiredLabel: string }): React.ReactElement | null {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return schema === undefined ? null : <span className="studio-schema-constraint">{constraintText(schema)}</span>;
+  const row = schema as Record<string, unknown>;
+  const required = Array.isArray(row.required) ? row.required : [];
+  const properties = row.properties && typeof row.properties === 'object' && !Array.isArray(row.properties) ? Object.entries(row.properties) : [];
+  const constraints = Object.entries(row).filter(([key]) => !STRUCTURAL_KEYS.has(key) || (key === 'properties' && !properties.length) || (key === 'required' && !properties.length));
+  return <>
+    {constraints.length > 0 && <ul className="studio-schema-constraints">{constraints.map(([key, entry]) => <li key={key}><span>{key}</span> {constraintText(entry)}</li>)}</ul>}
+    {properties.map(([name, child]) => <SchemaParam key={name} name={name} schema={child} required={required.includes(name)} requiredLabel={requiredLabel} />)}
+    {row.items !== undefined && <SchemaParam name="items" schema={row.items} requiredLabel={requiredLabel} />}
+  </>;
+}
+function SchemaParam({ name, schema, required, requiredLabel }: { name: string; schema: unknown; required?: boolean; requiredLabel: string }): React.ReactElement {
+  const row = schema && typeof schema === 'object' && !Array.isArray(schema) ? schema as Record<string, unknown> : undefined;
+  const type = row ? schemaType(row) : '';
+  return <div className="studio-schema-param">
+    <div className="studio-schema-param-head"><code>{name}</code>{type && <span className="studio-schema-meta">{type}</span>}{required && <span className="studio-schema-required">{requiredLabel}</span>}</div>
+    {typeof row?.description === 'string' && row.description && <p className="studio-tool-description">{row.description}</p>}
+    <SchemaBody schema={row ? Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'type' && key !== 'description')) : schema} requiredLabel={requiredLabel} />
+  </div>;
 }
 
 /** Description-only paths match the composition override contract; schema structure stays read-only. */

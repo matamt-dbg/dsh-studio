@@ -113,6 +113,11 @@ test('two-column selection keeps prompt on top and uses authoritative assembly o
     assert.equal(document.querySelectorAll('.studio-prompt-stages').length, 0);
     assert.equal(document.querySelectorAll('.studio-prompt-document pre').length, 0);
     assert.match(document.querySelector('.studio-schema-tool').textContent, /minLength/);
+    const param = document.querySelector('.studio-schema-tool .studio-schema-param');
+    assert.equal(param.querySelector('code').textContent, 'path');
+    assert.match(param.querySelector('.studio-schema-param-head').textContent, /string.*required/);
+    assert.equal(param.querySelector('p').textContent, 'A file path');
+    assert.equal(document.querySelector('.studio-schema-tool').textContent.includes('properties'), false);
     assert.equal(document.querySelector('.studio-schema-tool').open, false);
     assert.equal(request.preset, 'studio-master');
     assert.equal(Object.hasOwn(request, 'persona'), false);
