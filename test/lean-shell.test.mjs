@@ -23,6 +23,8 @@ test('built client mounts read-only catalog and registers Studio optimization', 
       plugin = factory(name => {
         if (name === 'react' || name === 'react/jsx-runtime' || name === 'react-dom') return {};
         if (name === '@deepseek-ai/dsh-client-ui-slots') return { resolveSlotLabel: value => value };
+        // Shared platform module (build external); Pixie renders model output with its MarkdownText.
+        if (name === '@deepseek-ai/dsh-client-ui-primitives') return {};
         throw new Error(`Unexpected runtime dependency: ${name}`);
       });
     } } },

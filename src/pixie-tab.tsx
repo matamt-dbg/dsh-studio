@@ -2,7 +2,7 @@
 import React from 'react';
 import { GateRunsPanel, type GateRunActions } from './pixie-gate-runs.tsx';
 import { gateText } from './pixie-gate-locale.ts';
-import { Badge, Button, IconButton, Notice, Note, Segmented, StudioSurface, TabBar, TabPanel } from './ui.tsx';
+import { Badge, Button, IconButton, ModelText, Notice, Note, Segmented, StudioSurface, TabBar, TabPanel } from './ui.tsx';
 import type { PixieAskFrame, PixieContextMode, PixieModel, PixieSessionRecord, PixieSettings, PixieThread, PixieTurn, PixieUsageTotal } from './pixie-contracts.ts';
 import { pixieError, pixieText, type PixieTextKey } from './pixie-locale.ts';
 
@@ -47,7 +47,7 @@ function Turn({ turn, live, locale }: { turn: PixieTurn; live?: string; locale: 
   const answer = live ?? turn.answer;
   return <li className="studio-pixie-turn">
     <p className="studio-pixie-question">{turn.question}</p>
-    {answer && <p className="studio-pixie-answer">{answer}</p>}
+    {answer && <ModelText text={answer} locale={locale} streaming={live !== undefined || turn.status === 'streaming'} />}
     <div className="studio-pixie-turn-meta">
       {turn.status === 'streaming' && <Badge tone="info">{t('streaming')}</Badge>}
       {turn.status === 'cancelled' && <Badge tone="neutral">{t('cancelled')}</Badge>}
@@ -281,7 +281,7 @@ export function PixieCommandRow({ question, outcome, locale, onOpen, actions }: 
     </div>
     {outcome?.kind === 'error' ? <p className="studio-pixie-error" role="alert">{pixieError(locale, outcome.text ?? '')}</p>
       : turn?.status === 'error' ? <p className="studio-pixie-error" role="alert">{pixieError(locale, turn.error ?? '')}</p>
-        : answer ? <p className="studio-pixie-answer">{answer}</p>
+        : answer ? <ModelText text={answer} locale={locale} streaming={live !== undefined && !outcome} />
           // A row from an older Studio has no linked turn: point to the tab instead of waiting forever.
           : <p className="studio-muted">{!outcome ? t('streaming') : status === 'cancelled' ? t('cancelled') : loaded && !turn ? t('rowAsked') : t('rowWaiting')}</p>}
     <div className="studio-pixie-turn-meta">

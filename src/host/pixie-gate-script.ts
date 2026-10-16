@@ -2,6 +2,7 @@ import { access, readdir, realpath, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { HOOK_EXIT, type GateTask } from '../pixie-gate-task.ts';
+import { parseGateOutput } from '../pixie-gate-task-contracts.ts';
 
 export interface HookContext {
   sessionId: string; cwd?: string | undefined; turn: number; agent: 'root' | 'child';
@@ -53,9 +54,14 @@ export async function runHookScript(task: GateTask, target: string, signal: Abor
   if (output.timedOut) throw new Error('Hook script timed out');
   if (output.aborted) throw new Error('Hook script aborted');
   if (output.stdout.truncated || Buffer.byteLength(output.stdout.text) > 256 * 1024) throw new Error('Hook stdout exceeds 256KB');
-  if (output.exitCode === HOOK_EXIT.skip) return { skipped: true, instruction: task.instruction };
-  if (output.exitCode !== HOOK_EXIT.continue) throw new Error(`Hook script exit ${output.exitCode}: ${output.stderr.text}`);
+  if (output.exitCode === HOOK_EXIT.skip) return { skipped: true as const, instruction: task.instruction };
+  if (output.exitCode !== HOOK_EXIT.continue && output.exitCode !== HOOK_EXIT.direct) throw new Error(`Hook script exit ${output.exitCode}: ${output.stderr.text}`);
   const text = output.stdout.text.replace(/^[\r\n]+|[\r\n]+$/g, '');
+  if (output.exitCode === HOOK_EXIT.direct) {
+    try { return { skipped: false as const, direct: parseGateOutput(text) }; }
+    catch (error) { throw new Error(`Hook script exit 11 needs a gate output JSON object on stdout: ${error instanceof Error ? error.message : String(error)}`); }
+  }
+  if (!task.instruction.trim()) throw new Error('Hook script asked for Pixie (exit 0) but the gate has no instruction');
   let data = '';
   try { const value: unknown = JSON.parse(text); if (value && typeof value === 'object' && !Array.isArray(value)) data = JSON.stringify(value); } catch { /* Text output is allowed. */ }
   const name = task.advanced.script!.replace(/\.[^.]+$/, '');
@@ -64,5 +70,5 @@ export async function runHookScript(task: GateTask, target: string, signal: Abor
     if (key === `hooks.${name}.data`) return data;
     throw new Error(`Unknown prompt variable: ${key}`);
   });
-  return { skipped: false, instruction };
+  return { skipped: false as const, instruction };
 }

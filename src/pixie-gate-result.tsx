@@ -1,9 +1,19 @@
 import React from 'react';
 import { judgeText } from './pixie-gate-judge-locale.ts';
-import type { JudgeAnswer, JudgeQuestion } from './pixie-contracts.ts';
+import { judgeCriterionText, judgeQuestionText, type JudgeAnswer } from './pixie-contracts.ts';
 import type { GateResult, StageResult, JudgeFailedCondition } from './pixie-gate-contracts.ts';
 import { gateText } from './pixie-gate-locale.ts';
-import { Badge, Notice, SectionHead } from './ui.tsx';
+import { Badge, ModelText, Notice, SectionHead } from './ui.tsx';
+
+/** `pixie judge` record line: type, label, and engine (#27). Records from before #27 carry none and show nothing here. */
+function helperSummary(data: unknown, t: (key: Parameters<typeof gateText>[1]) => string): string | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  const value = data as { type?: unknown; label?: unknown; engine?: unknown; answer?: { confidence?: unknown } };
+  if (typeof value.type !== 'string' || typeof value.label !== 'string') return undefined;
+  const line = t('helperLabel').replace('{type}', value.type).replace('{label}', value.label).replace('{engine}', typeof value.engine === 'string' ? value.engine : '?');
+  const confidence = value.answer?.confidence;
+  return typeof confidence === 'number' ? `${line} · ${t('helperConfidence').replace('{confidence}', `${Math.round(confidence * 100)}%`)}` : line;
+}
 
 function wasSkipped(result: StageResult): boolean {
   return !!result.data && typeof result.data === 'object' && 'skipped' in result.data && result.data.skipped === true;
@@ -20,19 +30,19 @@ export function GateResultDetails({ result, locale, durations = {}, skipped = []
   const duration = (ms: number) => ms < 1 ? t('milliseconds').replace('{value}', '<1') : ms < 1000 ? t('milliseconds').replace('{value}', String(Math.round(ms))) : t('seconds').replace('{value}', (ms / 1000).toFixed(1));
   const stage = (id: string, value: StageResult, label = id) => {
     const omitted = skipped.includes(id) || wasSkipped(value);
-    const questions = value.data && typeof value.data === 'object' && 'questions' in value.data && value.data.questions && typeof value.data.questions === 'object' ? value.data.questions as Record<string, JudgeQuestion> : {};
+    const questions = value.data && typeof value.data === 'object' && 'questions' in value.data && value.data.questions && typeof value.data.questions === 'object' ? value.data.questions as Record<string, unknown> : {};
     const failures = value.data && typeof value.data === 'object' && 'failedConditions' in value.data && Array.isArray(value.data.failedConditions) ? value.data.failedConditions as JudgeFailedCondition[] : [];
     const reason = failures.length ? failures.map(condition => {
       const q = questions[condition.question];
-      const question = q?.type === 'noul' ? q.question || condition.question : condition.question;
-      const actual = condition.type === 'choice' && q?.type === 'choice' ? q.options[condition.actual] ?? condition.actual : condition.type === 'score' && q?.type === 'score' ? q.levels[condition.actual] ?? condition.actual : condition.actual;
+      const question = condition.type === 'noul' ? judgeQuestionText(q) ?? condition.question : condition.question;
+      const actual = condition.type === 'noul' ? condition.actual : judgeCriterionText(q, condition.actual) ?? condition.actual;
       const text = judgeText(locale, condition.type === 'noul' ? 'failedNoul' : condition.type === 'score' ? 'failedScore' : 'failedChoice');
-      const values: Record<string, string | number> = { question, actual, threshold: condition.type === 'noul' ? condition.threshold : '', min: condition.type === 'score' ? (q?.type === 'score' ? q.levels[condition.min] ?? condition.min : condition.min) : '' };
+      const values: Record<string, string | number> = { question, actual, threshold: condition.type === 'noul' ? condition.threshold : '', min: condition.type === 'score' ? judgeCriterionText(q, condition.min) ?? condition.min : '' };
       return text.replace(/\{(question|actual|threshold|min)\}/g, (_, key: string) => String(values[key]));
     }).join('; ') : value.reason;
     return <section key={id} className="studio-pixie-turn" data-gate-stage={id}>
       <SectionHead title={label} actions={<Badge tone={!omitted && (value.verdict === 'error' || value.verdict === 'fail') ? 'warning' : 'neutral'}>{t(omitted ? 'skipped' : value.verdict)}</Badge>} />
-      {value.text !== undefined && <p className="studio-pixie-answer">{value.text}</p>}
+      {value.text !== undefined && <ModelText text={value.text} locale={locale} />}
       {(reason || omitted) && <p className="studio-pixie-answer">{t('reason')}: {omitted && (!value.reason || value.reason === 'skipped: 시험 실행에서 명령 미실행') ? t('skippedCommand') : reason}</p>}
       {!!value.data && typeof value.data === 'object' && 'answers' in value.data && !!value.data.answers && typeof value.data.answers === 'object' && <section aria-label={judgeText(locale, 'answers')}>
         <SectionHead title={judgeText(locale, 'answers')} />
@@ -40,11 +50,12 @@ export function GateResultDetails({ result, locale, durations = {}, skipped = []
           const q = questions[questionId];
           if (!answer || !['choice', 'score', 'noul'].includes(answer.type)) return null;
           const percent = (number: number) => `${Math.round(number * 100)}%`;
-          return <p key={questionId} className="studio-pixie-answer">{q?.type === 'noul' ? q.question || questionId : questionId}: {answer.type === 'noul' ? answer.noul : answer.type === 'choice' ? <>
-            {q?.type === 'choice' ? q.options[answer.choice] || answer.choice : answer.choice} · {judgeText(locale, 'probability')}: {percent(answer.probabilities?.[answer.choice] ?? 0)} · {judgeText(locale, 'confidence')}: {percent(answer.confidence)}
-          </> : <>{q?.type === 'score' ? q.levels[answer.score] || answer.score : answer.score} · {judgeText(locale, 'confidence')}: {percent(answer.confidence)}</>}</p>;
+          return <p key={questionId} className="studio-pixie-answer">{answer.type === 'noul' ? judgeQuestionText(q) ?? questionId : questionId}: {answer.type === 'noul' ? answer.noul : answer.type === 'choice' ? <>
+            {judgeCriterionText(q, answer.choice) ?? answer.choice} · {judgeText(locale, 'probability')}: {percent(answer.probabilities?.[answer.choice] ?? 0)} · {judgeText(locale, 'confidence')}: {percent(answer.confidence)}
+          </> : <>{judgeCriterionText(q, answer.score) ?? answer.score} · {judgeText(locale, 'confidence')}: {percent(answer.confidence)}</>}</p>;
         })}
       </section>}
+      {helperSummary(value.data, t) && <p className="studio-card-meta">{helperSummary(value.data, t)}</p>}
       {!!value.data && typeof value.data === 'object' && 'noul' in value.data && 'threshold' in value.data && <p className="studio-card-meta">{t('helperNoul').replace('{noul}', String(value.data.noul)).replace('{threshold}', String(value.data.threshold))}</p>}
       {value.error && <Notice>{t('error')}: {value.error}</Notice>}
       {durations[id] !== undefined && <p className="studio-muted">{t('elapsed')}: {duration(durations[id]!)}</p>}
@@ -61,7 +72,7 @@ export function GateResultDetails({ result, locale, durations = {}, skipped = []
       </section>}
       {changed && <section className="studio-gate-block" aria-label={t('subject')}><SectionHead title={t('subject')} /><p className="studio-pixie-answer studio-gate-text">{result.subject}</p></section>}
       {forwarded.length > 0 && <section className="studio-gate-block" aria-label={t('forward')}><SectionHead title={t('sentAlong')} />{forwarded.map((text, index) => <p key={index} className="studio-pixie-answer studio-gate-text">{text}</p>)}</section>}
-      {result.notes.length > 0 && <section className="studio-gate-block" aria-label={t('notes')}><SectionHead title={t('notes')} />{result.notes.map((note, index) => <p key={index} className="studio-pixie-answer">{note}</p>)}</section>}
+      {result.notes.length > 0 && <section className="studio-gate-block" aria-label={t('notes')}><SectionHead title={t('notes')} />{result.notes.map((note, index) => <ModelText key={index} text={note} locale={locale} />)}</section>}
       {result.records.length > 0 && <section className="studio-gate-block" aria-label={t('helperCalls')}><SectionHead title={t('helperCalls')} />{result.records.map(record => stage(record.id, record.result))}</section>}
       {result.forwardError?.verdict === 'error' && <Notice>{t('error')}: {result.forwardError.reason}</Notice>}
     </div>;
@@ -74,7 +85,7 @@ export function GateResultDetails({ result, locale, durations = {}, skipped = []
     {(Object.keys(result.stages).length > 0 || skipped.some(id => !id.startsWith('hooks.'))) && <SectionHead title={t('stages')} />}
     {Object.entries(result.stages).map(([id, value]) => stage(id, value))}
     {skipped.filter(id => !id.startsWith('hooks.') && !result.stages[id]).map(id => stage(id, { verdict: 'pass' }))}
-    {result.notes.length > 0 && <section aria-label={t('notes')}><SectionHead title={t('notes')} />{result.notes.map((note, index) => <p key={index} className="studio-pixie-answer">{note}</p>)}</section>}
+    {result.notes.length > 0 && <section aria-label={t('notes')}><SectionHead title={t('notes')} />{result.notes.map((note, index) => <ModelText key={index} text={note} locale={locale} />)}</section>}
     {result.records.length > 0 && <section aria-label={t('helperCalls')}><SectionHead title={t('helperCalls')} />{result.records.map(record => stage(record.id, record.result))}</section>}
     <SectionHead title={t('forward')} actions={<Badge>{t(result.forward.kind)}</Badge>} />
     {result.forward.kind !== 'none' && <p className="studio-pixie-answer">{result.forward.text}</p>}

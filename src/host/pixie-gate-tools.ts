@@ -1,4 +1,4 @@
-import { readRuntimeGateDefinitions } from './pixie-gate-definition-reader.ts';
+import { readSessionGateDefinitions } from './pixie-gate-definition-reader.ts';
 import { randomUUID } from 'node:crypto';
 import type { ContentBlock, UserMessage } from '@deepseek-ai/dsh-llm';
 import type { PostToolDecision, PreToolDecision, ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools';
@@ -13,7 +13,7 @@ export function gateTools(deps: GateInputDeps) {
     if (!agent) return decision;
     const preset = deps.preset(agent);
     if (!preset) return decision;
-    const gate = (await readRuntimeGateDefinitions(deps)).find(row => row.when === point && taskMatches(row, preset, deps.isRoot(agent)));
+    const gate = (await readSessionGateDefinitions(deps, agent.id)).find(row => row.when === point && taskMatches(row, preset, deps.isRoot(agent)));
     if (!gate) return decision;
     const turn = [...agent.session.snapshotEvents()].reverse().find(event => event.type === 'turn/start')?.data.turn ?? 0;
     const contexts = 'additionalContexts' in decision ? decision.additionalContexts : undefined;

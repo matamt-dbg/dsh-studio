@@ -9,9 +9,9 @@ const engine = output => {
   return { calls, judge: new LlmJudgeEngine({ stream: options => { calls.push(options); return reply(typeof output === 'string' ? output : JSON.stringify(output)); } }, { provider: 'p', model: 'm' }) };
 };
 const questions = {
-  pick: { type: 'choice', options: { bug: 'a defect', feature: 'new behavior' } },
-  size: { type: 'score', levels: ['tiny', 'small', 'large'] },
-  clear: { type: 'noul', question: 'Is the request unambiguous?' },
+  pick: { type: 'choice', instructions: 'What kind of request is this?', criteria: { bug: 'a defect', feature: 'new behavior' } },
+  size: { type: 'score', instructions: 'How large is the change?', criteria: ['tiny', 'small', 'large'] },
+  clear: { type: 'noul', instructions: 'Is the request unambiguous?' },
 };
 const signal = new AbortController().signal;
 
@@ -51,9 +51,25 @@ for (const [name, output] of [
 }
 
 test('request validation enforces the Jev question shapes', () => {
+  const reject = (question, pattern) => assert.throws(() => validateJudgeRequest({ state: 's', questions: { q: question } }), pattern);
   assert.throws(() => validateJudgeRequest({ state: 's', questions: {} }), /at least one/);
-  assert.throws(() => validateJudgeRequest({ state: 's', questions: { s: { type: 'score', levels: ['only'] } } }), /2.10 levels/);
-  assert.throws(() => validateJudgeRequest({ state: 's', questions: { c: { type: 'choice', options: { a: 'x' } } } }), /two options/);
-  assert.throws(() => validateJudgeRequest({ state: 's', questions: { n: { type: 'noul', question: '' } } }), /question/);
+  reject({ type: 'noul', instructions: '' }, /instructions/);
+  reject({ type: 'choice', criteria: { a: 'x', b: 'y' } }, /instructions/);
+  reject({ type: 'choice', instructions: 'Pick', criteria: { a: 'x' } }, /2–255/);
+  reject({ type: 'choice', instructions: 'Pick', criteria: Object.fromEntries(Array.from({ length: 256 }, (_, i) => [`o${i}`, 'x'])) }, /2–255/);
+  reject({ type: 'choice', instructions: 'Pick', criteria: { a: 'x', b: 1 } }, /2–255/);
+  reject({ type: 'score', instructions: 'Rate', criteria: ['only'] }, /2–10/);
+  reject({ type: 'score', instructions: 'Rate', criteria: Array.from({ length: 11 }, () => 'level') }, /2–10/);
+  reject({ type: 'noul', instructions: 'Yes?', criteria: { maybe: 'x' } }, /criteria/);
+  reject({ type: 'box', instructions: 'x' }, /choice, score, or noul/);
+  reject({ type: 'choice', options: { a: 'x', b: 'y' } }, /instructions/);
   assert.doesNotThrow(() => validateJudgeRequest({ state: 's', questions }));
+  assert.doesNotThrow(() => validateJudgeRequest({ state: 's', questions: { q: { type: 'choice', instructions: 'Pick', criteria: Object.fromEntries(Array.from({ length: 255 }, (_, i) => [`o${i}`, 'x'])) } } }));
+});
+
+test('the LLM prompt carries each question\'s instructions and criteria', async () => {
+  const { calls, judge } = engine({ answers: { clear: { noul: 0.4 } } });
+  await judge.judge({ state: 's', questions: { clear: questions.clear } }, signal);
+  assert.match(calls[0].messages[0].content[0].text, /"instructions": "Is the request unambiguous\?"/);
+  assert.match(calls[0].system, /criteria/);
 });

@@ -1,14 +1,56 @@
 import React from 'react';
-import type { GateRun, GateRunFrame, GateRunRecord } from './pixie-gate-contracts.ts';
+import type { GateRun, GateRunFrame, GateRunRecord, SessionGates } from './pixie-gate-contracts.ts';
 import { gateText, gatePointText, type GateTextKey } from './pixie-gate-locale.ts';
 import { GateResultDetails } from './pixie-gate-result.tsx';
-import { Badge, Button, IconButton, SectionHead, Notice, Note } from './ui.tsx';
+import { gateTaskText, type GateTaskKey } from './pixie-gate-task-locale.ts';
+import { Badge, Button, IconButton, SectionHead, Notice, Note, Toggle } from './ui.tsx';
 
 export interface GateRunActions {
   gateRuns(): Promise<GateRunRecord>;
   followGates(listener: (frame: GateRunFrame) => void): () => void;
   resolveGateRejection(runId: string, status: 'resent' | 'dismissed'): Promise<unknown>;
   fillDraft(text: string): void;
+  /** Gates for this session's preset with their session switch; absent on hosts without the feature. */
+  sessionGates?(): Promise<SessionGates>;
+  setSessionGate?(gateId: string, enabled: boolean): Promise<string[]>;
+}
+
+/** Gates that apply to this session, each with an on/off switch for this session only. */
+export function SessionGateList({ actions, locale, disabled }: { actions: GateRunActions; locale: string; disabled?: readonly string[] | undefined }) {
+  const t = (key: GateTextKey) => gateText(locale, key);
+  const [view, setView] = React.useState<SessionGates>();
+  const [busy, setBusy] = React.useState<string>();
+  const [error, setError] = React.useState('');
+  const load = actions.sessionGates;
+  React.useEffect(() => {
+    if (!load) return;
+    let active = true;
+    void load().then(next => { if (active) setView(next); }, cause => { if (active) setError(String(cause)); });
+    return () => { active = false; };
+  }, [load]);
+  // Another surface (the chat block, another window) may switch a gate; the live frame is authoritative.
+  React.useEffect(() => {
+    if (!disabled) return;
+    const off = new Set(disabled);
+    setView(current => current && { ...current, gates: current.gates.map(gate => ({ ...gate, sessionEnabled: !off.has(gate.id) })) });
+  }, [disabled]);
+  if (!load || !actions.setSessionGate || !view) return null;
+  const toggle = async (id: string, enabled: boolean) => {
+    setBusy(id); setError('');
+    try {
+      const off = new Set(await actions.setSessionGate!(id, enabled));
+      setView(current => current && { ...current, gates: current.gates.map(gate => ({ ...gate, sessionEnabled: !off.has(gate.id) })) });
+    } catch (cause) { setError(`${t('sessionGateFailed')} (${cause instanceof Error ? cause.message : String(cause)})`); }
+    finally { setBusy(undefined); }
+  };
+  return <section className="studio-gate-block studio-gate-session" aria-label={t('sessionGates')}>
+    <SectionHead title={t('sessionGates')} description={t('sessionGatesHint')} />
+    {error && <Notice>{error}</Notice>}
+    {!view.gates.length ? <Note>{t('sessionGatesEmpty')}</Note> : <ul className="studio-gate-session-list">{view.gates.map(gate => <li key={gate.id} className="studio-gate-session-row" data-gate-session={gate.id}>
+      <span className="studio-gate-session-name"><strong>{gate.name}</strong><span className="studio-card-meta">{gateTaskText(locale, `when-${gate.when}` as GateTaskKey)}{gate.script ? ` · ${gate.script}` : ''}{gate.sessionEnabled ? '' : ` · ${t('sessionGateOff')}`}</span></span>
+      <Toggle label={t('sessionGateToggle').replace('{name}', gate.name)} checked={gate.sessionEnabled} disabled={busy === gate.id} onChange={checked => { void toggle(gate.id, checked); }} />
+    </li>)}</ul>}
+  </section>;
 }
 
 /** Applied is authoritative; lifecycle states only override when no action was applied. */
@@ -22,6 +64,7 @@ export function GateRunsPanel({ actions, locale }: { actions: GateRunActions; lo
   const [openId, setOpenId] = React.useState<string>();
   const [error, setError] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [disabled, setDisabled] = React.useState<string[]>();
   React.useEffect(() => {
     let active = true;
     let generation = 0;
@@ -41,6 +84,7 @@ export function GateRunsPanel({ actions, locale }: { actions: GateRunActions; lo
     const stop = actions.followGates(frame => {
       if (!active) return;
       if (frame.type === 'sync') { void refresh(); return; }
+      if (frame.type === 'session') { setDisabled(frame.disabledGateIds); return; }
       updates.set(frame.run.id, frame.run);
       setRuns(current => [...current.filter(run => run.id !== frame.run.id), frame.run]);
     });
@@ -63,6 +107,7 @@ export function GateRunsPanel({ actions, locale }: { actions: GateRunActions; lo
     finally { setBusy(false); }
   };
   return <div className="studio-pixie-chat">
+    <SessionGateList actions={actions} locale={locale} disabled={disabled} />
     {error && <Notice>{error}</Notice>}
     {!runs.length && <Note>{t('emptyRuns')}</Note>}
     <div className="studio-pixie-threads" data-open={opened ? 'true' : 'false'}>
@@ -80,6 +125,7 @@ export function GateRunsPanel({ actions, locale }: { actions: GateRunActions; lo
         <p className="studio-card-meta">{gatePointText(locale, shown.point)} · {fullTime(shown.startedAt)}{shown.hooksInput === 'unverified' ? ` · ${t('unverified')}` : ''}</p>
         <dl className="studio-gate-facts">
           <dt>{t('applied')}</dt><dd><Badge tone={shown.applied === 'none' || shown.applied === 'pass' ? 'neutral' : 'info'}>{t(shown.applied)}</Badge></dd>
+          {shown.result?.concludedBy && <><dt>{t('concludedBy')}</dt><dd>{t(shown.result.concludedBy === 'script' ? 'concludedScript' : shown.result.concludedBy === 'skipped' ? 'concludedSkipped' : 'concludedPixie')}</dd></>}
           {shown.output && <><dt>{t('verdict')}</dt><dd><Badge tone={shown.output.verdict === 'stop' ? 'warning' : 'success'}>{t(shown.output.verdict === 'stop' ? 'stop' : 'pass')}</Badge></dd></>}
           {shown.output?.reason !== undefined && !shown.rejection && <><dt>{t('reason')}</dt><dd>{shown.output.reason}</dd></>}
           {shown.reason && <><dt>{t('applyNote')}</dt><dd>{shown.reason}</dd></>}
@@ -99,7 +145,7 @@ export function GateRunsPanel({ actions, locale }: { actions: GateRunActions; lo
           </div></>}
         </section>}
         {shown.output && (['replace', 'append', 'note'] as const).some(key => shown.output![key] !== undefined) && <section className="studio-gate-block" aria-label={t('output')}>
-          <SectionHead title={t('output')} />
+          <SectionHead title={t(shown.result?.concludedBy === 'script' ? 'scriptOutput' : 'output')} />
           <dl className="studio-gate-facts">{(['replace', 'append', 'note'] as const).map(key => shown.output![key] !== undefined && <React.Fragment key={key}><dt>{t(key === 'note' ? 'notes' : key)}</dt><dd className="studio-gate-text">{shown.output![key]}</dd></React.Fragment>)}</dl>
         </section>}
         {shown.result ? <GateResultDetails result={shown.result} locale={locale} compact hideOriginal={!!shown.rejection} /> : !shown.rejection && shown.original && <section className="studio-gate-block"><SectionHead title={t('original')} /><p className="studio-pixie-answer studio-gate-text">{shown.original}</p></section>}

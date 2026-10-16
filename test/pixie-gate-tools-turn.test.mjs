@@ -14,7 +14,7 @@ function harness(when, output = { verdict: 'pass' }, options = {}) {
   if (options.preset) task.presetIds = [options.preset];
   Object.assign(task.advanced, { confirmReplace: false, maxSteers: 2 }, options.advanced);
   const agent = { id: 'session', session: { header: {}, snapshotEvents: () => [{ type: 'turn/start', data: { turn: 7 } }], deriveMessages: () => [{ role: 'assistant', content: text('original') }] }, inbox: { nextStep: options.inbox ?? [] }, steer: m => steers.push(m) };
-  const deps = { definitions: async () => [task], preset: () => 'p', isRoot: () => options.root ?? true,
+  const deps = { definitions: async () => [task], ...(options.disabledGates ? { disabledGates: options.disabledGates(task) } : {}), preset: () => 'p', isRoot: () => options.root ?? true,
     runner: async () => ({ run: async () => { calls.push(when); if (options.cancel === 'before') controller.abort(); return options.error ? { status: 'error', error: 'failure' } : { status: 'done', output, usage: { inputTokens: 2, outputTokens: 3 } }; } }),
     recorder: { start: async (_id, gate, original) => ({ id: 'run', when: gate.when, original }), finish: async (_id, _run, data) => { runs.push(structuredClone(data)); if (options.cancel === 'finish') controller.abort(); } },
     emit: (name, event) => events.push([name, structuredClone(event)]) };
@@ -131,3 +131,20 @@ for (const value of [null, 'structured', { data: 1 }]) test(`value-bearing repla
   assert.equal(run.applied, 'none'); assert.equal(run.reason, 'value-bearing result');
   assert.deepEqual(run.result.notes, ['memo', 'replacement']);
 });
+
+for (const when of ['user-message', 'tool-before', 'tool-after', 'turn-end']) {
+  test(`${when}: a gate switched off for the session does not run and leaves no record`, async () => {
+    const seen = [];
+    const h = harness(when, { verdict: 'stop', reason: 'r' }, { disabledGates: task => async sessionId => { seen.push(sessionId); return [task.id]; } });
+    await h.invoke();
+    assert.deepEqual(seen, ['session']);
+    assert.deepEqual(h.calls, []); assert.deepEqual(h.runs, []); assert.deepEqual(h.events, []); assert.deepEqual(h.steers, []);
+  });
+  test(`${when}: another gate's session switch and a failed switch read keep the gate running`, async () => {
+    for (const disabledGates of [() => async () => ['other-gate'], () => async () => { throw new Error('disk'); }]) {
+      const h = harness(when, { verdict: 'pass' }, { disabledGates });
+      await h.invoke();
+      assert.deepEqual(h.calls, [when]); assert.equal(h.runs.length, 1);
+    }
+  });
+}

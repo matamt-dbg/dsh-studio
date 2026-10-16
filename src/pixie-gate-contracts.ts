@@ -7,10 +7,10 @@ export function validateJudgePassRule(value: unknown, questions: Record<string, 
     const question = questions[condition.question]!;
     if (condition.type !== question.type) throw new JudgeValidationError('conditionType', 'Judge condition type must match question');
     if (condition.type === 'choice') {
-      if (question.type !== 'choice' || !Array.isArray(condition.allowed) || !condition.allowed.length || condition.allowed.some(key => typeof key !== 'string' || !Object.hasOwn(question.options, key))) throw new JudgeValidationError('allowed', 'Judge condition needs known allowed choices');
+      if (question.type !== 'choice' || !Array.isArray(condition.allowed) || !condition.allowed.length || condition.allowed.some(key => typeof key !== 'string' || !Object.hasOwn(question.criteria, key))) throw new JudgeValidationError('allowed', 'Judge condition needs known allowed choices');
     } else {
       const number = condition.type === 'noul' ? condition.threshold : condition.min;
-      const max = question.type === 'score' ? question.levels.length - 1 : 1;
+      const max = question.type === 'score' ? question.criteria.length - 1 : 1;
       if (typeof number !== 'number' || !Number.isFinite(number) || number < 0 || number > max) throw new JudgeValidationError('range', 'Judge condition threshold out of range');
     }
   }
@@ -67,7 +67,10 @@ export interface GateResult {
   forward: GateForward;
   hooks: { start?: StageResult; end?: StageResult };
   forwardError?: StageResult;
+  /** Who produced the gate output; absent on records written before #27 and on runs that failed before concluding. */
+  concludedBy?: GateConclusion;
 }
+export type GateConclusion = 'pixie' | 'script' | 'skipped';
 
 /** Actual middleware action, never inferred from the result verdict. */
 export type GateApplied = 'pass' | 'replaced' | 'appended' | 'rejected' | 'steered' | 'blocked' | 'denied' | 'none';
@@ -96,7 +99,11 @@ export interface GateRun {
   steerCount?: number;
   tool?: { name: string; callId: string };
 }
-export interface GateRunRecord { sessionId: string; runs: GateRun[] }
-export type GateRunFrame = { type: 'sync' } | { type: 'run'; run: GateRun };
+/** `disabledGateIds`: gates switched off for this session only; absent means none. Definitions are untouched. */
+export interface GateRunRecord { sessionId: string; runs: GateRun[]; disabledGateIds?: string[] }
+export type GateRunFrame = { type: 'sync' } | { type: 'run'; run: GateRun } | { type: 'session'; disabledGateIds: string[] };
+/** A gate that applies to this session's preset, with its session switch. */
+export interface SessionGate { id: string; name: string; when: string; script?: string; sessionEnabled: boolean }
+export interface SessionGates { preset?: string; gates: SessionGate[] }
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);

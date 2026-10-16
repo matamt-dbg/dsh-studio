@@ -35,12 +35,11 @@ async function settings(t, locale = 'en', options = {}) {
 }
 const page = (h, label) => h.querySelector(`section[aria-label="${label}"]`);
 
-test('gate group holds composition and scope pages after Judge, loaded from the Host', async t => {
+test('gate group holds composition, scope and the decision engine, loaded from the Host', async t => {
   const task = { ...makeTask('Stored'), instruction: 'Check it', enabled: true, presetIds: ['p'] };
   const host = await settings(t, 'ko', { read: { entries: [task], invalid: [{ index: 1, raw: {}, error: { code: 'invalid-entry', message: 'Invalid gate task' } }] } });
   const nav = [...host.querySelectorAll('nav.studio-nav > *')].map(el => el.textContent);
-  assert.deepEqual(nav.slice(-3), ['게이트', '게이트 구성', '적용 범위']);
-  assert.ok(nav.indexOf('판정') < nav.indexOf('게이트'));
+  assert.deepEqual(nav.slice(-4), ['게이트', '게이트 구성', '적용 범위', '결정 엔진']);
   const comp = page(host, '게이트 구성');
   assert.doesNotMatch(comp.textContent, /화면 시안/);
   assert.match(comp.querySelector('[data-gate-task]').textContent, /Stored/);
@@ -100,13 +99,16 @@ test('editor shows two fields up front; script, judge and limits live under Adva
   const editor = [...comp.querySelectorAll('dialog')].find(d => input(d, 'What to send Pixie'));
   const advanced = editor.querySelector('details.studio-disclosure');
   assert.ok(advanced.contains(input(editor, 'Pixie hook script')));
+  assert.match(advanced.textContent, /Choose a script to call before the Pixie gate runs\. Depending on the script output, the Pixie gate can be skipped\./);
   assert.deepEqual([...input(editor, 'Pixie hook script').options].map(o => o.value), ['', ...SCRIPTS]);
   await change(input(editor, 'Pixie hook script'), 'measure-subtitle.sh');
   assert.match(editor.querySelector('.studio-gate-vars').textContent, /\{\{hooks\.measure-subtitle\.text\}\}/);
   assert.match(advanced.textContent, /\/profile\/studio-data\/pixie-gate\/commands/);
   assert.equal(input(editor, 'Decide the verdict with the judge model'), null);
   assert.ok(input(editor, 'Confirm before replacing'));
+  // A script gate may leave the task empty (the script concludes with exit 10/11); without a script it is required.
   await change(input(editor, 'What to send Pixie'), '');
+  await change(input(editor, 'Pixie hook script'), '');
   await click(button(editor, 'Apply'));
   assert.match(editor.textContent, /Describe what Pixie should do/);
   assert.equal(comp.querySelector('[data-gate-task]'), null);

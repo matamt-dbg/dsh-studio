@@ -6,6 +6,8 @@ import type { PixieLlm } from './pixie-runtime.ts';
 /** A System One decision component: state plus typed questions in, typed answers out (Jev contract). */
 export interface JudgeEngine {
   readonly kind: 'judge';
+  /** Recorded with each helper call: `llm` or `jev`. */
+  readonly label: string;
   judge(request: JudgeRequest, signal: AbortSignal): Promise<JudgeResult>;
 }
 
@@ -16,25 +18,27 @@ export { validateJudgeRequest } from "../pixie-contracts.ts";
 const isProbability = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 const sumsToOne = (values: number[]) => Math.abs(values.reduce((sum, value) => sum + value, 0) - 1) <= TOLERANCE;
 
-/** Validate one answer against its question; confidence is the top probability (a distribution property, not a correctness guarantee). */
-function checkAnswer(id: string, question: JudgeQuestion, raw: unknown): JudgeAnswer {
+/** Validate one answer against its question. Confidence is the engine-reported value when valid (Jev derives it from the
+ * distribution), else the top probability; either is a distribution property, not a correctness guarantee.
+ */
+export function checkAnswer(id: string, question: JudgeQuestion, raw: unknown): JudgeAnswer {
   const answer = raw as Record<string, unknown> | undefined;
   if (!answer || typeof answer !== 'object') throw new Error(`Missing answer for "${id}"`);
   if (question.type === 'choice') {
-    const names = Object.keys(question.options);
+    const names = Object.keys(question.criteria);
     const probabilities = answer.probabilities as Record<string, unknown> | undefined;
     if (typeof answer.choice !== 'string' || !names.includes(answer.choice)) throw new Error(`Answer "${id}" chose an unknown option`);
     if (!probabilities || names.some(name => !isProbability(probabilities[name])) || Object.keys(probabilities).some(name => !names.includes(name))) throw new Error(`Answer "${id}" needs a probability per option`);
     const values = names.map(name => probabilities[name] as number);
     if (!sumsToOne(values)) throw new Error(`Answer "${id}" probabilities must sum to 1`);
-    return { type: 'choice', choice: answer.choice, probabilities: Object.fromEntries(names.map(name => [name, probabilities[name] as number])), confidence: Math.max(...values) };
+    return { type: 'choice', choice: answer.choice, probabilities: Object.fromEntries(names.map(name => [name, probabilities[name] as number])), confidence: isProbability(answer.confidence) ? answer.confidence : Math.max(...values) };
   }
   if (question.type === 'score') {
     const probabilities = answer.probabilities as unknown;
-    const top = question.levels.length - 1;
+    const top = question.criteria.length - 1;
     if (typeof answer.score !== 'number' || !Number.isFinite(answer.score) || answer.score < 0 || answer.score > top) throw new Error(`Answer "${id}" score must be within 0..${top}`);
-    if (!Array.isArray(probabilities) || probabilities.length !== question.levels.length || !probabilities.every(isProbability) || !sumsToOne(probabilities)) throw new Error(`Answer "${id}" needs one probability per level summing to 1`);
-    return { type: 'score', score: answer.score, probabilities, confidence: Math.max(...probabilities) };
+    if (!Array.isArray(probabilities) || probabilities.length !== question.criteria.length || !probabilities.every(isProbability) || !sumsToOne(probabilities)) throw new Error(`Answer "${id}" needs one probability per level summing to 1`);
+    return { type: 'score', score: answer.score, probabilities, confidence: isProbability(answer.confidence) ? answer.confidence : Math.max(...probabilities) };
   }
   if (!isProbability(answer.noul)) throw new Error(`Answer "${id}" noul must be a probability in 0..1`);
   return { type: 'noul', noul: answer.noul };
@@ -55,6 +59,7 @@ export function parseJudgeOutput(text: string, questions: Record<string, JudgeQu
 /** Judge with a conversation model, held to the same output contract a Jev engine returns. */
 export class LlmJudgeEngine implements JudgeEngine {
   readonly kind = 'judge' as const;
+  readonly label = 'llm';
   constructor(private readonly llm: PixieLlm, private readonly model: PixieModel, private readonly system = DEFAULT_JUDGE_SYSTEM_PROMPT) {}
 
   async judge(request: JudgeRequest, signal: AbortSignal): Promise<JudgeResult> {

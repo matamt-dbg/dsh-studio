@@ -1,5 +1,14 @@
 /** Pixie copy in ko, en, and zh. */
 const en = {
+  mdCopy: 'Copy', mdCopied: 'Copied', mdFootnotes: 'Footnotes',
+  pageJudge: 'Decision engine', pageJudgeDescription: 'The engine behind \'pixie judge\' in gate hook scripts. Judgments run only when a script asks for one.',
+  judgeEngine: 'Engine', judgeEngineLlm: 'LLM', judgeEngineJev: 'Jev', judgeEngineLlmHint: 'A conversation model answers in the Jev format.', judgeEngineJevHint: 'TypeSafe Jev answers through its API. Gate input is sent to TypeSafe.',
+  judgeModel: 'Judge model', judgeModelHint: 'When not set, the value entered in the Pixie model settings is used.', judgeModelPixie: 'Pixie model',
+  judgePrompt: 'Judge system prompt', judgePromptHint: 'Leave empty for the built-in prompt.',
+  jevModel: 'Jev model', jevModelHint: 'A model ID or alias such as jev-latest. Pin a version once you tune thresholds.',
+  jevKey: 'TypeSafe API key', jevKeyHint: 'Stored in DSH credentials as TYPESAFE_API_KEY. It is never shown again.', jevKeySet: 'Set', jevKeyFrom: 'Source: {source}', jevKeyMissing: 'Not set',
+  jevKeyReadOnly: 'Set by a read-only source ({source}). Change it there.', jevKeyUnavailable: 'The DSH credentials service is not available, so the key cannot be stored here.',
+  jevKeyPlaceholder: 'Paste the key', jevKeySave: 'Save key', jevKeyDelete: 'Remove key', jevKeyFailed: 'Could not update the key.', errCredentialsRefs: 'The DSH credentials file (.credentials.yaml in the DSH home) has an empty refs: line. Change it to refs: {} and save again.', jevKeySaving: 'Saving…', jevKeyRemoving: 'Removing…', jevKeySaved: 'Key saved.', jevKeyRemoved: 'Key removed.',
   title: 'Pixie', chat: 'Threads', judge: 'Judge', threads: 'Pixie threads', newThread: 'New thread', fresh: 'New', fork: 'Continue',
   mode: 'Context mode', model: 'Model',
   allThreads: 'All threads', turnCount: 'questions', activeBadge: '/pixie sends here', makeTarget: 'Send /pixie here', freshMeta: 'Empty start', forkMeta: 'Copied session text', noTurns: 'No questions yet',
@@ -21,14 +30,23 @@ const en = {
 } as const;
 export type PixieTextKey = keyof typeof en;
 const ko: Record<PixieTextKey, string> = {
-  title: 'Pixie', chat: '스레드', judge: '판정', threads: 'Pixie 스레드', newThread: '새 스레드', fresh: '새 대화', fork: '이어받기',
+  mdCopy: '복사', mdCopied: '복사됨', mdFootnotes: '각주',
+  pageJudge: '결정 엔진', pageJudgeDescription: '게이트 훅 스크립트에서 \'pixie judge\'가 사용하는 엔진입니다. 스크립트가 요청할 때만 판정합니다.',
+  judgeEngine: '엔진', judgeEngineLlm: 'LLM', judgeEngineJev: 'Jev', judgeEngineLlmHint: '대화 모델이 Jev 형식으로 답을 생성합니다.', judgeEngineJevHint: 'TypeSafe Jev API가 답합니다. 게이트 입력이 TypeSafe로 전송됩니다.',
+  judgeModel: '판정 모델', judgeModelHint: '정하지 않으면 Pixie 모델 설정에서 입력한 값을 사용합니다.', judgeModelPixie: 'Pixie 모델',
+  judgePrompt: '판정 시스템 프롬프트', judgePromptHint: '비우면 기본 프롬프트를 씁니다.',
+  jevModel: 'Jev 모델', jevModelHint: 'jev-latest 같은 모델 ID나 별칭을 넣습니다. 기준값을 조정한 뒤에는 버전을 고정하세요.',
+  jevKey: 'TypeSafe API 키', jevKeyHint: 'DSH 자격 증명에 TYPESAFE_API_KEY로 저장되며, 저장한 키는 다시 표시되지 않습니다.', jevKeySet: '설정됨', jevKeyFrom: '출처: {source}', jevKeyMissing: '설정 안 됨',
+  jevKeyReadOnly: '읽기 전용 출처({source})에서 설정한 값입니다. 그곳에서 바꾸세요.', jevKeyUnavailable: 'DSH 자격 증명 서비스를 사용할 수 없어 여기에 키를 저장할 수 없습니다.',
+  jevKeyPlaceholder: '키 붙여 넣기', jevKeySave: '키 저장', jevKeyDelete: '키 삭제', jevKeyFailed: '키를 바꾸지 못했습니다.', errCredentialsRefs: 'DSH 자격 증명 파일(DSH 홈의 .credentials.yaml)에서 refs: 줄이 비어 있습니다. refs: {}로 고친 뒤 다시 저장하세요.', jevKeySaving: '저장 중…', jevKeyRemoving: '삭제 중…', jevKeySaved: '키를 저장했습니다.', jevKeyRemoved: '키를 삭제했습니다.',
+  title: 'Pixie', chat: '스레드', judge: '판정', threads: 'Pixie 스레드', newThread: '새 스레드', fresh: '새 대화', fork: '이어쓰기',
   mode: '컨텍스트 모드', model: '모델',
-  allThreads: '전체 스레드', turnCount: '개 질문', activeBadge: '/pixie가 여기로 보냅니다', makeTarget: '/pixie를 여기로 보내기', freshMeta: '빈 상태로 시작', forkMeta: '세션 대화 복사', noTurns: '아직 질문이 없습니다',
-  streaming: '답변 중', cancelled: '취소됨', error: '실패', cancel: '취소', ask: '요청', retry: '다시 시도', loading: '불러오는 중…',
+  allThreads: '전체 스레드', turnCount: '개 질문', activeBadge: '여기로 /pixie 보내기', makeTarget: '/pixie를 이 스레드로 보내기', freshMeta: '빈 상태로 시작', forkMeta: '세션 텍스트를 복사함', noTurns: '아직 질문이 없습니다',
+  streaming: '답변 중', cancelled: '취소됨', error: '실패', cancel: '취소', ask: '묻기', retry: '다시 시도', loading: '불러오는 중…',
   question: 'Pixie에게 질문', placeholder: 'Pixie에게 묻기… (⌘/Ctrl+Enter)',
   isolation: 'Pixie 답변은 여기에만 남습니다. 대화와 에이전트 컨텍스트에는 아무것도 추가되지 않습니다.',
   noModel: 'Pixie 모델이 설정되지 않았습니다. DSH Studio → Pixie에서 선택하세요.',
-  judgeNote: 'Pixie 모델로 판정을 시험합니다. 상태와 질문을 넣으면 질문마다 선택지, 점수, 예 확률을 돌려줍니다.',
+  judgeNote: 'Pixie 모델로 판정을 시험해 보세요. 상태와 질문을 넣으면 질문마다 선택지, 점수, 예 확률을 돌려줍니다.',
   judgeState: '상태 (텍스트 또는 JSON)', judgeQuestions: '질문 (ID별 JSON)', runJudge: '판정 실행', judgeQuestionsJson: '질문은 JSON이어야 합니다.',
   confidence: '확신도', yesProbability: '예 확률',
   settingsTitle: 'Pixie',
@@ -38,9 +56,18 @@ const ko: Record<PixieTextKey, string> = {
   settingsPrompt: 'Pixie 시스템 프롬프트', settingsAllowThreadModel: '스레드별 모델 허용', settingsThreadModelOn: '다른 모델 허용', settingsThreadModelOnHint: '새 스레드에서 모델을 따로 고를 수 있습니다.', settingsThreadModelOff: '항상 기본 모델', settingsThreadModelOffHint: '모든 스레드가 기본 모델을 씁니다.', save: '저장', saving: '저장 중…', savedButton: '저장됨', saveFailed: 'Pixie 설정을 저장하지 못했습니다. 편집한 내용은 화면에 그대로 있습니다.', dismiss: '닫기', settingsNavigation: 'Pixie 메뉴', settingsGroup: '설정', pageModel: '모델', pageModelDescription: 'Pixie가 쓸 모델을 정합니다. Pixie 답변은 대화나 에이전트 컨텍스트에 들어가지 않습니다.', pageThreads: '스레드', pageThreadsDescription: '새 Pixie 스레드의 시작 방식과 스레드별 모델 선택 여부를 정합니다.', pagePrompt: '시스템 프롬프트', pagePromptDescription: '모든 Pixie 요청 앞에 붙는 지시문입니다.',
   catalogFailed: '모델 목록을 가져오지 못한 제공자:',
   rowAsked: 'Pixie에게 물어봄 · 답변은 Pixie 탭에 있습니다', openTab: 'Pixie 열기', deleteThread: '스레드 삭제', create: '만들기', noThreads: '아직 스레드가 없습니다', rowWaiting: 'Pixie가 답변하는 중…',
-  truncated: '토큰 한도에 걸려 잘림', errNoModel: 'Pixie 모델이 설정되지 않았습니다. DSH Studio → Pixie에서 선택하세요.', errBusy: '이 세션에서 Pixie가 아직 답변 중입니다.', errEmpty: '/pixie 뒤에 질문을 입력하세요.',
+  truncated: '토큰 한도에서 잘렸습니다', errNoModel: 'Pixie 모델이 설정되지 않았습니다. DSH Studio → Pixie에서 선택하세요.', errBusy: '이 세션에서 Pixie가 아직 답변 중입니다.', errEmpty: '/pixie 뒤에 질문을 입력하세요.',
 };
 const zh: Record<PixieTextKey, string> = {
+  mdCopy: '复制', mdCopied: '已复制', mdFootnotes: '脚注',
+  pageJudge: '决策引擎', pageJudgeDescription: '门控钩子脚本中 \'pixie judge\' 使用的引擎，仅在脚本请求时判定。',
+  judgeEngine: '引擎', judgeEngineLlm: 'LLM', judgeEngineJev: 'Jev', judgeEngineLlmHint: '由对话模型按 Jev 格式回答。', judgeEngineJevHint: '由 TypeSafe Jev API 回答，门控输入会发送给 TypeSafe。',
+  judgeModel: '判定模型', judgeModelHint: '未设置时使用 Pixie 模型设置中填写的值。', judgeModelPixie: 'Pixie 模型',
+  judgePrompt: '判定系统提示词', judgePromptHint: '留空则使用内置提示词。',
+  jevModel: 'Jev 模型', jevModelHint: '模型 ID 或别名，如 jev-latest。调好阈值后请固定版本。',
+  jevKey: 'TypeSafe API 密钥', jevKeyHint: '以 TYPESAFE_API_KEY 存入 DSH 凭据，保存后不再显示。', jevKeySet: '已设置', jevKeyFrom: '来源：{source}', jevKeyMissing: '未设置',
+  jevKeyReadOnly: '由只读来源（{source}）设置，请在该处修改。', jevKeyUnavailable: 'DSH 凭据服务不可用，无法在此保存密钥。',
+  jevKeyPlaceholder: '粘贴密钥', jevKeySave: '保存密钥', jevKeyDelete: '删除密钥', jevKeyFailed: '无法更新密钥。', errCredentialsRefs: 'DSH 凭据文件（DSH 主目录中的 .credentials.yaml）的 refs: 行为空。请改为 refs: {} 后重新保存', jevKeySaving: '保存中…', jevKeyRemoving: '删除中…', jevKeySaved: '已保存密钥', jevKeyRemoved: '已删除密钥',
   title: 'Pixie', chat: '线程', judge: '判定', threads: 'Pixie 线程', newThread: '新线程', fresh: '新对话', fork: '接续',
   mode: '上下文模式', model: '模型',
   allThreads: '全部线程', turnCount: '个问题', activeBadge: '/pixie 发送到这里', makeTarget: '让 /pixie 发送到这里', freshMeta: '从空开始', forkMeta: '复制了会话文本', noTurns: '还没有问题',
@@ -71,9 +98,14 @@ export function pixieText(locale: string, key: PixieTextKey): string {
 /** Stable codes the Host puts in front of user-facing failures, so the Client can show them in the active language. */
 export const PIXIE_ERROR_CODES = { 'pixie/no-model': 'errNoModel', 'pixie/busy': 'errBusy', 'pixie/empty': 'errEmpty' } as const satisfies Record<string, PixieTextKey>;
 
+/** Codes whose localized text explains a fix; the original Host text follows it so the cause stays visible. */
+export const PIXIE_DETAILED_ERROR_CODES = { 'pixie/credentials-refs': 'errCredentialsRefs' } as const satisfies Record<string, PixieTextKey>;
+
 /** Localize a Host failure that starts with a known `[code]`; other text (provider errors) is shown as given. */
 export function pixieError(locale: string, message: string): string {
   const match = /^\[(pixie\/[\w-]+)\]\s*/.exec(message);
   const key = match ? PIXIE_ERROR_CODES[match[1] as keyof typeof PIXIE_ERROR_CODES] : undefined;
-  return key ? pixieText(locale, key) : message;
+  if (key) return pixieText(locale, key);
+  const detailed = match ? PIXIE_DETAILED_ERROR_CODES[match[1] as keyof typeof PIXIE_DETAILED_ERROR_CODES] : undefined;
+  return detailed ? `${pixieText(locale, detailed)} (${message.slice(match![0].length)})` : message;
 }

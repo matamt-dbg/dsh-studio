@@ -32,7 +32,8 @@ export class PixieGateStore implements PixieGateRecorder {
       throw error;
     }
     if (!record || typeof record !== 'object' || Array.isArray(record) || record.sessionId !== sessionId || !Array.isArray(record.runs)
-      || record.runs.some(run => !run || typeof run !== 'object' || Array.isArray(run) || run.sessionId !== sessionId)) {
+      || record.runs.some(run => !run || typeof run !== 'object' || Array.isArray(run) || run.sessionId !== sessionId)
+      || (record.disabledGateIds !== undefined && (!Array.isArray(record.disabledGateIds) || record.disabledGateIds.some(id => typeof id !== 'string')))) {
       throw new Error(`Invalid Pixie Gate record for session ${sessionId}`);
     }
     for (const run of record.runs) if (run.status === 'running' && !this.owned.has(run.id)) run.status = 'cancelled';
@@ -98,6 +99,24 @@ export class PixieGateStore implements PixieGateRecorder {
       await this.save(sessionId, record);
       this.publish(run);
       return structuredClone(run);
+    });
+  }
+
+  /** Gates switched off for this session; a missing record means none. */
+  async disabledGates(sessionId: string): Promise<string[]> { return [...(await this.read(sessionId)).disabledGateIds ?? []]; }
+
+  /** Switch one gate for this session only. Shares the run queue, so it never races a run commit. */
+  setGateEnabled(sessionId: string, gateId: string, enabled: boolean): Promise<string[]> {
+    if (typeof gateId !== 'string' || !gateId) throw new Error('Gate id is required');
+    return this.enqueue(sessionId, async () => {
+      const record = await this.read(sessionId);
+      const current = new Set(record.disabledGateIds ?? []);
+      if (enabled) current.delete(gateId); else current.add(gateId);
+      const next = [...current];
+      if (next.length) record.disabledGateIds = next; else delete record.disabledGateIds;
+      await this.save(sessionId, record);
+      for (const listener of this.listeners.get(sessionId) ?? []) listener({ type: 'session', disabledGateIds: [...next] });
+      return next;
     });
   }
 

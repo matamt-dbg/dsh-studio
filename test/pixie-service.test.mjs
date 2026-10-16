@@ -232,3 +232,53 @@ test('a /pixie turn can be read by command id, and threads can be deleted', asyn
   assert.deepEqual((await service.view('s1')).record.threads, []);
   await fiber.dispose();
 });
+
+test('Jev key Remote stores through DSH credentials and never returns the value', async () => {
+  const h = await harness(), store = new Map(), shadow = new Map();
+  h.ctx.provide('credentials');
+  h.ctx.set('credentials', {
+    resolve: async ref => shadow.has(ref) ? { value: shadow.get(ref), source: 'env' } : store.has(ref) ? { value: store.get(ref), source: 'store' } : undefined,
+    describe: async ref => shadow.has(ref) ? { configured: true, source: 'env', writable: false } : { configured: store.has(ref), ...(store.has(ref) ? { source: 'store' } : {}), writable: true },
+    set: async (ref, value) => { if (shadow.has(ref)) throw new Error('shadowed'); store.set(ref, value); },
+    unset: async ref => { store.delete(ref); },
+  });
+  const fiber = await start(h);
+  try {
+    const service = h.ctx.get('studioPixie');
+    assert.deepEqual(await service.jevKeyStatus(), { available: true, configured: false, writable: true });
+    const saved = await service.saveJevKey(JSON.stringify({ value: '  ts-secret  ' }));
+    assert.deepEqual(saved, { available: true, configured: true, writable: true, source: 'store' });
+    assert.equal(store.get('TYPESAFE_API_KEY'), 'ts-secret');
+    assert.doesNotMatch(JSON.stringify(saved), /ts-secret/);
+    await assert.rejects(service.saveJevKey(JSON.stringify({ value: ' ' })), /required/);
+    assert.deepEqual(await service.deleteJevKey(), { available: true, configured: false, writable: true });
+    shadow.set('TYPESAFE_API_KEY', 'from-env');
+    assert.deepEqual(await service.jevKeyStatus(), { available: true, configured: true, writable: false, source: 'env' });
+    await assert.rejects(service.saveJevKey(JSON.stringify({ value: 'x' })), /shadowed/);
+  } finally { await fiber.dispose(); }
+});
+
+test('without DSH credentials the Jev key is reported unavailable and cannot be stored', async () => {
+  const h = await harness();
+  const fiber = await start(h);
+  try {
+    const service = h.ctx.get('studioPixie');
+    assert.deepEqual(await service.jevKeyStatus(), { available: false, configured: false, writable: false });
+    await assert.rejects(service.saveJevKey(JSON.stringify({ value: 'x' })), /credentials service is unavailable/);
+  } finally { await fiber.dispose(); }
+});
+
+test('a bare refs: line in the DSH credentials file becomes a coded error that keeps the original text', async () => {
+  const h = await harness();
+  h.ctx.provide('credentials');
+  const shape = new Error('Expected YAML collection at refs. Remaining path: TYPESAFE_API_KEY');
+  h.ctx.set('credentials', { resolve: async () => undefined, describe: async () => ({ configured: false, writable: true }), set: async () => { throw shape; }, unset: async () => { throw shape; } });
+  const fiber = await start(h);
+  try {
+    const service = h.ctx.get('studioPixie');
+    await assert.rejects(service.saveJevKey(JSON.stringify({ value: 'k' })), /^Error: \[pixie\/credentials-refs\] Expected YAML collection at refs\. Remaining path: TYPESAFE_API_KEY$/);
+    await assert.rejects(service.deleteJevKey(), /\[pixie\/credentials-refs\]/);
+    h.ctx.get('credentials').set = async () => { throw new Error('disk full'); };
+    await assert.rejects(service.saveJevKey(JSON.stringify({ value: 'k' })), /^Error: disk full$/);
+  } finally { await fiber.dispose(); }
+});

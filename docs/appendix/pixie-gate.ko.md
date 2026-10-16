@@ -9,13 +9,16 @@ Pixie Gate는 에이전트가 일하는 정해진 순간에 **Pixie 모델이 �
 - [고급 옵션](#고급-옵션)
 - [Pixie 훅 스크립트](#pixie-훅-스크립트)
 - [pixie 헬퍼](#pixie-헬퍼)
+- [결정 엔진](#결정-엔진)
 - [예시 스크립트](#예시-스크립트)
+- [에이전트 스킬](#에이전트-스킬)
+- [대화창 메모와 세션별 끄기](#대화창-메모와-세션별-끄기)
 - [실행 기록 보기](#실행-기록-보기)
 - [제한과 문제 해결](#제한과-문제-해결)
 
 ## 게이트 만들기
 
-1. **Studio → Pixie → 설정 → 모델**에서 Pixie 모델을 고릅니다. 게이트와 헬퍼(`pixie ask`, `pixie judge`)는 모두 이 모델을 씁니다.
+1. **Studio → Pixie → 설정 → 모델**에서 Pixie 모델을 고릅니다. 게이트의 할 일과 `pixie ask`가 이 모델을 씁니다. `pixie judge`는 [결정 엔진](#결정-엔진) 설정을 따릅니다.
 2. **게이트 → 게이트 구성**에서 **새 게이트**를 누르고 템플릿을 고릅니다. 지점마다 대표 템플릿이 하나씩 있고(작업 지시 양식 검사, 에이전트 대화 규격 판정, 위험한 명령 차단, 긴 도구 결과 요약, 최종 답변 검증), 빈 게이트는 목록 마지막에 있습니다. 카드의 스위치는 게이트 전체 켜고 끄기입니다.
 3. **언제**와 **Pixie가 할 일**을 정합니다. 할 일은 문장으로 씁니다. 통과시킬지 막을지, 무엇을 바꾸거나 덧붙일지, 나에게만 남길 메모가 무엇인지를 함께 쓰면 됩니다.
 4. **시험 실행**에 예시를 넣고 실행하면 설정한 Pixie 모델이 실제로 답합니다. 결과는 기록되지 않고 세션에도 전달되지 않습니다.
@@ -61,7 +64,7 @@ Pixie는 할 일에 따라 다섯 칸을 답합니다. 모든 칸은 선택이�
 
 ## Pixie 훅 스크립트
 
-두 칸으로 표현하기 어려운 흐름(특정 도구만, 번역 → 판정 → 재번역 반복, 외부 측정)은 스크립트로 만듭니다. Studio는 기능을 하나씩 만들지 않고 스크립트가 쓸 수단만 제공합니다.
+두 칸으로 표현하기 어려운 흐름(특정 도구만, 번역 → 판정 → 재번역 반복, 외부 측정, 판정만으로 결론 내기)은 스크립트로 만듭니다. Studio는 기능을 하나씩 만들지 않고 스크립트가 쓸 수단만 제공합니다.
 
 - **위치:** 기본은 `<프로필>/studio-data/pixie-gate/commands/`이며, **게이트 → 적용 범위**의 **스크립트 폴더**에서 다른 폴더(절대 경로 또는 `~/…`)로 바꾸고, **폴더 열기**로 Finder·탐색기에서 열 수 있습니다(데스크톱에서 실행 중일 때). 비우면 기본 폴더로 돌아가고, 폴더는 자동으로 만들지 않습니다. 이 폴더의 실행 가능한 파일만 고를 수 있습니다(`chmod +x`). 하위 폴더, 폴더 밖을 가리키는 링크, 이름에 `..`가 든 파일은 제외됩니다. 파일을 추가한 뒤 **목록 새로고침**을 누르세요.
 - **지원 환경:** DSH에서 bash 프로필을 지원하는 경우에만 사용 가능합니다(macOS·Linux). Windows는 아직 지원하지 않으며, 지원하지 않는 환경에서는 실행하지 않고 오류 정책을 적용합니다.
@@ -77,9 +80,18 @@ Pixie는 할 일에 따라 다섯 칸을 답합니다. 모든 칸은 선택이�
 | stdout이 JSON 객체 | `{{hooks.<이름>.data}}`에 그 JSON이 들어갑니다. 아니면 빈 문자열 |
 | exit 0 | 계속: Pixie가 할 일을 실행 |
 | exit 10 | 이 게이트를 건너뜀: 원래 흐름 그대로, 모델 호출 없음 |
+| exit 11 | stdout을 게이트 결론으로 그대로 사용: Pixie 호출 없음. 아래 참고 |
 | 그 밖·시간 초과 | 오류: 오류 정책 적용 |
 
 `<이름>`은 파일 이름에서 마지막 확장자를 뺀 것입니다(`measure-subtitle.sh` → `measure-subtitle`). 할 일에 정의되지 않은 변수를 쓰면 저장할 수 없습니다.
+
+**exit 11 — 스크립트가 직접 결론 내기.** stdout은 Pixie가 내는 것과 같은 JSON 객체여야 합니다. 칸은 `verdict`(`pass`·`stop`), `reason`, `replace`, `append`, `note`이고 모두 선택입니다. [지점별 적용 규칙](#언제와-결과-적용-규칙)이 그대로 적용되며, 실행 기록의 **결론**에 `훅 스크립트`로 표시됩니다. JSON이 아니거나 모르는 칸이 있으면 오류 정책을 따릅니다.
+
+```bash
+printf '{"verdict":"stop","reason":"양식에 제목 줄이 없습니다."}'; exit 11
+```
+
+스크립트가 늘 exit 10이나 11로 끝나면 **할 일**은 비워 둘 수 있습니다. 할 일이 빈 게이트에서 스크립트가 exit 0을 내면 오류입니다.
 
 ### 환경 변수
 
@@ -98,15 +110,46 @@ Pixie는 할 일에 따라 다섯 칸을 답합니다. 모든 칸은 선택이�
 
 ```sh
 pixie ask "<지시>" [--input]
-pixie judge --question "<질문>" [--threshold 0.5] [--input]
+pixie judge [--type bool|select|score] --question "<질문>" [형식별 인자] [--json] [--input]
 ```
 
 - `--input`을 주면 헬퍼 입력을 stdin에서 읽고, 없으면 게이트 대상 텍스트를 씁니다.
 - `ask`는 답을 stdout에 쓰고 exit 0입니다. Pixie 일반 모델을 씁니다.
-- `judge`는 "예" 확률을 stdout에 쓰고, 기준 이상이면 exit 0, 미달이면 exit 1입니다. Pixie 모델을 씁니다.
+- `judge`는 [결정 엔진](#결정-엔진)으로 판정합니다. 형식과 출력은 아래 표를 따릅니다.
 - 사용법 오류, 토큰 오류, 상한 초과, 모델 오류는 exit 2와 stderr 메시지입니다. 헬퍼가 실패해도 게이트 결과는 스크립트 종료 코드가 정합니다.
 - 상한: 실행당 20회, 요청 256KB. 호출은 게이트 제한 시간·취소를 따르며 사용량은 게이트 사용량에 합산되고 실행 기록의 **헬퍼 호출**에 남습니다.
 - 토큰은 그 실행의 ask·judge만 부를 수 있습니다. 헬퍼는 DSH 웹 서버의 Studio 경로를 쓰므로 웹 서버가 없는 구성(예: headless)에서는 사용할 수 없습니다.
+
+## 결정 엔진
+
+`pixie judge`는 **Studio → Pixie → 게이트 → 결정 엔진**에서 고른 엔진으로 판정합니다. 판정은 스크립트가 요청할 때만 일어나며, 결과로 무엇을 할지도 스크립트가 정합니다.
+
+| 엔진 | 설명 |
+| --- | --- |
+| LLM (기본) | 판정 모델(비우면 Pixie 모델)이 Jev 형식으로 답합니다. 판정 시스템 프롬프트를 바꿀 수 있습니다 |
+| Jev | [TypeSafe Jev](https://docs.typesafe.ai/api)가 API로 답합니다. 모델은 `jev-latest`가 기본이며, 기준값을 맞춘 뒤에는 `jev-1.13.0`처럼 버전을 고정하세요. **게이트 입력이 TypeSafe로 전송됩니다** |
+
+**Jev API 키:** 결정 엔진 화면에서 키를 붙여 넣고 **키 저장**을 누릅니다. 키는 DSH 자격 증명에 `TYPESAFE_API_KEY`로 저장되고 다시 표시되지 않습니다. 환경 변수나 `.env`에 `TYPESAFE_API_KEY`가 있으면 그 값을 쓰며, 이 경우 화면에서는 바꿀 수 없습니다. 키가 없거나 틀리면 `pixie judge`가 exit 2로 실패합니다.
+
+| `--type` | 인자 | stdout | exit |
+| --- | --- | --- | --- |
+| `bool` (기본) | `--threshold`(기본 0.5), 선택 `--true "<예의 뜻>"`, `--false "<아니오의 뜻>"` | "예" 확률 | 기준 이상 0, 미만 1 |
+| `select` | `--option 이름="설명"`을 2개 이상 | 고른 선택지 이름 | 0 |
+| `score` | `--level "설명"`을 낮은 단계부터 2–10개 | 점수(0부터, 소수 가능) | 0 |
+
+- `--json`을 주면 stdout에 `{"type","label","answer","engine"}` JSON 한 줄을 씁니다. `label`은 bool이면 `yes`/`no`, select면 선택지 이름, score면 가장 가까운 단계 번호입니다. `answer`에는 확률과 확신도가 들어 있습니다.
+- `--question`에는 판정할 내용을 완전한 문장으로 씁니다. 질문 ID는 모델에 전달되지 않습니다. 입력이 여러 부분이면 JSON으로 묶고 질문에서 `` `source` ``처럼 이름으로 가리키세요.
+- 판정 오류는 오류입니다. "아니오"나 낮은 점수로 바뀌지 않으며 exit 2가 됩니다.
+- 기존 `pixie judge --question … --threshold …`는 그대로 동작합니다(`--type bool`).
+
+### 에이전트 도구 `judge`
+
+같은 결정 엔진을 에이전트가 직접 부를 수 있는 도구 `judge`로도 제공합니다. Studio Master에 들어 있고, 프리셋 편집기의 도구 목록에서 골라 넣을 수 있습니다. 기본 제공 Optimized 프리셋에는 들어 있지 않습니다.
+
+- 입력은 Jev 요청 형식 그대로입니다: `{ state, questions: { <id>: { type, instructions, criteria } } }`. 형식은 위 표의 bool(`noul`)·select(`choice`)·score와 같습니다.
+- 출력은 질문별 `answers`(확률·확신도), 쓴 엔진(`llm`·`jev`), 사용량입니다.
+- 판정만 하고 글을 고쳐 쓰지 않습니다. 순위 매기기, 거르기, 검증에 쓰고 고치는 일은 에이전트가 합니다(예: 로케일 문구 채점 → 낮은 것만 고침 → 다시 판정).
+- 판정이 실패하면 도구 오류로 돌아옵니다. 엔진이 설정되지 않았거나 Jev 키가 없을 때도 마찬가지입니다.
 
 ## 예시 스크립트
 
@@ -131,21 +174,51 @@ printf '{"cues":%d,"bytes":%d}\n' "$lines" "${#text}"
 
 할 일: `측정 결과: {{hooks.measure-subtitle.data}}` …
 
-**번역 반복** (`translate-until-ok.sh`, 에이전트 답변이 끝났을 때): 번역하고, 판정에 통과할 때까지 최대 3번 다시 번역합니다.
+**번역 검증** (`translate-check.sh`, 에이전트 답변이 끝났을 때): 이미 한국어면 판정 1회로 끝내고(exit 10), 아니면 Pixie로 번역한 뒤 원문과 함께 충실도를 판정합니다. Pixie 할 일을 쓰지 않고 exit 11로 메모를 직접 남기며, 메모는 [대화창 답변 아래](#대화창-메모와-세션별-끄기)에 보입니다. 두 번 모두 충실도를 통과하지 못하면 마지막 번역을 `충실도 미확인` 표시와 함께 남깁니다. 헬퍼 오류(exit 2)는 exit 1로 넘겨 오류 정책을 따릅니다. `jq`가 필요합니다(macOS 기본 포함).
 
 ```bash
 #!/bin/bash
 source=$(cat)
-for _ in 1 2 3; do
-  draft=$(printf '%s' "$source" | pixie ask "Translate into natural Korean. Output only the translation." --input) || exit 1
-  if printf '%s' "$draft" | pixie judge --question "Is this a faithful, natural Korean translation?" --threshold 0.7 --input >/dev/null; then
-    printf '%s\n' "$draft"; exit 0
+printf '%s' "$source" | pixie judge --question "Is the prose of this text written in Korean? Ignore code blocks, file paths, identifiers and command output." --threshold 0.8 --input >/dev/null
+status=$?
+[ "$status" -eq 0 ] && exit 10
+[ "$status" -eq 2 ] && exit 1
+for _ in 1 2; do
+  draft=$(printf '%s' "$source" | pixie ask "Translate this agent answer into natural Korean. Keep code blocks, file paths, identifiers, commands and numbers unchanged. Keep the Markdown structure. Output only the translation." --input) || exit 1
+  if jq -n --arg s "$source" --arg t "$draft" '{source:$s, translation:$t}' \
+     | pixie judge --question "Does \`translation\` keep every condition, number, negation and code element of \`source\`?" --threshold 0.7 --input >/dev/null; then
+    jq -n --arg t "$draft" '{note: ("[한국어 번역]\n" + $t)}'; exit 11
+  else
+    status=$?
+    [ "$status" -eq 2 ] && exit 1
   fi
 done
-exit 10
+jq -n --arg t "$draft" '{note: ("[한국어 번역 — 충실도 미확인]\n" + $t)}'
+exit 11
 ```
 
-할 일: `아래 번역을 메모에 그대로 넣어.\n{{hooks.translate-until-ok.text}}`
+한국어와 영어가 섞인 답변은 한국어 확률이 중간으로 나와 번역 대상이 되고, 충실도가 낮게 나올 수 있습니다. 섞인 답변을 건너뛰려면 첫 판정의 기준(0.8)을 낮추세요.
+
+**완료·테스트 주장 감사** (`claim-check.sh`, 에이전트 답변이 끝났을 때): 답변의 테스트 통과 주장이 마지막 실행 기록과 맞는지 select로 판정합니다. 모순이면 다시 하라고 지시하고, 증거가 없으면 메모만 남기며, 확신이 낮으면 exit 0으로 Pixie에게 넘깁니다. 실행 기록 파일(`.last-test-run`)은 프로젝트에 맞게 바꾸세요.
+
+```bash
+#!/bin/bash
+answer=$(cat)
+evidence=$(cat .last-test-run 2>/dev/null || echo "no recorded test run")
+result=$(jq -n --arg a "$answer" --arg e "$evidence" '{answer:$a, evidence:$e}' | pixie judge --type select --json --input \
+  --question "Is the claim in \`answer\` that tests passed supported by \`evidence\`?" \
+  --option supported="evidence shows the claimed tests ran and passed, or answer makes no test claim" \
+  --option contradicted="evidence shows a failure or a different run" \
+  --option missing="answer claims tests passed but evidence has no run") || exit 1
+case "$(jq -r .label <<<"$result")" in
+  supported) exit 10 ;;
+  contradicted) printf '{"verdict":"stop","reason":"테스트 결과가 주장과 다릅니다. 실제 결과를 확인해 다시 보고하세요."}'; exit 11 ;;
+  missing) [ "$(jq '.answer.confidence < 0.6' <<<"$result")" = true ] && { printf '%s' "$result"; exit 0; }
+           printf '{"note":"테스트 실행 기록이 없습니다."}'; exit 11 ;;
+esac
+```
+
+이 스크립트를 쓰는 게이트의 할 일(확신이 낮을 때만 실행): `판정 결과 {{hooks.claim-check.data}}를 보고, 테스트 주장이 근거 없으면 막고 이유를 써.`
 
 **변경 파일** (`list-changed-files.sh`, 에이전트 답변이 끝났을 때): 작업 디렉터리의 git 변경을 알려 줍니다.
 
@@ -154,16 +227,41 @@ exit 10
 git status --porcelain 2>/dev/null | head -50
 ```
 
+## 에이전트 스킬
+
+Studio는 시작할 때 `<DSH 홈>/skills/studio-pixie-hook-guide/`(기본 `~/.dsh/skills/`)에 이 가이드와 훅 규칙을 담은 스킬을 설치합니다. 에이전트에게 "번역을 검증하는 Pixie 게이트를 만들어 줘"처럼 요청하면 이 스킬을 읽고 지점 선택, 스크립트 작성, `pixie judge` 사용, exit 0·10·11 규칙에 맞춰 게이트를 만들도록 돕습니다.
+
+- `SKILL.md`(규칙)와 `guide.md`(이 가이드 영문판)가 들어 있습니다.
+- Studio를 업데이트하면 스킬도 새 버전으로 바뀝니다. 직접 고친 파일은 덮어쓰지 않습니다. 고친 파일을 Studio 버전으로 되돌리려면 그 파일을 지우고 DSH를 다시 시작하세요.
+
+## 대화창 메모와 세션별 끄기
+
+**대화창 메모:** 답변 끝 게이트에서 훅 스크립트가 exit 11로 메모를 남기면(예: 번역), 그 메모가 해당 턴의 답변 바로 아래에 블록으로 나타납니다.
+
+- 메모 첫 줄이 `[한국어 번역]`처럼 대괄호로 시작하면 그 글이 블록 제목이 됩니다. 제목에 `미확인`(또는 `not verified`)이 들어 있으면 **확인 안 됨** 배지가 붙습니다.
+- 본문은 Markdown으로 표시됩니다. 블록에서 **접기**, **Pixie 탭에서 보기**, **이 세션에서 끄기**를 쓸 수 있습니다.
+- 스크립트가 끝난 뒤에 나타나며, 진행 중 표시는 없습니다. 건너뛴 턴(exit 10), Pixie가 결론을 낸 턴, 메모가 없는 턴에는 블록이 생기지 않습니다. 한 턴에 여러 번 실행됐으면 마지막 메모만 보입니다.
+- 원래 답변은 그대로 남습니다. 접거나 바꿀 수 없습니다.
+
+**세션별 끄기:** **Pixie** 탭 → **게이트** 맨 위의 **이 세션의 게이트**에서, 이 세션 프리셋에 적용되는 게이트마다 스위치로 이 세션에서만 끄고 켭니다. 대화창 블록의 **이 세션에서 끄기**도 같은 스위치입니다.
+
+- 끈 게이트는 이 세션의 모든 지점에서 실행되지 않습니다. 스크립트·Pixie·결정 엔진 호출도 없고 기록도 남지 않습니다. 다음 메시지부터 바로 적용되며 재시작은 필요 없습니다.
+- 게이트 정의, 프리셋 연결, 다른 세션은 바뀌지 않습니다. 새 세션은 프리셋 설정대로 켜진 상태로 시작합니다.
+- 목록에는 게이트 전체 스위치가 켜져 있고, 이 프리셋에 추가되어 있으며, 이 프리셋에서 꺼져 있지 않은 게이트만 나옵니다.
+
 ## 실행 기록 보기
 
-세션 오른쪽 **Pixie** 탭의 게이트 기록에서 게이트별 실행을 봅니다. 상세에는 실제 적용한 동작(교체·덧붙임·거부·차단·교정·없음), Pixie 출력 다섯 칸, 토큰 사용량, 원문과 최종 텍스트, 메모, 헬퍼 호출이 있습니다. 거부된 입력은 **수정해서 보내기**로 제안(없으면 원문)을 입력창에 넣을 수 있습니다.
+세션 오른쪽 **Pixie** 탭의 게이트 기록에서 게이트별 실행을 봅니다. 상세에는 실제 적용한 동작(교체·덧붙임·거부·차단·교정·없음), 결론을 낸 쪽(Pixie·훅 스크립트·훅이 건너뜀), 출력 다섯 칸, 토큰 사용량, 원문과 최종 텍스트, 메모, 헬퍼 호출이 있습니다. 헬퍼 호출에는 `pixie judge`의 형식·고른 값·엔진·확신도가 함께 나옵니다. 스크립트가 결론을 낸 실행은 출력 칸 제목이 **스크립트 출력**입니다. 거부된 입력은 **수정해서 보내기**로 제안(없으면 원문)을 입력창에 넣을 수 있습니다.
 
 ## 제한과 문제 해결
 
-- **게이트가 실행되지 않습니다.** 게이트를 켜고 프리셋을 고른 뒤 저장했는지, 세션이 그 프리셋으로 실행 중인지, 대상 에이전트(루트·하위)가 맞는지 확인하세요. Pixie 모델이 설정되지 않으면 오류 정책이 적용됩니다.
+- **게이트가 실행되지 않습니다.** 게이트를 켜고 프리셋을 고른 뒤 저장했는지, 세션이 그 프리셋으로 실행 중인지, 대상 에이전트(루트·하위)가 맞는지, **이 세션의 게이트**에서 꺼져 있지 않은지 확인하세요. Pixie 모델이 설정되지 않으면 오류 정책이 적용됩니다.
 - **`hook-script-unsupported`** 오류는 bash 실행기를 쓸 수 없는 환경입니다.
 - **`Session sandbox policy and cwd are required`** 오류는 세션 정책을 알 수 없을 때입니다.
 - **`pixie: helper is not available`** 은 웹 서버가 없는 구성이거나 스크립트 밖에서 실행한 경우입니다.
 - **`pixie: HTTP 401`** 은 실행이 끝난 뒤의 호출이거나 다른 실행의 토큰입니다. **429**는 호출 상한, **413**은 요청 크기 초과입니다.
+- **`Jev API key is not configured`** 는 결정 엔진이 Jev인데 `TYPESAFE_API_KEY`가 없는 경우입니다. **`Jev request failed: HTTP 401`** 은 키가 틀린 경우, **422**는 질문 형식 오류입니다.
+- **키 저장 때 `refs:` 줄이 비어 있다는 안내**가 나오면 DSH 자격 증명 파일(DSH 홈의 `.credentials.yaml`) 마지막의 `refs:`를 `refs: {}`로 바꾼 뒤 다시 저장하세요. 값 없는 `refs:` 줄에는 DSH가 키를 추가하지 못합니다.
+- **`Hook script exit 11 needs a gate output JSON`** 은 exit 11의 stdout이 게이트 출력 JSON이 아닌 경우입니다.
 - 샌드박스가 로컬 네트워크 접속을 막는 환경에서는 헬퍼가 실패할 수 있습니다.
 - 백그라운드 작업(미리 압축, 파일 사전 인덱싱)은 아직 지원하지 않습니다.

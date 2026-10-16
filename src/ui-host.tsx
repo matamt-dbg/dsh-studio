@@ -2,7 +2,8 @@
  * Primitives import CSS modules, so Node unit tests must not load this module. See `docs/design-system.md`.
  */
 import React from 'react';
-import { Tag, type StateDotState, type TagTone } from '@deepseek-ai/dsh-client-ui-primitives';
+import { MarkdownText, Tag, type MarkdownLabels, type StateDotState, type TagTone } from '@deepseek-ai/dsh-client-ui-primitives';
+import { pixieText } from './pixie-locale.ts';
 
 export { Checkbox, Menu, MenuItemButton, Modal, SegmentedControl, StateDot, Tag, Toast } from '@deepseek-ai/dsh-client-ui-primitives';
 export type { StateDotState, TagTone } from '@deepseek-ai/dsh-client-ui-primitives';
@@ -56,4 +57,19 @@ export function DialogBody({ children }: React.PropsWithChildren) {
 /** @param props Dialog actions, cancel first and the confirming action last. @returns Scoped, right-aligned footer. */
 export function DialogFooter({ children }: React.PropsWithChildren) {
   return <div className="studio-ui studio-modal-footer">{children}</div>;
+}
+
+/** One reference-stable label object per locale: a new identity would discard MarkdownText's streaming cache. */
+const markdownLabels = new Map<string, MarkdownLabels>();
+const labelsFor = (locale: string) => {
+  let labels = markdownLabels.get(locale);
+  if (!labels) {
+    labels = { code: { copyLabel: pixieText(locale, 'mdCopy'), copiedLabel: pixieText(locale, 'mdCopied') }, footnotes: pixieText(locale, 'mdFootnotes') };
+    markdownLabels.set(locale, labels);
+  }
+  return labels;
+};
+/** DSH Markdown for Pixie output (compact: Pixie lives in a side panel). Untrusted input: raw HTML dropped, links restricted. */
+export function DshMarkdown({ text, streaming, locale }: { text: string; streaming: boolean; locale: string }) {
+  return <MarkdownText text={text} streaming={streaming} labels={labelsFor(locale)} variant="compact" />;
 }

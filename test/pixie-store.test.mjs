@@ -115,3 +115,11 @@ test('turns record the command that started them', async () => {
   assert.equal((await store.read('s1')).threads[0].turns[0].commandId, 'cmd-1');
   assert.equal(turn.commandId, 'cmd-1');
 });
+
+test('judge engine settings accept llm/jev and a Jev model ID only', async () => {
+  const { parsePixieSettings } = await import('../src/host/pixie-store.ts');
+  const base = { contextMode: 'fresh', systemPrompt: '', allowThreadModel: true };
+  assert.deepEqual(parsePixieSettings({ ...base, judgeEngine: 'jev', jevModel: 'jev-1.13.0' }), { ...base, judgeEngine: 'jev', jevModel: 'jev-1.13.0' });
+  assert.throws(() => parsePixieSettings({ ...base, judgeEngine: 'box' }), /judgeEngine/);
+  assert.throws(() => parsePixieSettings({ ...base, jevModel: 'jev latest' }), /jevModel/);
+});

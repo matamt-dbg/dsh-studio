@@ -21,6 +21,8 @@ await compile({
 // zod is bundled because DSH does not expose it to plugins; minify keeps the published package small.
 // task_run (src/host/task-tool.ts) is withdrawn from the Master and is not built or shipped.
 await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/batch-tool.ts'], outfile: 'packages/shell/batch.js', bundle: true, minify: true, platform: 'node', format: 'esm', target: 'node22', external: ['@deepseek-ai/*'] });
+await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/judge-tool.ts'], outfile: 'packages/shell/judge.js',
+  bundle: true, platform: 'node', format: 'esm', target: 'node22', packages: 'external', external: ['@deepseek-ai/*'] });
 for (const part of ['shell']) {
   await compile({
     absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: [`src/host/${part}.ts`], outfile: `packages/${part}/index.js`,
@@ -33,3 +35,14 @@ for (const part of ['shell']) {
     footer: { js: 'return module.exports; }});' },
   });
 }
+
+// Agent skills ship as files next to index.js; the Host installs them into <DSH home>/skills on start.
+import { cp, mkdir as mkdirp } from 'node:fs/promises';
+const skillOut = new URL('packages/shell/skills/studio-pixie-hook-guide/', import.meta.url);
+await mkdirp(skillOut, { recursive: true });
+// Docs live in release/docs here and in docs/ in the published repository.
+import { existsSync } from 'node:fs';
+const docsRoot = ['release/docs/', 'docs/'].map(dir => new URL(dir, import.meta.url)).find(url => existsSync(new URL('appendix/pixie-gate.md', url)));
+if (!docsRoot) throw new Error('build: Pixie Gate guide not found in release/docs or docs');
+await cp(new URL('appendix/studio-pixie-hook-guide/SKILL.md', docsRoot), new URL('SKILL.md', skillOut));
+await cp(new URL('appendix/pixie-gate.md', docsRoot), new URL('guide.md', skillOut));

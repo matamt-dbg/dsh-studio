@@ -148,6 +148,14 @@ export function parsePixieSettings(value: unknown): PixieSettings {
     if (typeof raw.judgeSystemPrompt !== 'string') throw new Error('Pixie settings judgeSystemPrompt must be a string');
     settings.judgeSystemPrompt = raw.judgeSystemPrompt;
   }
+  if (raw.judgeEngine !== undefined) {
+    if (raw.judgeEngine !== 'llm' && raw.judgeEngine !== 'jev') throw new Error('Pixie settings judgeEngine must be llm or jev');
+    settings.judgeEngine = raw.judgeEngine;
+  }
+  if (raw.jevModel !== undefined) {
+    if (typeof raw.jevModel !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(raw.jevModel)) throw new Error('Pixie settings jevModel must be a model ID');
+    settings.jevModel = raw.jevModel;
+  }
   return settings;
 }
 

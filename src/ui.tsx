@@ -147,6 +147,26 @@ export function Tile({ title, onClick, children }: React.PropsWithChildren<{ tit
   return <button type="button" className="studio-tile" onClick={onClick}><span className="studio-tile-title">{title}</span>{children}</button>;
 }
 
+/** Renders model-authored Markdown. The shell supplies the DSH renderer from `ui-host.tsx`; without one
+ * (Node tests, or a host that did not mount it) {@link ModelText} falls back to plain text.
+ */
+export type MarkdownRenderer = React.ComponentType<{ text: string; streaming: boolean; locale: string }>;
+// Created on first use so loading this module needs no React runtime (the built client is evaluated before React binds).
+let markdownContext: React.Context<MarkdownRenderer | undefined> | undefined;
+const markdown = () => markdownContext ??= React.createContext<MarkdownRenderer | undefined>(undefined);
+export function MarkdownProvider({ value, children }: React.PropsWithChildren<{ value: MarkdownRenderer | undefined }>) {
+  const Context = markdown();
+  return <Context.Provider value={value}>{children}</Context.Provider>;
+}
+/** Text a model (or a hook script standing in for Pixie) wrote: Markdown when a renderer is mounted.
+ * Use only for model output; user, tool, and Studio text stays plain.
+ */
+export function ModelText({ text, locale, streaming = false }: { text: string; locale: string; streaming?: boolean }) {
+  const Render = React.useContext(markdown());
+  return Render ? <div className="studio-pixie-answer studio-markdown"><Render text={text} streaming={streaming} locale={locale} /></div>
+    : <p className="studio-pixie-answer">{text}</p>;
+}
+
 /** Tone of a {@link Badge}; mirrors the DSH Tag status tones. */
 export type BadgeTone = 'neutral' | 'success' | 'warning' | 'info' | 'outline';
 

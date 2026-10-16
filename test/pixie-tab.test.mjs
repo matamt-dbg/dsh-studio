@@ -261,3 +261,18 @@ test('a /pixie row with no linked answer points to the tab instead of waiting', 
   assert.match(host.textContent, /answer is in the Pixie tab/);
   assert.doesNotMatch(host.textContent, /answering/);
 });
+
+test('with a Markdown renderer, answers render through it and stream while a request is live', async () => {
+  const { MarkdownProvider } = await import('../src/ui.tsx');
+  const seen = [];
+  const Render = ({ text, streaming }) => { seen.push([text, streaming]); return React.createElement('em', null, text); };
+  const view = { record: { sessionId: 's1', activeThreadId: 'a', threads: [thread('a', 'Thread 1', [done])] }, total: { requests: 1, inputTokens: 0, outputTokens: 0 }, running: false, frames: [], settings };
+  const fake = fakeActions(view);
+  const { host } = await render(React.createElement(MarkdownProvider, { value: Render }, React.createElement(PixieTab, { locale: 'en', actions: fake.actions })));
+  assert.ok(seen.some(([text, streaming]) => text === 'that.' && streaming === false));
+  assert.equal(host.querySelector('.studio-pixie-question').tagName, 'P');
+  await type(host.querySelector('textarea'), 'explain');
+  await act(async () => { button(host, 'Ask').click(); });
+  await act(async () => { fake.emit({ type: 'start', threadId: 'a', turnId: 'new', question: 'explain' }); fake.emit({ type: 'text', text: '**bo' }); });
+  assert.deepEqual(seen.at(-1), ['**bo', true]);
+});

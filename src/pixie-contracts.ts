@@ -68,12 +68,21 @@ export interface PixieSessionRecord {
 /** Studio-wide Pixie defaults, separate from presets. */
 export interface PixieSettings {
   model?: PixieModel;
+  /** LLM judge route; the Pixie model when absent. */
   judgeModel?: PixieModel;
   judgeSystemPrompt?: string;
+  /** Engine behind `pixie judge`; absent means `llm`. */
+  judgeEngine?: JudgeEngineKind;
+  /** Jev model ID or alias; `jev-latest` when absent. */
+  jevModel?: string;
   contextMode: PixieContextMode;
   systemPrompt: string;
   allowThreadModel: boolean;
 }
+
+export type JudgeEngineKind = 'llm' | 'jev';
+/** State of the Jev API key; the value itself never leaves the Host. */
+export interface JevKeyStatus { available: boolean; configured: boolean; source?: string; writable: boolean }
 
 export const DEFAULT_PIXIE_SETTINGS: PixieSettings = {
   contextMode: 'fresh',
@@ -119,17 +128,35 @@ export function threadMessages(thread: PixieThread): PixieMessage[] {
 
 // ---------- Judge (Jev-compatible System One contract) ----------
 
-/** One judge question, keyed by id in a request. */
+/** One judge question, keyed by id in a request. Mirrors the current Jev HTTP question shape with string-only
+ * `instructions` and criteria: the id is never shown to the model, so `instructions` carries the full meaning.
+ */
 export type JudgeQuestion =
-  | { type: 'choice'; options: Record<string, string> }
-  | { type: 'score'; levels: string[] }
-  | { type: 'noul'; question: string; criteria?: { true?: string; false?: string } };
+  | { type: 'choice'; instructions: string; criteria: Record<string, string> }
+  | { type: 'score'; instructions: string; criteria: string[] }
+  | { type: 'noul'; instructions: string; criteria?: { true?: string; false?: string } };
 
-/** One judge answer matching its question type. */
+/** One judge answer matching its question type. Score probabilities are ordered by level index. */
 export type JudgeAnswer =
   | { type: 'choice'; choice: string; probabilities: Record<string, number>; confidence: number }
   | { type: 'score'; score: number; probabilities: number[]; confidence: number }
   | { type: 'noul'; noul: number };
+
+/** Display text for a recorded question; records written before the Jev field names used `question`/`options`/`levels`. */
+export function judgeQuestionText(question: unknown): string | undefined {
+  if (!question || typeof question !== 'object') return undefined;
+  const value = question as Record<string, unknown>;
+  const text = typeof value.instructions === 'string' ? value.instructions : value.question;
+  return typeof text === 'string' && text ? text : undefined;
+}
+/** Option description (choice) or level description (score) of a recorded question, in either field naming. */
+export function judgeCriterionText(question: unknown, key: string | number): string | undefined {
+  if (!question || typeof question !== 'object') return undefined;
+  const value = question as Record<string, unknown>;
+  const source = value.criteria ?? (value.type === 'choice' ? value.options : value.levels);
+  const text = source && typeof source === 'object' ? (source as Record<string, unknown>)[key] : undefined;
+  return typeof text === 'string' && text ? text : undefined;
+}
 
 export interface JudgeRequest { state: unknown; questions: Record<string, JudgeQuestion> }
 
@@ -139,6 +166,7 @@ export type JudgeResult = ({ ok: true; answers: Record<string, JudgeAnswer> } | 
 export const DEFAULT_JUDGE_SYSTEM_PROMPT = [
   'You are a judgment component. Evaluate the given state against each question independently.',
   'Reply with exactly one JSON object and nothing else: {"answers": {<question id>: <answer>}}.',
+  'Each question has instructions (what to decide) and criteria: choice criteria map option names to descriptions; score criteria list ordered level descriptions; noul criteria optionally describe what true and false mean.',
   'choice answer: {"choice": <option name>, "probabilities": {<every option name>: number}} — probabilities sum to 1.',
   'score answer: {"score": number from 0 to levels-1 (fractional allowed), "probabilities": [one number per level, in order]} — probabilities sum to 1.',
   'noul answer: {"noul": probability from 0 to 1 that the answer is yes}.',
@@ -160,17 +188,19 @@ export function validateJudgeRequest(value: unknown): JudgeRequest {
   if (entries.length === 0) throw new JudgeValidationError('questions', 'Judge request needs at least one question');
   for (const [id, raw] of entries) {
     if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id)) throw new JudgeValidationError('questionId', `Invalid judge question id: ${id}`);
-    const question = raw as Partial<JudgeQuestion> & Record<string, unknown>;
-    if (question?.type === 'choice') {
-      const options = question.options as Record<string, unknown> | undefined;
-      if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).length < 2 || Object.values(options).some(item => typeof item !== 'string' || !item.trim())) throw new JudgeValidationError('options', `Choice "${id}" needs at least two options with descriptions`);
-    } else if (question?.type === 'score') {
-      const levels = question.levels as unknown;
-      if (!Array.isArray(levels) || levels.length < 2 || levels.length > 10 || levels.some(item => typeof item !== 'string')) throw new JudgeValidationError('levels', `Score "${id}" needs 2–10 levels`);
-    } else if (question?.type === 'noul') {
-      if (typeof question.question !== 'string' || !question.question.trim()) throw new JudgeValidationError('question', `Noul "${id}" needs a question`);
-      if (question.criteria !== undefined && (!question.criteria || typeof question.criteria !== 'object' || Array.isArray(question.criteria) || Object.entries(question.criteria).some(([key, value]) => !['true', 'false'].includes(key) || typeof value !== 'string'))) throw new JudgeValidationError('criteria', `Invalid noul criteria: ${id}`);
-    } else throw new JudgeValidationError('questionType', `Question "${id}" must be choice, score, or noul`);
+    const question = raw as Record<string, unknown> | undefined;
+    if (!question || typeof question !== 'object' || Array.isArray(question)) throw new JudgeValidationError('questionType', `Question "${id}" must be choice, score, or noul`);
+    if (!['choice', 'score', 'noul'].includes(question.type as string)) throw new JudgeValidationError('questionType', `Question "${id}" must be choice, score, or noul`);
+    if (typeof question.instructions !== 'string' || !question.instructions.trim()) throw new JudgeValidationError('instructions', `Question "${id}" needs instructions`);
+    const criteria = question.criteria;
+    if (question.type === 'choice') {
+      const names = criteria && typeof criteria === 'object' && !Array.isArray(criteria) ? Object.keys(criteria) : [];
+      if (names.length < 2 || names.length > 255 || names.some(name => !name.trim() || typeof (criteria as Record<string, unknown>)[name] !== 'string')) throw new JudgeValidationError('criteria', `Choice "${id}" needs 2–255 named options with string descriptions`);
+    } else if (question.type === 'score') {
+      if (!Array.isArray(criteria) || criteria.length < 2 || criteria.length > 10 || criteria.some(item => typeof item !== 'string' || !item.trim())) throw new JudgeValidationError('criteria', `Score "${id}" needs 2–10 level descriptions`);
+    } else if (criteria !== undefined && (!criteria || typeof criteria !== 'object' || Array.isArray(criteria) || Object.entries(criteria).some(([key, value]) => !['true', 'false'].includes(key) || typeof value !== 'string'))) {
+      throw new JudgeValidationError('criteria', `Invalid noul criteria: ${id}`);
+    }
   }
   return { state, questions: questions as Record<string, JudgeQuestion> };
 }

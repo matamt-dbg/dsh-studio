@@ -121,3 +121,42 @@ test('hook exit zero supplies stdin, bounded session shell policy, text and JSON
   assert.match(h.calls[0].system, /Instruction: {"ok":true} \/ {"ok":true}/);
   assert.deepEqual(h.requests[0].env, { PIXIE_POINT: 'user-message', PIXIE_AGENT: 'root', PIXIE_SESSION_ID: 'session', PIXIE_TURN: '3', PIXIE_GATE_NAME: 'gate' });
 });
+
+/** Exit 11 (#27 S5): the script's stdout is the gate output, applied by the point rules without a Pixie call. */
+const directCases = {
+  'user-message': [{ verdict: 'stop', reason: 'missing fields' }, plan => { assert.equal(plan.stop, true); assert.equal(plan.reason, 'missing fields'); }],
+  'agent-message': [{ replace: 'normalized' }, plan => { assert.equal(plan.stop, false); assert.equal(plan.replacement, 'normalized'); }],
+  'tool-before': [{ verdict: 'stop', reason: 'outside scope', append: 'ignored' }, plan => { assert.equal(plan.stop, true); assert.deepEqual(plan.notes, ['ignored']); }],
+  'tool-after': [{ append: 'summary' }, plan => { assert.equal(plan.addition, 'summary'); }],
+  'turn-end': [{ note: '번역: 안녕하세요', replace: 'not applied' }, plan => { assert.equal(plan.stop, false); assert.deepEqual(plan.notes, ['번역: 안녕하세요', 'not applied']); }],
+};
+for (const [when, [output, check]] of Object.entries(directCases)) test(`hook exit 11 concludes at ${when} without the model`, async t => {
+  const { executeTask } = await import('../src/host/pixie-gate-task-executor.ts');
+  const h = await fixture(t, { exitCode: 11, stdout: { text: `${JSON.stringify(output)}\n`, truncated: false } });
+  h.task.when = when; if (when.startsWith('tool-')) h.context.tool = { name: 'bash', arguments: {} };
+  const result = await executeTask(h.task, 'original', new AbortController().signal, async () => new GateTaskRunner(h.deps), () => h.context);
+  assert.equal(result.status, 'done'); assert.equal(h.calls.length, 0);
+  assert.equal(result.result.concludedBy, 'script');
+  assert.deepEqual(result.output, { verdict: 'pass', ...output });
+  check(result.plan);
+});
+for (const [label, text] of [['non-JSON', 'stop'], ['an unknown field', '{"verdict":"stop","score":1}'], ['a bad verdict', '{"verdict":"maybe"}']]) {
+  test(`hook exit 11 with ${label} is an error that follows onError`, async t => {
+    const { executeTask } = await import('../src/host/pixie-gate-task-executor.ts');
+    const h = await fixture(t, { exitCode: 11, stdout: { text, truncated: false } }); h.task.advanced.onError = 'block';
+    const result = await executeTask(h.task, 'original', new AbortController().signal, async () => new GateTaskRunner(h.deps), () => h.context);
+    assert.equal(result.status, 'error'); assert.match(result.error, /exit 11 needs a gate output JSON/); assert.equal(result.plan.stop, true); assert.equal(h.calls.length, 0);
+  });
+}
+test('a script gate may omit the task; exit 0 then fails instead of calling Pixie', async t => {
+  const { taskProblem } = await import('../src/pixie-gate-task.ts');
+  const h = await fixture(t); h.task.instruction = '';
+  assert.equal(taskProblem(h.task), undefined);
+  const result = await h.run();
+  assert.equal(result.status, 'error'); assert.match(result.error, /no instruction/); assert.equal(h.calls.length, 0);
+  delete h.task.advanced.script; assert.equal(taskProblem(h.task), 'instruction');
+});
+test('exit 0 and 10 record who concluded', async t => {
+  const pixie = await fixture(t); assert.equal((await pixie.run()).concludedBy, 'pixie'); assert.equal(pixie.calls.length, 1);
+  const skipped = await fixture(t, { exitCode: 10 }); assert.equal((await skipped.run()).concludedBy, 'skipped');
+});

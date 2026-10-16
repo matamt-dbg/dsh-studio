@@ -14,7 +14,7 @@ export async function executeTask(task: GateTask, original: string, signal: Abor
   const result: GateResult = {
     verdict: execution.status === 'cancelled' ? 'cancelled' : execution.status === 'error' ? 'error' : plan.stop ? 'fail' : 'pass',
     original, subject: plan.replacement ?? original, notes: plan.notes, stages: {}, records: execution.helperCalls ?? [], hooks: {},
-    appliedPolicy: task.advanced.onError,
+    appliedPolicy: task.advanced.onError, ...(execution.concludedBy ? { concludedBy: execution.concludedBy } : {}),
     ...(plan.stop || execution.error ? { forwardError: { verdict: execution.error ? 'error' as const : 'fail' as const, reason: plan.reason ?? 'Revision requires confirmation', ...(plan.suggestion !== undefined ? { text: plan.suggestion } : {}) } } : {}),
     forward: plan.stop ? { kind: 'none' } : plan.replacement !== undefined ? { kind: 'replace', text: plan.replacement } : plan.addition !== undefined ? { kind: 'append', text: original, contexts: [plan.addition], source: 'studio-pixie-gate' } : { kind: 'original', text: original },
   };

@@ -46,3 +46,10 @@ test('feature modules use shared parts instead of inline styles, color literals,
     assert.doesNotMatch(text, /['"`\s]studio-button\b/, `${name} reuses the Button class instead of Button`);
   }
 });
+
+test('locale copy has no Markdown backticks: settings and gate text render as plain text', async () => {
+  for (const name of sources.filter(name => /locale\.ts$/.test(name))) {
+    const strings = [...read(name).matchAll(/'((?:[^'\\\n]|\\.)*)'/g)].map(match => match[1]);
+    for (const text of strings) assert.doesNotMatch(text, /`/, `${name}: ${text}`);
+  }
+});

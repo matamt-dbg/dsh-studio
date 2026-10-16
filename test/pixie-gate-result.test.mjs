@@ -124,3 +124,37 @@ test('task runs show notes and pixie helper calls instead of an empty stage list
     assert.match(calls.textContent, /SUM.*Reason: summarize.*Rejected.*Reason: ok\?.*Yes probability 0.2 · threshold 0.5/s);
   });
 });
+
+test('with a Markdown renderer, only Pixie-written text goes through it; original and sent-along text stay plain', async t => {
+  const React = (await import('react')).default;
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { MarkdownProvider } = await import('../src/ui.tsx');
+  const { GateResultDetails } = await import('../src/pixie-gate-result.tsx');
+  const seen = [];
+  const Render = ({ text, streaming, locale }) => { seen.push({ text, streaming, locale }); return React.createElement('em', { 'data-md': '' }, text); };
+  const result = { verdict: 'pass', original: '**orig**', subject: '**orig**', notes: ['**note**'], records: [], hooks: {}, forward: { kind: 'append', text: '**orig**', contexts: ['**sent**'] },
+    stages: { pixie: { verdict: 'note', text: '**pixie**' } } };
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  await act(async () => root.render(React.createElement(MarkdownProvider, { value: Render }, React.createElement(GateResultDetails, { result, locale: 'ko' }))));
+  t.after(async () => { await act(async () => root.unmount()); host.remove(); });
+  assert.deepEqual(seen.map(item => item.text).sort(), ['**note**', '**pixie**']);
+  assert.ok(seen.every(item => item.locale === 'ko' && item.streaming === false));
+  assert.ok([...host.querySelectorAll('p')].some(p => p.textContent === '**orig**'));
+  assert.ok([...host.querySelectorAll('p')].some(p => p.textContent === '**sent**'));
+});
+
+test('a pixie judge helper record shows its type, label, engine and confidence; older records show none', async t => {
+  const React = (await import('react')).default;
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { GateResultDetails } = await import('../src/pixie-gate-result.tsx');
+  const record = data => ({ id: 'pixie-judge-1', subjectBytes: 1, textBytes: 0, result: { verdict: 'pass', reason: 'What kind?', data } });
+  const result = records => ({ verdict: 'pass', original: 'o', subject: 'o', notes: [], stages: {}, hooks: {}, forward: { kind: 'original', text: 'o' }, records });
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  t.after(async () => { await act(async () => root.unmount()); host.remove(); });
+  await act(async () => root.render(React.createElement(GateResultDetails, { compact: true, locale: 'ko', result: result([record({ type: 'select', label: 'bug', engine: 'jev', answer: { type: 'choice', choice: 'bug', probabilities: { bug: 0.96 }, confidence: 0.94 } })]) })));
+  assert.match(host.textContent, /select → bug · jev · 확신도 94%/);
+  await act(async () => root.render(React.createElement(GateResultDetails, { compact: true, locale: 'ko', result: result([record({ noul: 0.9, threshold: 0.5 })]) })));
+  assert.doesNotMatch(host.textContent, /→/); assert.match(host.textContent, /예 확률 0.9 · 기준 0.5/);
+});

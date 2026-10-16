@@ -19,6 +19,8 @@ import { PresetStore, studioStorePath } from './preset-store.ts';
 import { MASTER_PRESET_ID, MASTER_PRESET_NAME } from '../master-preset.ts';
 import { StudioUpdater } from './studio-update.ts';
 import { PixieService } from './pixie-service.ts';
+import { installSkill } from './skill-install.ts';
+import { pixieHookSkill } from './pixie-hook-skill.ts';
 import { CatalogBaseline } from './catalog-baseline.ts';
 import { catalogSnapshot, compareCatalog, type CatalogChange, type CatalogSnapshot } from '../master-snapshot.ts';
 
@@ -60,6 +62,12 @@ export default class StudioCatalog extends TypertRemoteService {
     this.store = new PresetStore(ctx, storePath);
     // Pixie is optional: it starts only where llm, sessionController, and commands exist.
     ctx.plugin(PixieService, dirname(storePath));
+    // Agents read user skills from <DSH home>/skills; a user-edited copy is never overwritten. Failure only warns.
+    const home = (ctx.get('profileContext') as { home?: string } | undefined)?.home;
+    if (home) void Promise.resolve().then(() => { const skill = pixieHookSkill(); return installSkill(join(home, 'skills'), skill).then(results => {
+      const kept = Object.entries(results).filter(([, result]) => result === 'kept-user-edit').map(([file]) => file);
+      if (kept.length) ctx.logger?.info?.(`studio: kept user-edited ${skill.name}/${kept.join(', ')}`);
+    }); }).catch(error => ctx.logger?.warn?.(`studio: skill install skipped: ${String(error)}`));
     // Do not return this task from a Cordis activation effect: Loader awaits us.
     this.snapshot = new Promise<void>(resolve => { setImmediate(resolve); }).then(() => this.capture());
     // Keep failure observable to RPC callers without an unhandled rejection.

@@ -11,7 +11,7 @@ const staging = path.join(dist, 'package');
 const manifest = JSON.parse(await readFile(path.join(source, 'package.json'), 'utf8'));
 await rm(staging, { recursive: true, force: true });
 await mkdir(staging, { recursive: true });
-for (const file of manifest.files) await cp(path.join(source, file), path.join(staging, file));
+for (const file of manifest.files) await cp(path.join(source, file), path.join(staging, file), { recursive: true });
 // Prefer the user-facing README in release/ when present.
 const readme = ['release/README.md', 'README.md'].map(file => path.join(root, file)).find(file => existsSync(file));
 // npm renders README without the repository tree: point relative docs/ links at the published repository.

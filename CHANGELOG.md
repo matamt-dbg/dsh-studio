@@ -2,6 +2,64 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.4.0 — 2026-10-16
+
+Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.
+
+### Highlights
+
+- **Decision engine for Pixie Gate.** `pixie judge` in hook scripts now answers typed questions: `bool` (yes probability against a threshold), `select` (one of named options), and `score` (2–10 levels), with probabilities and confidence (`--json`). Choose the engine under **Pixie → Gates → Decision engine**: an LLM (the judge model, or the Pixie model when unset) or [TypeSafe Jev](https://docs.typesafe.ai/api). Jev sends gate input to TypeSafe; its key is stored in DSH credentials as `TYPESAFE_API_KEY`.
+- **Scripts can conclude without Pixie.** A hook script that exits **11** prints the gate output JSON itself (`verdict`, `reason`, `replace`, `append`, `note`) and Pixie is not called. A gate whose script always concludes may leave its task empty. Run records show who concluded: Pixie, hook script, or skipped by hook.
+- **Notes under the answer.** A note that a turn-end script concludes with, for example a Korean translation of an English answer, appears right under that turn's answer in the chat, rendered as Markdown, with a *not verified* badge when the script flags it.
+- **Switch gates per session.** **Pixie tab → Gates → Gates in this session** lists the gates that apply to the session's preset with a switch for this session only; the chat block has the same switch. Definitions, presets and other sessions are untouched.
+- **`judge` agent tool.** Agents can call the same decision engine with the Jev request shape (`state`, `questions`) to rank, filter or verify text. It is in Studio Master and selectable in presets; the built-in Optimized preset does not include it.
+- **Agent skill installed with Studio.** On start, Studio installs `studio-pixie-hook-guide` (the hook rules and the full Pixie Gate guide) into `<DSH home>/skills`, so an agent can write gates and scripts for you. Files you edit are never overwritten.
+
+### Changes
+
+- Pixie answers and gate notes render as Markdown.
+- Helper calls in run records show the `pixie judge` type, chosen value, engine and confidence; output is titled *Script output* when a script concluded.
+- The decision engine page sits in the Gates menu. Saving or removing the Jev key confirms beside the buttons.
+- Saving a key into a credentials file whose `refs:` line is empty now explains how to fix the file (`refs: {}`) and keeps the original DSH message.
+- The built-in Optimized preset is described as the minimal coding-agent toolset.
+- Copy for the Pixie settings and decision engine pages reviewed in Korean.
+
+### Upgrade notes
+
+- Existing gates and scripts keep working. `pixie judge --question … --threshold …` is unchanged (`--type bool`).
+- The decision engine defaults to LLM. To use Jev, choose it on the decision engine page and save a TypeSafe key.
+- To use `judge` in your own preset, select it in the preset's tool list and reapply. Optimized does not change.
+- The `dsh-studio-pixie-gate` skill in the release docs is now `studio-pixie-hook-guide`.
+
+### 한국어
+
+DSH `0.2.0-rc.2` 또는 `0.2.1-alpha.2`가 필요합니다.
+
+#### 주요 변경
+
+- **Pixie Gate 결정 엔진.** 훅 스크립트의 `pixie judge`가 형식이 정해진 질문에 답합니다. `bool`(기준값과 비교하는 "예" 확률), `select`(이름 붙인 선택지 중 하나), `score`(2–10단계)이고, `--json`으로 확률과 확신도를 받습니다. 엔진은 **Pixie → 게이트 → 결정 엔진**에서 고릅니다. LLM(판정 모델, 비우면 Pixie 모델) 또는 [TypeSafe Jev](https://docs.typesafe.ai/api)입니다. Jev를 쓰면 게이트 입력이 TypeSafe로 전송되고, 키는 DSH 자격 증명에 `TYPESAFE_API_KEY`로 저장됩니다.
+- **스크립트가 Pixie 없이 결론을 냅니다.** 훅 스크립트가 **exit 11**로 끝나면 stdout의 게이트 출력 JSON(`verdict`, `reason`, `replace`, `append`, `note`)을 그대로 쓰고 Pixie를 부르지 않습니다. 스크립트가 늘 결론을 내는 게이트는 할 일을 비워 둘 수 있습니다. 실행 기록에 결론을 낸 쪽(Pixie, 훅 스크립트, 훅이 건너뜀)이 표시됩니다.
+- **답변 아래 메모.** 답변 끝 스크립트가 남긴 메모(예: 영어 답변의 한국어 번역)가 대화창의 그 턴 답변 바로 아래에 Markdown으로 나타납니다. 스크립트가 확인하지 못했다고 표시하면 *확인 안 됨* 배지가 붙습니다.
+- **세션별 게이트 끄기.** **Pixie 탭 → 게이트 → 이 세션의 게이트**에서 세션 프리셋에 적용되는 게이트를 이 세션에서만 끄고 켭니다. 대화창 블록에도 같은 스위치가 있습니다. 게이트 정의, 프리셋, 다른 세션은 바뀌지 않습니다.
+- **에이전트 도구 `judge`.** 에이전트가 Jev 요청 형식(`state`, `questions`)으로 같은 결정 엔진을 불러 문구를 채점하고, 거르고, 검증할 수 있습니다. Studio Master에 들어 있고 프리셋에서 고를 수 있습니다. 기본 제공 Optimized 프리셋에는 없습니다.
+- **Studio와 함께 설치되는 에이전트 스킬.** Studio가 시작할 때 `studio-pixie-hook-guide`(훅 규칙과 Pixie Gate 가이드 전체)를 `<DSH 홈>/skills`에 설치합니다. 에이전트가 게이트와 스크립트를 대신 만들 수 있습니다. 직접 고친 파일은 덮어쓰지 않습니다.
+
+#### 변경 사항
+
+- Pixie 답변과 게이트 메모가 Markdown으로 표시됩니다.
+- 실행 기록의 헬퍼 호출에 `pixie judge`의 형식·고른 값·엔진·확신도가 나옵니다. 스크립트가 결론을 낸 실행은 출력 제목이 *스크립트 출력*입니다.
+- 결정 엔진 화면이 게이트 메뉴로 옮겨졌습니다. Jev 키를 저장하거나 지우면 버튼 옆에 결과가 표시됩니다.
+- 자격 증명 파일의 `refs:` 줄이 비어 있어 키 저장이 실패하면, 고치는 방법(`refs: {}`)과 원래 DSH 메시지를 함께 보여 줍니다.
+- 기본 제공 Optimized 프리셋 설명을 "코딩 에이전트를 위한 최소한의 도구"로 바꿨습니다.
+- Pixie 설정과 결정 엔진 화면의 한국어 문구를 다듬었습니다.
+
+#### 업그레이드 참고
+
+- 기존 게이트와 스크립트는 그대로 동작합니다. `pixie judge --question … --threshold …`도 그대로입니다(`--type bool`).
+- 결정 엔진의 기본값은 LLM입니다. Jev를 쓰려면 결정 엔진 화면에서 고르고 TypeSafe 키를 저장하세요.
+- 직접 만든 프리셋에서 `judge`를 쓰려면 프리셋 도구 목록에서 고른 뒤 다시 반영하세요. Optimized는 바뀌지 않습니다.
+- 릴리즈 문서의 `dsh-studio-pixie-gate` 스킬 이름이 `studio-pixie-hook-guide`로 바뀌었습니다.
+
 ## 0.3.0 — 2026-10-16
 
 Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.

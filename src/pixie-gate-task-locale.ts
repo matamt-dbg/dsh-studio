@@ -26,7 +26,7 @@ const messages = {
   'target-user-message': ['보낸 지시', 'your instruction', '你发送的指令'], 'target-agent-message': ['주고받는 메시지', 'the message between agents', '代理之间的消息'], 'target-tool-before': ['도구 호출 내용', 'the tool call', '工具调用内容'], 'target-tool-after': ['도구 결과', 'the tool result', '工具结果'], 'target-turn-end': ['마지막 답변', 'the final answer', '最后的回答'],
   // advanced
   advanced: ['고급', 'Advanced', '高级'],
-  script: ['Pixie 훅 스크립트', 'Pixie hook script', 'Pixie 钩子脚本'], scriptHint: ['Pixie에게 지시하기 전에 실행할 스크립트를 고릅니다. 스크립트 결과를 Pixie에게 넘길 수 있습니다.', 'The script to run before instructing Pixie. Its output can be passed to Pixie.', '指定在向 Pixie 发出指令前运行的脚本。脚本结果可传递给 Pixie。'],
+  script: ['Pixie 훅 스크립트', 'Pixie hook script', 'Pixie 钩子脚本'], scriptHint: ['Pixie 게이트 진행 전에 호출할 스크립트를 선택할 수 있습니다. 스크립트 출력 결과에 따라 Pixie 게이트를 건너뛸 수 있습니다.', 'Choose a script to call before the Pixie gate runs. Depending on the script output, the Pixie gate can be skipped.', '可选择在 Pixie 门控运行前调用的脚本。根据脚本输出结果，可以跳过 Pixie 门控。'],
   guideLink: ['스크립트 작성 가이드', 'script guide', '脚本编写指南'], resultGuide: ['가이드', 'Guide', '指南'],
   scriptEnv: ['DSH에서 bash 프로필을 지원할 때만 사용할 수 있습니다.', 'Available only when DSH runs with a bash profile.', '仅在 DSH 支持 bash 配置文件时可用。'],
   noScript: ['사용 안 함', 'None', '不使用'], scriptDir: ['스크립트 폴더', 'Script folder', '脚本文件夹'], copyPath: ['경로 복사', 'Copy path', '复制路径'], refresh: ['목록 새로고침', 'Refresh list', '刷新列表'],

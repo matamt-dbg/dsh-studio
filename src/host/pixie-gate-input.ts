@@ -1,5 +1,5 @@
 import type { HookContext } from './pixie-gate-script.ts';
-import { readRuntimeGateDefinitions } from './pixie-gate-definition-reader.ts';
+import { readSessionGateDefinitions } from './pixie-gate-definition-reader.ts';
 import { randomUUID } from 'node:crypto';
 import type { Context } from '@deepseek-ai/cordis';
 import type { UserMessage } from '@deepseek-ai/dsh-llm';
@@ -24,6 +24,7 @@ export interface InputAgent { id: string; ctx: Context; session: { header: { cwd
 export interface GateInputDeps {
   definitions(): Promise<PresetGate[] | import('../pixie-gate-definitions.ts').GateTasksRead>;
   warn?(message: string): void;
+  disabledGates?(sessionId: string): Promise<readonly string[]>;
   preset(agent: InputAgent): string | undefined;
   isRoot(agent: InputAgent): boolean;
   hookContext?(agent: InputAgent, turn: number, tool?: HookContext['tool']): HookContext;
@@ -39,7 +40,7 @@ export function gateInput(deps: GateInputDeps) {
     if (decision.kind === 'reject') return decision;
     const preset = deps.preset(payload.agent);
     if (!preset) return decision;
-    const rows = await readRuntimeGateDefinitions(deps);
+    const rows = await readSessionGateDefinitions(deps, payload.agent.id);
     const root = deps.isRoot(payload.agent);
     const targets = decision.messages.flatMap(message => {
       const when = message.source.kind === 'user' ? 'user-message' : message.source.kind === 'agent-message' ? 'agent-message' : undefined;

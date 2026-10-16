@@ -578,6 +578,7 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui .studio-pixie-turn { display: grid; gap: 4px; margin: 0; padding-bottom: 10px; border-bottom: .5px solid var(--studio-line); }
 .studio-ui .studio-pixie-question { justify-self: end; max-width: 85%; margin: 0; padding: 4px 10px; border-radius: var(--studio-control-radius); background: var(--studio-hover); white-space: pre-wrap; }
 .studio-ui .studio-pixie-answer { margin: 0; white-space: pre-wrap; }
+.studio-ui .studio-markdown { white-space: normal; min-width: 0; overflow-wrap: anywhere; }
 .studio-ui .studio-pixie-turn-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .studio-ui .studio-pixie-turn-meta:empty { display: none; }
 .studio-ui .studio-pixie-detail > p { margin: 0; }
@@ -657,6 +658,13 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui .studio-gate-facts dt { color: var(--studio-muted); font-size: 12px; }
 .studio-ui .studio-gate-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .studio-ui .studio-gate-block { display: grid; gap: 6px; padding-top: 10px; border-top: .5px solid var(--studio-line); }
+.studio-ui .studio-gate-session-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.studio-ui .studio-gate-session-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.studio-ui .studio-gate-session-name { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.studio-ui.studio-gate-tail { margin: 6px 0 2px; }
+.studio-ui .studio-gate-tail-body { display: grid; gap: 6px; padding: 10px 12px; border: .5px solid var(--studio-line); border-radius: 8px; }
+.studio-ui .studio-gate-tail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.studio-ui .studio-gate-tail-head .studio-inline-actions { margin-left: auto; }
 .studio-ui .studio-gate-block > .studio-section-head, .studio-ui .studio-gate-block h3 { margin: 0; }
 .studio-ui .studio-gate-text { max-height: 168px; overflow: auto; padding: 8px 10px; border-radius: var(--studio-small-radius); background: var(--studio-hover); font-size: 12px; overflow-wrap: anywhere; }
 .studio-ui .studio-gate-compact { display: grid; gap: 10px; }

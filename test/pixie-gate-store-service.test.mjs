@@ -64,3 +64,41 @@ for (const id of [null, 123, undefined, {}, { toString: () => 's' }]) {
     } finally { abort.abort(); await fiber.dispose(); }
   });
 }
+
+test('a session gate switch persists beside the runs, survives a run commit, and reaches followers', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'studio-gate-switch-'));
+  const store = new PixieGateStore(dir), abort = new AbortController(), frames = [];
+  const follow = (async () => { for await (const frame of store.follow('s', abort.signal)) frames.push(frame); })();
+  assert.deepEqual(await store.disabledGates('s'), []);
+  assert.deepEqual(await store.setGateEnabled('s', 'g', false), ['g']);
+  const run = await store.start('s', gate, 'x');
+  await store.finish('s', run.id, { status: 'done', applied: 'none' });
+  assert.deepEqual(await store.disabledGates('s'), ['g']);
+  assert.deepEqual((await store.read('s')).runs.length, 1);
+  assert.deepEqual(await store.setGateEnabled('s', 'g', true), []);
+  assert.equal('disabledGateIds' in await store.read('s'), false);
+  await new Promise(resolve => setImmediate(resolve)); abort.abort(); await follow;
+  assert.deepEqual(frames.filter(frame => frame.type === 'session').map(frame => frame.disabledGateIds), [['g'], []]);
+  assert.deepEqual(await store.disabledGates('other'), []);
+  assert.throws(() => store.setGateEnabled('s', '', false), /Gate id is required/);
+});
+
+test('Remote sessionGates lists only gates on for the session preset; setSessionGate switches one', async () => {
+  const h = await harness(async () => ({ items: [{ sessionId: 's' }] }));
+  const agentCtx = {};
+  for (const key of ['agents', 'agentPresets']) h.ctx.provide(key);
+  h.ctx.set('agents', { get: id => id === 's' ? { ctx: agentCtx } : undefined, roots: () => [] });
+  h.ctx.set('agentPresets', { composedPreset: ctx => ctx === agentCtx ? 'p' : undefined });
+  const fiber = h.ctx.plugin(PixieService, h.dir); await fiber;
+  const service = h.ctx.get('studioPixie');
+  try {
+    const task = (id, extra) => ({ id, name: id, enabled: true, when: 'turn-end', instruction: 'Check', presetIds: ['p'], advanced: { confirmReplace: false, onError: 'pass', agents: 'root', timeoutMs: 60000, maxSteers: 1 }, ...extra });
+    await service.saveGateDefinitions(JSON.stringify([task('on', { advanced: { confirmReplace: false, onError: 'pass', agents: 'root', timeoutMs: 60000, maxSteers: 1, script: 'translate.sh' } }),
+      task('other-preset', { presetIds: ['q'], when: 'user-message' }), task('off-everywhere', { enabled: false, when: 'tool-before' }), task('off-for-preset', { disabledPresetIds: ['p'], when: 'tool-after' })]));
+    assert.deepEqual(await service.sessionGates('s'), { preset: 'p', gates: [{ id: 'on', name: 'on', when: 'turn-end', script: 'translate.sh', sessionEnabled: true }] });
+    assert.deepEqual(await service.setSessionGate('s', 'on', false), ['on']);
+    assert.equal((await service.sessionGates('s')).gates[0].sessionEnabled, false);
+    assert.deepEqual(await service.sessionGates('unknown'), { gates: [] });
+    await assert.rejects(service.setSessionGate('s', 'on', 'no'), /boolean/);
+  } finally { await fiber.dispose(); }
+});

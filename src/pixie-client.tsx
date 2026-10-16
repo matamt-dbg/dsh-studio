@@ -7,8 +7,9 @@ type GateTrialResponse = { output: import('./pixie-gate-task-contracts.ts').Gate
 import type { GateTask } from './pixie-gate-task.ts';
 import type { StudioContext } from './contracts.js';
 import { PACKAGE_NAME } from './package-name.ts';
-import { StudioSurface } from './ui.tsx';
+import { MarkdownProvider, StudioSurface, type MarkdownRenderer } from './ui.tsx';
 import { PixieCommandRow, PixieTab, type PixieCommandRowActions, type PixieTabActions } from './pixie-tab.tsx';
+import { GateTail, type GateTailActions } from './pixie-gate-tail.tsx';
 import { PixieSettingsPage, type PixieSettingsActions } from './pixie-settings.tsx';
 import { pixieText } from './pixie-locale.ts';
 import type { PixieAskFrame, PixieSettings, PixieThread } from './pixie-contracts.ts';
@@ -29,6 +30,8 @@ interface PixieRemote {
   gateRuns(sessionId: string): RemoteValue<GateRunRecord>;
   followGates(sessionId: string): AsyncIterable<GateRunFrame> & { dispose(): void };
   resolveGateRejection(sessionId: string, runId: string, status: string): RemoteValue<unknown>;
+  sessionGates(sessionId: string): RemoteValue<import('./pixie-gate-contracts.ts').SessionGates>;
+  setSessionGate(sessionId: string, gateId: string, enabled: boolean): RemoteValue<string[]>;
   view(sessionId: string): RemoteValue<import('./pixie-tab.tsx').PixieViewValue>;
   createThread(sessionId: string, payload: string): RemoteValue<PixieThread>;
   activate(sessionId: string, threadId: string): RemoteValue<boolean>;
@@ -45,6 +48,9 @@ interface PixieRemote {
   readSettings(): RemoteValue<PixieSettings>;
   saveSettings(payload: string): RemoteValue<PixieSettings>;
   models(): RemoteValue<unknown>;
+  jevKeyStatus(): RemoteValue<import('./pixie-contracts.ts').JevKeyStatus>;
+  saveJevKey(payload: string): RemoteValue<import('./pixie-contracts.ts').JevKeyStatus>;
+  deleteJevKey(): RemoteValue<import('./pixie-contracts.ts').JevKeyStatus>;
 }
 
 async function unwrap<T>(call: RemoteValue<T>): Promise<T> {
@@ -64,6 +70,8 @@ export function pixieDescriptors() {
     descriptor('gateRuns', ['sessionId']),
     descriptor('followGates', ['sessionId'], { mode: 'stream', cancellation: { parameter: 'signal' } }),
     descriptor('resolveGateRejection', ['sessionId', 'runId', 'status']),
+    descriptor('sessionGates', ['sessionId']),
+    descriptor('setSessionGate', ['sessionId', 'gateId', 'enabled']),
     descriptor('view', ['sessionId']),
     descriptor('createThread', ['sessionId', 'payload']),
     descriptor('activate', ['sessionId', 'threadId']),
@@ -80,6 +88,9 @@ export function pixieDescriptors() {
     descriptor('readSettings', []),
     descriptor('saveSettings', ['payload']),
     descriptor('models', []),
+    descriptor('jevKeyStatus', []),
+    descriptor('saveJevKey', ['payload']),
+    descriptor('deleteJevKey', []),
   ];
 }
 
@@ -104,7 +115,9 @@ export function followPixieStream<T>(connect: () => AsyncIterable<T> & { dispose
 }
 
 /** Register Pixie's settings service (with the shared Studio menu footer), right-sidebar tab, and /pixie row. Call after the shell mounted {@link pixieDescriptors}. */
-export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: string) => React.ReactNode } = {}): void {
+/** `markdown` renders Pixie output; the shell passes the DSH renderer so this module stays loadable in Node tests. */
+export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: string) => React.ReactNode; markdown?: MarkdownRenderer } = {}): void {
+  const withMarkdown = (node: React.ReactNode) => <MarkdownProvider value={options.markdown}>{node}</MarkdownProvider>;
   const remote = () => {
     const service = ctx.get(`remote.${NAMESPACE}` as never) as unknown as PixieRemote | undefined;
     if (!service) throw new Error('Pixie API unavailable');
@@ -117,6 +130,11 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
     read: () => unwrap(remote().readSettings()),
     save: settings => unwrap(remote().saveSettings(JSON.stringify(settings))),
     models: () => unwrap(remote().models()) as ReturnType<PixieSettingsActions['models']>,
+    jevKey: {
+      status: () => unwrap(remote().jevKeyStatus()),
+      save: value => unwrap(remote().saveJevKey(JSON.stringify({ value }))),
+      remove: () => unwrap(remote().deleteJevKey()),
+    },
   };
   const gateActions = {
     trial: (request: { task: GateTask; text: string; toolName?: string }) => {
@@ -142,7 +160,7 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
   function SettingsPage() {
     const active = useLocale();
     // Rendered inside the shell surface, like the preset service, so both services share one frame.
-    return <PixieSettingsPage actions={settingsActions} gateActions={gateActions} locale={active} navFooter={options.navFooter?.(active)} />;
+    return withMarkdown(<PixieSettingsPage actions={settingsActions} gateActions={gateActions} locale={active} navFooter={options.navFooter?.(active)} />);
   }
   ctx.slots.inject('local.dsh-studio.services', () => ctx.slots.register({
     name: 'local.dsh-studio.services', id: 'pixie', order: 10, label: () => pixieText(locale(), 'settingsTitle'),
@@ -154,6 +172,8 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
     gateRuns: () => unwrap(remote().gateRuns(sessionId)),
     followGates: listener => followPixieStream(() => remote().followGates(sessionId), listener),
     resolveGateRejection: (runId, status) => unwrap(remote().resolveGateRejection(sessionId, runId, status)),
+    sessionGates: () => unwrap(remote().sessionGates(sessionId)),
+    setSessionGate: (gateId, enabled) => unwrap(remote().setSessionGate(sessionId, gateId, enabled)),
     fillDraft: text => {
       const sessions = ctx.get('sessions' as never) as unknown as { scope(id: string): { get(name: string): unknown } | undefined } | undefined;
       const actx = sessions?.scope(sessionId);
@@ -182,7 +202,7 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
     function Body({ sessionId }: { sessionId: string }) {
       const active = useLocale();
       const actions = React.useMemo(() => tabActions(sessionId), [sessionId]);
-      return <PixieTab actions={actions} locale={active} />;
+      return withMarkdown(<PixieTab actions={actions} locale={active} />);
     }
     scope.slots.inject('sidebar.right.pane.tab' as never, () => scope.slots.register({ name: 'sidebar.right.pane.tab', key: TAB_ID } as never, Body as never));
     // The /pixie row shows the question, the status line, and a button that opens this tab.
@@ -193,10 +213,23 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
         const tab = tabActions(sessionId);
         return { commandId: node.commandId, follow: tab.follow, commandTurn: () => unwrap(remote().commandTurn(sessionId, node.commandId)) };
       }, [sessionId, node.commandId]);
-      return <StudioSurface className="studio-pixie-command">
+      return withMarkdown(<StudioSurface className="studio-pixie-command">
         <PixieCommandRow question={node.args?.trim() ?? ''} outcome={node.outcome} locale={active} onOpen={openTab} actions={rowActions} />
-      </StudioSurface>;
+      </StudioSurface>);
     }
     scope.slots.inject('conversation.chat.commandview' as never, () => scope.slots.register({ name: 'conversation.chat.commandview', key: 'pixie' } as never, CommandRow as never));
+    // Under a finished answer: the note a hook script concluded at turn end (translation and similar). Renders nothing otherwise.
+    // GateTail mounts this surface (and its stylesheet) only when the turn has a note.
+    function GateTailSurface({ children }: React.PropsWithChildren) { return <StudioSurface className="studio-gate-tail">{children}</StudioSurface>; }
+    function TurnTail({ sessionId, turn }: { sessionId: string; turn: { turn: number; status: string } }) {
+      const active = useLocale();
+      const actions = React.useMemo<GateTailActions>(() => {
+        const tab = tabActions(sessionId);
+        return { gateRuns: tab.gateRuns, followGates: tab.followGates, setSessionGate: (gateId, enabled) => unwrap(remote().setSessionGate(sessionId, gateId, enabled)), openTab };
+      }, [sessionId]);
+      if (turn.status !== 'closed') return null;
+      return withMarkdown(<GateTail actions={actions} turn={turn.turn} locale={active} Surface={GateTailSurface} />);
+    }
+    scope.slots.inject('conversation.chat.turnTail' as never, () => scope.slots.register({ name: 'conversation.chat.turnTail', id: 'studio-pixie-gate-tail' } as never, TurnTail as never));
   });
 }
