@@ -67,7 +67,7 @@ Restart the web GUI or the app, then open **DSH Studio** from the sidebar. Each 
 |---|---|---|
 | ![Tools](docs/images/en/tools.png) | ![Preview](docs/images/en/prompt-preview.png) | ![Roles](docs/images/en/role-editor.png) |
 
-**Introduction: [English](docs/introduction.md) · [한국어](docs/introduction.ko.md)** · **User guide: [English](docs/guide.md) · [한국어](docs/guide.ko.md)**
+**Introduction: [English](docs/introduction.md) · [한국어](docs/introduction.ko.md)** · **User guide: [English](docs/guide.md) · [한국어](docs/guide.ko.md)** · **[Changelog](CHANGELOG.md)**
 
 ## Quick start
 
