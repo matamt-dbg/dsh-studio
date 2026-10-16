@@ -11,7 +11,8 @@ export function validateGateTask(value: unknown): GateTask {
   if (!object(advanced) || typeof advanced.confirmReplace !== 'boolean' || !['pass', 'block'].includes(advanced.onError as string)
     || !['root', 'child', 'any'].includes(advanced.agents as string)
     || typeof advanced.timeoutMs !== 'number' || !Number.isFinite(advanced.timeoutMs)
-    || typeof advanced.maxSteers !== 'number') throw new Error('Invalid gate advanced options');
+    || typeof advanced.maxSteers !== 'number'
+    || (advanced.showInChat !== undefined && typeof advanced.showInChat !== 'boolean')) throw new Error('Invalid gate advanced options');
   if (advanced.script !== undefined && (typeof advanced.script !== 'string' || (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(advanced.script) || advanced.script.includes('..')))) throw new Error('Invalid gate script filename');
   // The former judge option was removed (U26); a stored value is ignored and dropped on save.
   if (!Array.isArray(value.presetIds) || !value.presetIds.every(text)) throw new Error('Invalid gate presetIds');

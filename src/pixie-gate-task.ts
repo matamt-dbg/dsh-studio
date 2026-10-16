@@ -24,6 +24,8 @@ export interface GateTask {
     timeoutMs: number;
     /** Turn end only. */
     maxSteers: number;
+    /** Show the run's result in the chat. Absent means on; see {@link showsInChat}. */
+    showInChat?: boolean;
   };
   /** Presets the gate is attached to. */
   presetIds: string[];
@@ -59,11 +61,13 @@ export const enabledFor = (task: GateTask, preset: string) => task.enabled && ta
 export const canReplace = (when: GateWhen) => when === 'user-message' || when === 'agent-message' || when === 'tool-after';
 export const isTool = (when: GateWhen) => when === 'tool-before' || when === 'tool-after';
 export const isMessage = (when: GateWhen) => when === 'user-message' || when === 'agent-message';
+/** On unless switched off; definitions saved before the option existed show their results. */
+export const showsInChat = (task: GateTask) => task.advanced.showInChat !== false;
 
 export function makeTask(name: string, when: GateWhen = 'user-message', instruction = ''): GateTask {
   return {
     id: globalThis.crypto.randomUUID(), name, enabled: true, when, instruction,
-    advanced: { confirmReplace: false, onError: 'pass', agents: when === 'agent-message' ? 'child' : 'root', timeoutMs: 60000, maxSteers: 1 },
+    advanced: { confirmReplace: false, onError: 'pass', agents: when === 'agent-message' ? 'child' : 'root', timeoutMs: 60000, maxSteers: 1, showInChat: true },
     presetIds: [],
   };
 }

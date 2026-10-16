@@ -97,3 +97,10 @@ test('disabled or unbound tasks never execute', async () => {
   await gateInput(h.deps)(h.payload, async () => ({ kind: 'enter', messages: [message('user')] })); assert.equal(h.calls.length, 0);
  }
 });
+test('input runs record the checked message id so the chat can place the result under it', async () => {
+  const h = await fixture([task('user-message', { showInChat: false })]);
+  await gateInput(h.deps)(h.payload, async () => ({ kind: 'enter', messages: [message('user')] }));
+  const [run] = await h.runs();
+  assert.equal(run.messageId, 'user'); assert.equal(run.showInChat, false);
+  assert.equal(h.events.find(([name]) => name === 'pixie-gate/end')[1].messageId, 'user');
+});

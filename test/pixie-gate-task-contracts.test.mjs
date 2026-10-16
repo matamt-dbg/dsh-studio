@@ -121,3 +121,12 @@ test('the removed judge option is dropped on validation and never adds a model c
   const result = await new GateTaskRunner({ model, llm: llm(['{"verdict":"pass","note":"n"}'], calls) }).run(stored, 'target', signal());
   assert.equal(calls.length, 1); assert.deepEqual(result.output, { verdict: 'pass', note: 'n' });
 });
+test('chat display defaults on, accepts booleans, and older definitions without it count as on', async () => {
+  const { showsInChat } = await import('../src/pixie-gate-task.ts');
+  assert.equal(task().advanced.showInChat, true);
+  assert.equal(validateGateTask({ ...task(), advanced: { ...task().advanced, showInChat: false } }).advanced.showInChat, false);
+  const { showInChat: _, ...legacy } = task().advanced;
+  const read = validateGateTask({ ...task(), advanced: legacy });
+  assert.equal(read.advanced.showInChat, undefined); assert.equal(showsInChat(read), true);
+  assert.throws(() => validateGateTask({ ...task(), advanced: { ...task().advanced, showInChat: 'yes' } }));
+});

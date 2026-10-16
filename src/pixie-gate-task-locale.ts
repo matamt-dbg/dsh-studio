@@ -48,6 +48,7 @@ const messages = {
   scriptShell: ['자세한 스크립트 규칙은 {link}에서 볼 수 있습니다.', 'See the {link} for the full script rules.', '完整的脚本规则请参阅{link}。'],
   variables: ['Pixie 훅 결과로 쓸 수 있는 값', 'Values from the Pixie hook result', '可用作 Pixie 钩子结果的值'], 'var-text': ['스크립트 출력 텍스트', 'script output text', '脚本输出文本'], 'var-data': ['스크립트 출력 데이터(JSON)', 'script output data (JSON)', '脚本输出数据（JSON）'],
   confirmReplace: ['바꾸기 전에 확인', 'Confirm before replacing', '替换前确认'], confirmReplaceHint: ['바꿀 내용을 바로 보내지 않고 Pixie 카드에서 확인 후 보냅니다.', 'Holds the replacement on a Pixie card until you confirm.', '替换内容先保留在 Pixie 卡片，确认后再发送。'],
+  showInChat: ['결과를 대화에 표시', 'Show the result in the chat', '在对话中显示结果'], showInChatHint: ['게이트가 끝나면 결과를 검사한 대상(메시지·도구 호출·답변) 바로 아래에 보여 줍니다. 메모가 있으면 메모를, 없으면 판정과 이유를 보여 줍니다. 세션 기록에는 남지 않습니다.', 'Shows the result right under what the gate checked (message, tool call, or answer) when it finishes: the note if there is one, otherwise the verdict and reason. Nothing is added to the session log.', '门控结束后在所检查的对象（消息、工具调用或回答）下方显示结果：有备注时显示备注，否则显示判定和原因。不会写入会话记录。'],
   onError: ['Pixie가 실패하면', 'If Pixie fails', '若 Pixie 失败'], errorPass: ['그대로 진행', 'Continue as usual', '照常继续'], errorBlock: ['막음', 'Stop it', '拦下'],
   agents: ['대상 에이전트', 'Target agents', '目标代理'], root: ['메인 에이전트', 'Main agent', '主代理'], child: ['서브에이전트', 'Subagents', '子代理'], any: ['모두', 'All', '全部'],
   timeout: ['제한 시간 (초)', 'Time limit (seconds)', '时限（秒）'], maxSteers: ['턴당 다시 하기 최대 횟수', 'Redo limit per turn', '每轮重做上限'],

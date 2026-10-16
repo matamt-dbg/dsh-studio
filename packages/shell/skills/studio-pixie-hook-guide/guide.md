@@ -56,11 +56,12 @@ When the verdict is stop, the replacement and addition never reach the main mode
 | Option | Default | Description |
 | --- | --- | --- |
 | Pixie hook script | None | A script run before the task. See [below](#pixie-hook-scripts) |
+| Show the result in the chat | On | Shows the result right under what the gate checked. See [Chat notes](#chat-notes-and-per-session-switches) |
 | Confirm before replacing | Off | Stops a real replacement and shows it as a suggestion (message points) |
-| On error | Pass | Pass or stop on model or script errors and timeouts |
-| Target agents | Root (child for agent messages) | Root, child, or any |
-| Time limit | 60 s | Script, helper, and model calls together |
-| Redo limit | 1 | Corrections per turn at the answer-end point |
+| If Pixie fails | Continue as usual | Continue as usual or stop it on model or script errors and timeouts |
+| Target agents | Main agent (Subagents for agent messages) | Main agent, Subagents, or All |
+| Time limit (seconds) | 60 | Script, helper, and model calls together |
+| Redo limit per turn | 1 | Corrections per turn at the answer-end point |
 
 ## Pixie hook scripts
 
@@ -236,12 +237,31 @@ On start, Studio installs a skill with this guide and the hook rules into `<DSH 
 
 ## Chat notes and per-session switches
 
-**Chat notes:** when a hook script at the turn-end point concludes with a note (exit 11), for example a translation, the note appears as a block right under that turn's answer.
+**Chat notes:** a gate with **Show the result in the chat** on (Advanced; on by default) shows its result as a block right under what it checked, whether the script (exit 11) or Pixie concluded it. The setting decides; the output does not. The block is drawn from Studio's gate records and is never written to the session log.
 
+| Point | Where the block appears |
+| --- | --- |
+| You send an instruction / agents message each other | Right under that message, outside the turn's folded steps. A subagent's message shows in the subagent's chat |
+| Before a tool runs / a tool result arrives | Right under that tool call, inside the turn's steps (expand the turn to see it). Before and after results of one call show together |
+| The agent finishes its answer | Right under that turn's answer |
+
+A rejected instruction has no message in the chat, so its result stays in the Pixie tab only.
+
+![Gate results under the instruction, the Read and Bash calls, and the answer](../images/en/pixie-gate-chat-results.png)
+
+When the turn is folded, the instruction and answer results stay visible; tool results fold with the steps.
+
+![The same turn folded](../images/en/pixie-gate-chat-results-folded.png)
+
+Turn the setting off in the gate editor under **Advanced → Show the result in the chat**. The gate still runs and its record stays in the Pixie tab.
+
+![Show the result in the chat](../images/en/pixie-gate-show-in-chat.png)
+
+- The block shows the note when there is one, for example a translation. Without a note it shows the verdict with its reason, and any replacement or addition in a collapsed section. A failed run shows one error line.
 - If the note's first line starts with a bracketed label such as `[한국어 번역]`, the label becomes the block title. A label containing `not verified` (or `미확인`) gets a **not verified** badge.
 - The body renders as Markdown. The block offers **Hide**, **Open in Pixie tab**, and **Turn off in this session**.
-- It appears after the script finishes; there is no progress indicator. Skipped turns (exit 10), turns Pixie concluded, and turns without a note get no block. If the gate ran more than once in a turn, only the last note shows.
-- The original answer stays as it is; it cannot be collapsed or replaced.
+- It appears after the gate finishes; there is no progress indicator. Skipped turns (exit 10), cancelled runs, and runs whose gate had the setting off get no block. Each run keeps the setting it started with. If a gate ran more than once at the same place, only the last result shows.
+- The result block does not change the checked message, tool call, or answer. **Hide** collapses only the gate result.
 
 **Per-session switches:** at the top of **Pixie** tab → **Gates**, **Gates in this session** lists every gate that applies to this session's preset with a switch that turns it off for this session only. **Turn off in this session** on a chat block is the same switch.
 

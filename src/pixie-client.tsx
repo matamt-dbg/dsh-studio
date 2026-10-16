@@ -9,7 +9,8 @@ import type { StudioContext } from './contracts.js';
 import { PACKAGE_NAME } from './package-name.ts';
 import { MarkdownProvider, StudioSurface, type MarkdownRenderer } from './ui.tsx';
 import { PixieCommandRow, PixieTab, type PixieCommandRowActions, type PixieTabActions } from './pixie-tab.tsx';
-import { GateTail, type GateTailActions } from './pixie-gate-tail.tsx';
+import { GateResults, GateTail, type GateAnchor, type GateTailActions } from './pixie-gate-tail.tsx';
+import { GATE_RESULT_NODE, gateResultDefinition, gateRunHub, type GateResultNode, type GateRunSource } from './pixie-gate-chat-node.ts';
 import { PixieSettingsPage, type PixieSettingsActions } from './pixie-settings.tsx';
 import { pixieText } from './pixie-locale.ts';
 import type { PixieAskFrame, PixieSettings, PixieThread } from './pixie-contracts.ts';
@@ -221,15 +222,33 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
     // Under a finished answer: the note a hook script concluded at turn end (translation and similar). Renders nothing otherwise.
     // GateTail mounts this surface (and its stylesheet) only when the turn has a note.
     function GateTailSurface({ children }: React.PropsWithChildren) { return <StudioSurface className="studio-gate-tail">{children}</StudioSurface>; }
+    // Every chat row of a session reads one shared gate-run stream.
+    const hubs = new Map<string, GateRunSource>();
+    const resultActions = (sessionId: string): GateTailActions => {
+      let hub = hubs.get(sessionId);
+      if (!hub) { const tab = tabActions(sessionId); hub = gateRunHub(tab.gateRuns, tab.followGates); hubs.set(sessionId, hub); }
+      return { ...hub, setSessionGate: (gateId, enabled) => unwrap(remote().setSessionGate(sessionId, gateId, enabled)), openTab };
+    };
     function TurnTail({ sessionId, turn }: { sessionId: string; turn: { turn: number; status: string } }) {
       const active = useLocale();
-      const actions = React.useMemo<GateTailActions>(() => {
-        const tab = tabActions(sessionId);
-        return { gateRuns: tab.gateRuns, followGates: tab.followGates, setSessionGate: (gateId, enabled) => unwrap(remote().setSessionGate(sessionId, gateId, enabled)), openTab };
-      }, [sessionId]);
+      const actions = React.useMemo(() => resultActions(sessionId), [sessionId]);
       if (turn.status !== 'closed') return null;
       return withMarkdown(<GateTail actions={actions} turn={turn.turn} locale={active} Surface={GateTailSurface} />);
     }
     scope.slots.inject('conversation.chat.turnTail' as never, () => scope.slots.register({ name: 'conversation.chat.turnTail', id: 'studio-pixie-gate-tail' } as never, TurnTail as never));
+    // Under a tool call or an input message: results of gates at those points. The row is empty until a displayed result exists.
+    function GateResultRow({ sessionId, node }: { sessionId: string; node: GateResultNode }) {
+      const active = useLocale();
+      const actions = React.useMemo(() => resultActions(sessionId), [sessionId]);
+      const anchor: GateAnchor = node.data.anchor;
+      return withMarkdown(<GateResults actions={actions} anchor={anchor} locale={active} Surface={GateTailSurface} />);
+    }
+    // The Conversation service may load after Studio; without it the chat shows only turn-end results.
+    scope.inject(['uiConversation'] as never, inner => {
+      const conversation = (inner as unknown as { uiConversation: { events: { register(definition: unknown): () => void } } }).uiConversation;
+      // Registration belongs to this plugin's lifetime and is removed with it.
+      conversation.events.register(gateResultDefinition);
+      inner.slots.inject('conversation.chat.node' as never, () => inner.slots.register({ name: 'conversation.chat.node', key: GATE_RESULT_NODE } as never, GateResultRow as never));
+    });
   });
 }

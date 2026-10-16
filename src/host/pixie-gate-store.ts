@@ -6,7 +6,7 @@ import type { PixieUsage } from '../pixie-contracts.ts';
 
 export const MAX_GATE_RUNS = 200;
 const SESSION_ID = /^[\w-]{1,200}$/;
-type Settlement = { output?: GateRun['output']; usage?: PixieUsage; tool?: { name: string; callId: string }; reason?: string; turn?: number; steerCount?: number; status: Exclude<GateRunStatus, 'running'>; result?: GateResult; applied: GateApplied; hooksInput?: 'observed' | 'unverified'; rejection?: { reason: string; suggestion?: string } };
+type Settlement = { output?: GateRun['output']; usage?: PixieUsage; tool?: { name: string; callId: string }; messageId?: string; reason?: string; turn?: number; steerCount?: number; status: Exclude<GateRunStatus, 'running'>; result?: GateResult; applied: GateApplied; hooksInput?: 'observed' | 'unverified'; rejection?: { reason: string; suggestion?: string } };
 
 /** Persist start before applying destructive decisions. */
 export interface PixieGateRecorder {
@@ -40,11 +40,12 @@ export class PixieGateStore implements PixieGateRecorder {
     return record;
   }
 
-  start(sessionId: string, gate: { id: string; name: string; point: GatePoint; when?: GateRun['when'] }, original: string): Promise<GateRun> {
+  start(sessionId: string, gate: { id: string; name: string; point: GatePoint; when?: GateRun['when']; advanced?: { showInChat?: boolean } }, original: string): Promise<GateRun> {
     const snapshot = structuredClone(gate);
     return this.enqueue(sessionId, async () => {
       const record = await this.read(sessionId);
       const run: GateRun = { id: randomUUID(), gateId: snapshot.id, gateName: snapshot.name, point: snapshot.point, ...(snapshot.when ? { when: snapshot.when } : {}), sessionId,
+        ...(snapshot.advanced ? { showInChat: snapshot.advanced.showInChat !== false } : {}),
         startedAt: Date.now(), original, finalText: original, applied: 'none', usage: { inputTokens: 0, outputTokens: 0 }, status: 'running' };
       record.runs.push(run);
       // Reserve ownership before rename exposes the running record to concurrent readers.
@@ -73,6 +74,7 @@ export class PixieGateStore implements PixieGateRecorder {
       if (value.reason !== undefined) run.reason = value.reason;
       if (value.turn !== undefined) run.turn = value.turn;
       if (value.tool !== undefined) run.tool = value.tool;
+      if (value.messageId !== undefined) run.messageId = value.messageId;
       if (value.steerCount !== undefined) run.steerCount = value.steerCount;
       if (value.result) {
         run.result = value.result; run.finalText = value.result.subject;

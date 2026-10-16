@@ -2,7 +2,7 @@
 import React from 'react';
 import { Badge, Button, DetailDialog, Disclosure, Notice, PageHead, PickOption, SectionHead, Segmented, SettingsRow, Toggle } from './ui.tsx';
 import { gateTaskText, type GateTaskKey } from './pixie-gate-task-locale.ts';
-import { GATE_GUIDE_URL, GATE_SCRIPT_DIR, GATE_TEMPLATES, GATE_WHENS, enabledFor, isMessage, isTool, makeTask, taskFromTemplate, taskProblem, taskVariables, type GateTask, type GateTemplate } from './pixie-gate-task.ts';
+import { GATE_GUIDE_URL, GATE_SCRIPT_DIR, GATE_TEMPLATES, GATE_WHENS, enabledFor, isMessage, showsInChat, isTool, makeTask, taskFromTemplate, taskProblem, taskVariables, type GateTask, type GateTemplate } from './pixie-gate-task.ts';
 import type { GateOutput, gateOutputPlan } from './pixie-gate-task-contracts.ts';
 import type { GateTasksRead } from './pixie-gate-definitions.ts';
 import type { PixieUsage } from './pixie-contracts.ts';
@@ -155,6 +155,7 @@ export function GateTaskEditor({ task: initial, open, locale, actions, onApply, 
           <p className="studio-muted">{t('scriptEnv')}</p>
           <p className="studio-muted">{withLink(t('scriptShell'), <a href={GATE_GUIDE_URL} target="_blank" rel="noreferrer">{t('guideLink')}</a>)}</p>
         </SettingsRow>
+        <SettingsRow title={t('showInChat')} description={t('showInChatHint')} control={<Toggle label={t('showInChat')} checked={showsInChat(task)} onChange={showInChat => adv({ showInChat })} />} />
         {isMessage(task.when) && <SettingsRow title={t('confirmReplace')} description={t('confirmReplaceHint')} control={<Toggle label={t('confirmReplace')} checked={task.advanced.confirmReplace} onChange={confirmReplace => adv({ confirmReplace })} />} />}
         <SettingsRow title={t('onError')} control={<Segmented label={t('onError')} value={task.advanced.onError} options={[{ value: 'pass', label: t('errorPass') }, { value: 'block', label: t('errorBlock') }]} onChange={onError => adv({ onError })} />} />
         <SettingsRow title={t('agents')} control={<Segmented label={t('agents')} value={task.advanced.agents} options={(['root', 'child', 'any'] as const).map(value => ({ value, label: t(value) }))} onChange={agents => adv({ agents })} />} />

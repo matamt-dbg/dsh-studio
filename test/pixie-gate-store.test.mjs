@@ -266,3 +266,12 @@ test('prune waits behind an in-flight save in the same session queue', async t =
   assert.deepEqual((await store.read('s')).runs, []);
   assert.deepEqual(await readdir(join(dir, 'gates')), []);
 });
+
+test('a run snapshots the gate chat-display setting at start; a gate without options records nothing', async () => {
+  const dir = await root(); const store = new PixieGateStore(dir);
+  const off = await store.start('s', { ...gate, advanced: { showInChat: false } }, 'x');
+  const legacy = await store.start('s', { ...gate, advanced: {} }, 'x');
+  const bare = await store.start('s', gate, 'x');
+  assert.equal(off.showInChat, false); assert.equal(legacy.showInChat, true); assert.equal('showInChat' in bare, false);
+  assert.deepEqual((await store.read('s')).runs.map(run => run.showInChat), [false, true, undefined]);
+});

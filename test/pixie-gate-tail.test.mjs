@@ -1,10 +1,10 @@
-/** Chat turn tail: a script-concluded turn-end note under the answer of the same turn. */
+/** Chat turn tail: a turn-end gate result under the answer of the same turn, when the gate's chat display is on. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
-import { GateTail, splitNote, tailRun } from '../src/pixie-gate-tail.tsx';
+import { GateTail, splitNote, tailContent, tailRun } from '../src/pixie-gate-tail.tsx';
 
 const dom = new JSDOM('<!doctype html><body></body>');
 globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -27,13 +27,24 @@ async function setup(runs, { turn = 4, disabledGateIds, setSessionGate } = {}) {
   return { host, calls, emit: async frame => act(async () => listener(frame)), close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
 
-test('tailRun picks the last finished script note of that turn and ignores everything else', () => {
+test('tailRun follows the chat-display setting, not who concluded the run', () => {
   const runs = [run('a', { startedAt: 1 }), run('b', { startedAt: 5, output: { verdict: 'pass', note: '[한국어 번역]\nlater' } }),
-    run('skip', { result: { concludedBy: 'skipped' }, startedAt: 9 }), run('pixie', { result: { concludedBy: 'pixie' }, startedAt: 9 }),
-    run('running', { status: 'running', startedAt: 9 }), run('other-turn', { turn: 3, startedAt: 9 }), run('input', { point: 'input', startedAt: 9 }),
-    run('empty', { output: { verdict: 'pass', note: '  ' }, startedAt: 9 }), run('no-note', { output: { verdict: 'pass' }, startedAt: 9 })];
+    run('skip', { result: { concludedBy: 'skipped' }, startedAt: 9 }), run('off', { showInChat: false, startedAt: 9 }),
+    run('running', { status: 'running', startedAt: 9 }), run('cancelled', { status: 'cancelled', startedAt: 9 }), run('other-turn', { turn: 3, startedAt: 9 }), run('input', { point: 'input', startedAt: 9 })];
   assert.equal(tailRun(runs, 4).id, 'b');
   assert.equal(tailRun(runs, 2), undefined);
+  // Pixie conclusions, runs without a note, and errors show too; older records without the setting count as on.
+  assert.equal(tailRun([...runs, run('pixie', { result: { concludedBy: 'pixie' }, startedAt: 9 })], 4).id, 'pixie');
+  assert.equal(tailRun([...runs, run('no-note', { output: { verdict: 'stop', reason: 'why' }, startedAt: 9 })], 4).id, 'no-note');
+  assert.equal(tailRun([...runs, run('err', { status: 'error', startedAt: 9 })], 4).id, 'err');
+  assert.equal(tailRun([run('legacy', { showInChat: undefined })], 4).id, 'legacy');
+});
+
+test('tailContent prefers the note, then the error, then the verdict with its reason', () => {
+  assert.deepEqual(tailContent(run('a')), { kind: 'note', label: '한국어 번역', body: 'Git rebase는 **커밋**을 다시 적용합니다.' });
+  assert.deepEqual(tailContent(run('e', { status: 'error', output: { verdict: 'pass', reason: 'timeout' } })), { kind: 'error', reason: 'timeout' });
+  assert.deepEqual(tailContent(run('v', { output: { verdict: 'stop', reason: '근거 없음', replace: 'r', append: '  ' } })), { kind: 'verdict', verdict: 'stop', reason: '근거 없음', replace: 'r' });
+  assert.deepEqual(tailContent(run('blank', { output: { verdict: 'pass', note: '  ' } })), { kind: 'verdict', verdict: 'pass' });
 });
 
 test('splitNote turns a leading [label] line into the title', () => {
@@ -74,8 +85,16 @@ test('an unverified translation is flagged; a failed switch reports without hidi
   await f.close();
 });
 
-test('nothing mounts for a turn without a note, and a note arriving live appears', async () => {
-  const f = await setup([run('skip', { result: { concludedBy: 'skipped' } })]);
+test('a verdict without a note shows the verdict and reason', async () => {
+  const f = await setup([run('v', { result: { concludedBy: 'pixie' }, output: { verdict: 'stop', reason: '테스트 통과 근거가 없습니다' } })]);
+  const block = f.host.querySelector('[data-gate-tail="tr"]');
+  assert.equal(block.dataset.tailKind, 'verdict');
+  assert.match(block.textContent, /막음/); assert.match(block.textContent, /테스트 통과 근거가 없습니다/);
+  await f.close();
+});
+
+test('nothing mounts for a skipped or display-off turn, and a result arriving live appears', async () => {
+  const f = await setup([run('skip', { result: { concludedBy: 'skipped' } }), run('off', { showInChat: false })]);
   assert.equal(f.host.innerHTML, '');
   await f.emit({ type: 'run', run: run('late', { startedAt: 20 }) });
   assert.ok(f.host.querySelector('[data-gate-tail="tr"]'));

@@ -32,7 +32,7 @@ Help the user build a Pixie Gate: a task the Pixie model runs at one point of an
 - Write the whole judgment in `--question`: question IDs never reach the model. For several inputs (source and translation, answer and evidence), pipe a JSON object built with `jq` and name its fields in backticks in the question.
 - The script runs in the session working directory under the session sandbox. Do not write files unless the session can write; never try to escape the sandbox.
 - In the task, reference only `{{hooks.<name>.text}}` and `{{hooks.<name>.data}}` of the chosen script.
-- At `turn-end`, a note concluded with exit 11 shows under that turn's answer in the chat. Start it with a bracketed label line (e.g. `[한국어 번역]`) to title the block; a label containing `not verified`/`미확인` gets a warning badge.
+- At every point, the gate's **Show the result in the chat** setting (`advanced.showInChat`, on by default) decides whether the result shows right under what it checked (the message, the tool call, or the turn's answer), whoever concluded it: the note if any, otherwise the verdict and reason. It is never written to the session log. For a note, start it with a bracketed label line (e.g. `[한국어 번역]`) to title the block; a label containing `not verified`/`미확인` gets a warning badge.
 
 Test a script by hand before relying on it: `printf 'sample' | PIXIE_POINT=tool-after PIXIE_TOOL_NAME=grep ./script.sh; echo $?`. The helper only works inside a real gate run.
 
@@ -42,7 +42,7 @@ Do not edit `definitions.json` unless the user asks you to; prefer guiding them 
 
 ```json
 { "id": "<uuid>", "name": "…", "enabled": true, "when": "user-message", "instruction": "…",
-  "advanced": { "confirmReplace": false, "onError": "pass", "agents": "root", "timeoutMs": 60000, "maxSteers": 1, "script": "optional.sh" },
+  "advanced": { "confirmReplace": false, "onError": "pass", "agents": "root", "timeoutMs": 60000, "maxSteers": 1, "showInChat": true, "script": "optional.sh" },
   "presetIds": ["<preset id>"], "disabledPresetIds": ["<attached preset where it is off>"] }
 ```
 

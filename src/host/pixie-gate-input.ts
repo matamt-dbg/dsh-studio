@@ -50,7 +50,7 @@ export function gateInput(deps: GateInputDeps) {
     if (!targets.length) return decision;
     const context = decision.messages.filter(message => ['hooks-claude-code', 'hooks-codex'].includes(message.source.kind)).map(textOf);
     const hooksInput = context.length ? 'observed' as const : 'unverified' as const;
-    const pending: { run: GateRun; execution: Awaited<ReturnType<typeof executeTask>>; result: GateResult; applied: GateApplied; rejection?: { reason: string; suggestion?: string } }[] = [];
+    const pending: { messageId: string; run: GateRun; execution: Awaited<ReturnType<typeof executeTask>>; result: GateResult; applied: GateApplied; rejection?: { reason: string; suggestion?: string } }[] = [];
     let messages = [...decision.messages];
     let rejected = false;
     for (const { message, gate } of targets) {
@@ -59,7 +59,7 @@ export function gateInput(deps: GateInputDeps) {
       deps.emit('pixie-gate/start', structuredClone(run));
       const execution = await executeTask(gate, original, payload.signal, deps.runner, () => deps.hookContext?.(payload.agent, payload.turn) ?? { sessionId: payload.agent.id, cwd: payload.agent.session.header.cwd, turn: payload.turn, agent: root ? 'root' : 'child' });
       const { result, plan } = execution;
-      const item: typeof pending[number] = { run, execution, result, applied: execution.skipped ? 'none' : 'pass' };
+      const item: typeof pending[number] = { messageId: String(message.id), run, execution, result, applied: execution.skipped ? 'none' : 'pass' };
       pending.push(item);
       if (payload.signal.aborted || result.verdict === 'cancelled') break;
       const suggestion = plan.suggestion;
@@ -95,9 +95,9 @@ export function gateInput(deps: GateInputDeps) {
         addition: !cancelled && !rejected && item.execution.plan.addition !== undefined,
         withheld: !cancelled && rejected,
       });
-      await deps.recorder.finish(payload.agent.id, item.run.id, { status: cancelled ? 'cancelled' : item.result.verdict === 'error' ? 'error' : 'done', result: item.result, output: item.execution.output, usage: item.execution.usage, applied, hooksInput, ...(applied === 'rejected' ? { rejection: item.rejection } : {}) });
+      await deps.recorder.finish(payload.agent.id, item.run.id, { status: cancelled ? 'cancelled' : item.result.verdict === 'error' ? 'error' : 'done', result: item.result, output: item.execution.output, usage: item.execution.usage, applied, hooksInput, messageId: item.messageId, ...(applied === 'rejected' ? { rejection: item.rejection } : {}) });
       const usage = item.execution.usage;
-      deps.emit('pixie-gate/end', { ...item.run, result: item.result, output: item.execution.output, finalText: item.result.subject, applied, hooksInput, usage, endedAt: Date.now(), status: cancelled ? 'cancelled' : item.result.verdict === 'error' ? 'error' : 'done', ...(applied === 'rejected' && item.rejection ? { rejection: { ...item.rejection, original: item.run.original, status: 'pending' as const } } : {}) });
+      deps.emit('pixie-gate/end', { ...item.run, messageId: item.messageId, result: item.result, output: item.execution.output, finalText: item.result.subject, applied, hooksInput, usage, endedAt: Date.now(), status: cancelled ? 'cancelled' : item.result.verdict === 'error' ? 'error' : 'done', ...(applied === 'rejected' && item.rejection ? { rejection: { ...item.rejection, original: item.run.original, status: 'pending' as const } } : {}) });
     }
     return committed;
   };

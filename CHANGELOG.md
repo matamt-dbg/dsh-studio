@@ -2,6 +2,46 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.5.0 — 2026-10-17
+
+Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.
+
+### Highlights
+
+- **Gate results in the chat at every point.** A gate's result now shows right under what it checked: under your instruction or an agent message, under the tool call, or under the turn's answer. Previously only turn-end script notes appeared. See the [Pixie Gate guide](docs/appendix/pixie-gate.md#chat-notes-and-per-session-switches).
+- **A setting decides what shows.** **Advanced → Show the result in the chat** (on by default) controls display for each gate, whether a hook script or Pixie concluded the run. The block shows the note, or the verdict and reason when there is no note.
+- **Nothing is added to the session log.** Blocks are drawn from Studio's gate records; the model's context and the session history are unchanged.
+
+### Changes
+
+- Instruction and agent-message results stay visible when a finished turn is folded; tool results fold with the turn's steps.
+- Each run keeps the display setting it started with, so changing it later does not alter past blocks.
+- Chat blocks show which point produced them.
+
+### Upgrade notes
+
+- Existing gates show their results by default. Turn **Show the result in the chat** off for gates whose results you only want in the Pixie tab.
+
+### 한국어
+
+DSH `0.2.0-rc.2` 또는 `0.2.1-alpha.2`가 필요합니다.
+
+#### 주요 변경
+
+- **모든 지점의 게이트 결과를 대화에 표시.** 게이트 결과가 검사한 대상 바로 아래에 나옵니다. 지시나 에이전트 메시지 아래, 도구 호출 아래, 턴의 답변 아래입니다. 이전에는 답변 끝 스크립트 메모만 보였습니다. [Pixie Gate 가이드](docs/appendix/pixie-gate.ko.md#대화창-메모와-세션별-끄기)를 참고하세요.
+- **설정이 표시 여부를 정함.** 게이트마다 **고급 → 결과를 대화에 표시**(기본 켜짐)로 정하며, 훅 스크립트가 결론을 냈든 Pixie가 냈든 같습니다. 메모가 있으면 메모를, 없으면 결론과 이유를 보여 줍니다.
+- **세션 기록에는 남지 않음.** 블록은 Studio 게이트 기록에서 그리며, 모델 컨텍스트와 세션 기록은 바뀌지 않습니다.
+
+#### 변경 사항
+
+- 완료된 턴을 접어도 지시·에이전트 메시지 결과는 보입니다. 도구 결과는 턴의 진행 과정과 함께 접힙니다.
+- 실행마다 시작할 때의 표시 설정을 따르므로, 나중에 바꿔도 지난 블록은 바뀌지 않습니다.
+- 대화 블록에 어느 지점의 결과인지 표시됩니다.
+
+#### 업그레이드 참고
+
+- 기존 게이트도 기본으로 결과를 보여 줍니다. Pixie 탭에서만 보고 싶은 게이트는 **결과를 대화에 표시**를 끄세요.
+
 ## 0.4.0 — 2026-10-16
 
 Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.

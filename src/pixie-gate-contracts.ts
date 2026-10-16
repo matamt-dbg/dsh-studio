@@ -98,6 +98,10 @@ export interface GateRun {
   turn?: number;
   steerCount?: number;
   tool?: { name: string; callId: string };
+  /** Input points: the checked message, so the chat can place the result under it. */
+  messageId?: string;
+  /** The gate's chat-display setting when the run started; absent on older records means on. */
+  showInChat?: boolean;
 }
 /** `disabledGateIds`: gates switched off for this session only; absent means none. Definitions are untouched. */
 export interface GateRunRecord { sessionId: string; runs: GateRun[]; disabledGateIds?: string[] }

@@ -109,9 +109,13 @@ test('Remote descriptors and session-bound composer use public scopes without au
   function stream() { let done; return { dispose: () => done?.(), async *[Symbol.asyncIterator]() { yield { type: 'sync' }; await new Promise(r => { done = r; }); } }; }
   const registered = [];
   const slots = { inject: (_name, callback) => callback(), register: (definition, component) => { registered.push(definition); if (definition.name === 'sidebar.right.pane.tab') Body = component; } };
-  const ctx = { get: name => name === 'sessions' ? { scope: id => { assert.equal(id, 's'); return actx; } } : remote, slots, locale: { getLocale: () => ({ active: 'en' }), subscribe: () => () => {} }, inject: (_names, callback) => callback({ slots, sidebarRightTabs: { register: () => () => {} }, sidebarRight: {}, effect: fn => fn() }) };
+  const ctx = { get: name => name === 'sessions' ? { scope: id => { assert.equal(id, 's'); return actx; } } : remote, slots, locale: { getLocale: () => ({ active: 'en' }), subscribe: () => () => {} }, inject: (_names, callback) => callback(scope) };
+  const definitions = [];
+  const scope = { slots, sidebarRightTabs: { register: () => () => {} }, sidebarRight: {}, effect: fn => fn(), uiConversation: { events: { register: d => { definitions.push(d.kind); return () => {}; } } }, inject: (_names, callback) => callback(scope) };
   mountPixie(ctx);
   assert.deepEqual(registered.filter(d => d.name === 'conversation.chat.turnTail'), [{ name: 'conversation.chat.turnTail', id: 'studio-pixie-gate-tail' }]);
+  assert.deepEqual(registered.filter(d => d.name === 'conversation.chat.node'), [{ name: 'conversation.chat.node', key: 'studio-pixie-gate-result' }]);
+  assert.deepEqual(definitions, ['studio-pixie-gate-result']);
   const host = document.createElement('div'); const root = createRoot(host);
   await act(async () => root.render(React.createElement(Body, { sessionId: 's' })));
   await act(async () => button(host, 'Gates').click());
