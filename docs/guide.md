@@ -2,7 +2,7 @@
 
 English | [한국어](guide.ko.md)
 
-DSH Studio is a page inside the DeepSeek Harness web GUI for building **agent presets**: which tools an agent sees, what instructions it starts with, how its plugins are configured, and which specialist subagents it can delegate to. A preset you apply appears in DSH's preset picker for new sessions.
+DSH Studio is a page inside the DeepSeek Harness web GUI for building **agent presets**: which tools an agent sees, what instructions it starts with, how its plugins are configured, and which specialist subagents it can delegate to. A preset you apply appears in DSH's preset picker for new sessions. For the overall model, read the [introduction](introduction.md) first.
 
 - [Install and open Studio](#install-and-open-studio)
 - [Preset list](#preset-list)
@@ -104,6 +104,8 @@ Edited tools are marked **Modified**. Changes apply to this preset only.
 - **Runtime context**: the current state appended after the system prompt on every request (permissions, sandbox and so on), by plugin. It depends on session state, so the values are examples.
 - **Turn start**: the AGENTS.md instructions, current time and skill list added as conversation messages at each turn. They are examples made with the folder and time Studio runs in now. The text comes from files or the clock and cannot be edited; the settings that shape it (`timeZone`, `maxBytes`, instruction file candidates and so on) are editable right below. They are the same values as Execution settings, and **Reset** returns to the default.
 
+![Turn start](images/en/preview-turn-start.png)
+
 Content that appears only while running, such as notes after tool results (a subfolder AGENTS.md) or compaction summaries, is not previewed. If you change settings while the preview is open, it tells you to run it again.
 
 ### Execution settings
@@ -112,7 +114,13 @@ Content that appears only while running, such as notes after tool results (a sub
 
 Execution settings has two parts.
 
+![Included plugins with automatic compaction left out](images/en/plugin-exclusion.png)
+
 **Included plugins**: every plugin in Studio Master is included in the preset by default. Each row shows its origin (`standard`, `Studio`, `Added`) and state (**Defaults**, **Override**, **Excluded**). Uncheck a row to leave that plugin out of this preset. Plugins that need it leave with it (removing automatic compaction also removes `/compact`). Applying is blocked if a selected tool loses its plugin. **Add plugin** adds or removes a package installed in your profile, by name, in Studio Master. Activation is checked first, and a failure keeps the previous state.
+
+![Add plugin](images/en/add-plugin.png)
+
+![Config overrides](images/en/config-overrides.png)
 
 **Config**: override values of included plugins for this preset only — for example, how much tool output stays inline before it is saved to a file (`spill-policy`). Check an entry and **Edit** its fields; only changed fields are saved, and unchecking returns to the defaults. Leaving a plugin out happens in Included plugins above. To turn off only automatic compaction, override `auto` to `false` here (`/compact` stays). Plugins whose settings cannot be read are shown disabled, and so are the `tool-subagent` Configs, which `subagent_role` replaces.
 

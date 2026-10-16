@@ -67,7 +67,7 @@ Restart the web GUI or the app, then open **DSH Studio** from the sidebar. Each 
 |---|---|---|
 | ![Tools](docs/images/en/tools.png) | ![Preview](docs/images/en/prompt-preview.png) | ![Roles](docs/images/en/role-editor.png) |
 
-**User guide: [English](docs/guide.md) · [한국어](docs/guide.ko.md)**
+**Introduction: [English](docs/introduction.md) · [한국어](docs/introduction.ko.md)** · **User guide: [English](docs/guide.md) · [한국어](docs/guide.ko.md)**
 
 ## Quick start
 
@@ -78,7 +78,7 @@ Restart the web GUI or the app, then open **DSH Studio** from the sidebar. Each 
 
 Presets are stored per profile in `studio-data/`. Applying a preset registers a Studio-owned DSH agent preset; it never edits other presets or the profile's packages.
 
-A preset runs only with the tools it selects. If the profile does not provide one of them (for example `load_workspace_dependencies` outside the desktop app), applying or starting the preset fails instead of silently dropping the tool. See [Tools that depend on your profile](docs/guide.md#tools-that-depend-on-your-profile).
+The tools a preset selects are the session's starting tool set. If the profile does not provide one of them (for example `load_workspace_dependencies` outside the desktop app), applying the preset fails instead of silently dropping the tool. Tools that DSH or other plugins add to a running session, such as schedules, stay usable. See [Tools that depend on your profile](docs/guide.md#tools-that-depend-on-your-profile).
 
 ## Development
 
