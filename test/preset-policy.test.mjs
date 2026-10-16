@@ -16,7 +16,7 @@ async function setup(mode = 'native') {
   await ctx.plugin(Object.assign(inner => { parent = createScope(inner, parentKey); child = createScope(inner, key, { parent: parentKey }); }, { inject: ['tools', 'systemPrompt'] }));
   return { ctx, parent, parentKey, child, key };
 }
-test('policy preserves executable definitions, patches only descriptions, restores and guards late scoped tools', async () => {
+test('policy preserves executable definitions, patches only descriptions, restores and leaves late scoped tools to DSH', async () => {
   const {ctx, parent, child, key} = await setup();
   const original = tool('read'); ctx.tools.register(original); ctx.tools.register(tool('write'));
   try {
@@ -29,12 +29,12 @@ test('policy preserves executable definitions, patches only descriptions, restor
     assert.ok(renderPrompt(await ctx.systemPrompt.assemble({ scope: key })).endsWith('Extra'));
     child.ctx.tools.register(tool('late'));
     const result = await ctx.tools.execute({ name: 'late', callId: 'test', arguments: {}, agent: key, signal: new AbortController().signal });
-    assert.match(JSON.stringify(result), /excluded by Studio/);
+    assert.equal(result.isError, false);
     dispose(); dispose();
     assert.equal(ctx.tools.get('read', key), original); assert.ok(ctx.tools.get('write', key));
   } finally { await child.dispose(); await parent.dispose(); }
 });
-test('invalid overrides and excess scoped tools fail without leaving restrictions', async () => {
+test('invalid overrides fail without leaving restrictions; own-scope tools no longer block', async () => {
   const {ctx, parent, child, key} = await setup(); ctx.tools.register(tool('read')); ctx.tools.register(tool('write'));
   try {
     assert.throws(() => installPolicy(child.ctx, key, policy({ toolOverrides: { read: { parameters: { typo: 'x' } } } })), /Unknown parameter/);
@@ -44,28 +44,38 @@ test('invalid overrides and excess scoped tools fail without leaving restriction
     assert.equal(ctx.tools.get('inherited', key), undefined);
     release();
     child.ctx.tools.register(tool('scoped'));
-    assert.throws(() => installPolicy(child.ctx, key, policy({})), /does not support own-scope tools: scoped/);
+    const again = installPolicy(child.ctx, key, policy({}));
+    assert.deepEqual(ctx.tools.schemas(key).map(t => t.name).sort(), ['read', 'scoped']);
+    again();
     assert.ok(ctx.tools.get('write', key));
   } finally { await child.dispose(); await parent.dispose(); }
 });
-test('missing selected dependencies fail closed, including overrides and execution defaults', async () => {
+test('missing selected tools are reported and skipped, including overrides and execution defaults', async () => {
   const {ctx, parent, child, key} = await setup(); ctx.tools.register(tool('read')); ctx.tools.register(tool('write'));
   try {
     for (const patch of [{}, { toolOverrides: { missing: { description: 'x' } } }, { execution: { defaults: { missing: { timeoutMs: 100 } } } }]) {
-      assert.throws(() => installPolicy(child.ctx, key, policy({ tools: ['read', 'missing'], ...patch })), /selected tools unavailable: missing/);
+      const warnings = [];
+      const release = installPolicy(child.ctx, key, policy({ tools: ['read', 'missing'], ...patch }), message => warnings.push(message));
+      assert.deepEqual(warnings, ['Studio policy selected tools unavailable: missing']);
+      assert.deepEqual(ctx.tools.schemas(key).map(t => t.name), ['read']);
+      release();
       assert.deepEqual(ctx.tools.schemas(key).map(t => t.name), ['read', 'write']);
     }
   } finally { await child.dispose(); await parent.dispose(); }
 });
-test('own selected tools and own shadows fail explicitly without mutating registrations', async () => {
+test('own selected tools and own shadows install unpatched and report overrides they cannot take', async () => {
   for (const inherited of [false, true]) {
     const {ctx, parent, child, key} = await setup();
     if (inherited) ctx.tools.register(tool('read'));
     const original = tool('read'); child.ctx.tools.register(original); ctx.tools.register(tool('write'));
     try {
-      for (const overrides of [{}, { read: { description: 'Edited' } }]) {
-        assert.throws(() => installPolicy(child.ctx, key, policy({ toolOverrides: overrides })), /does not support own-scope tools: read/);
+      for (const [overrides, expected] of [[{}, []], [{ read: { description: 'Edited' } }, ['Studio policy cannot apply overrides to agent-scope tools: read']]]) {
+        const warnings = [];
+        const release = installPolicy(child.ctx, key, policy({ toolOverrides: overrides }), message => warnings.push(message));
+        assert.deepEqual(warnings, expected);
         assert.equal(ctx.tools.get('read', key), original);
+        assert.equal(ctx.tools.get('write', key), undefined);
+        release();
         assert.ok(ctx.tools.get('write', key));
       }
     } finally { await child.dispose(); await parent.dispose(); }
@@ -106,27 +116,34 @@ test('PTC and reserved run_code selections fail explicitly without changing othe
     assert.throws(() => installPolicy(child.ctx, key, policy({ tools: ['run_code'] })), /reserved run_code/);
   } finally { await child.dispose(); await parent.dispose(); }
 });
-test('late own schemas remain a public API gap but their bodies and late PTC are denied', async () => {
+test('tools registered after installation follow DSH: new names appear and run, removals apply', async () => {
   const {ctx, parent, child, key} = await setup(); let calls = 0;
-  ctx.tools.register(tool('read'));
+  ctx.tools.register(tool('read')); ctx.tools.register(tool('write'));
   try {
     const release = installPolicy(child.ctx, key, policy({}));
-    child.ctx.tools.register({ ...tool('late'), execute: async () => { calls++; return 'bad'; } });
-    // Deliberately document the unavoidable exposure gap, not a hiding guarantee.
-    assert.ok(ctx.tools.schemas(key).some(t => t.name === 'late'));
+    assert.deepEqual(ctx.tools.schemas(key).map(t => t.name), ['read']);
     const input = name => ({ name, callId: name, arguments: { path: 'x' }, agent: key, signal: new AbortController().signal });
-    assert.match(JSON.stringify(await ctx.tools.execute(input('late'))), /excluded by Studio/);
-    const modeRelease = child.ctx.tools.presentAs('ptc');
-    assert.match(JSON.stringify(await ctx.tools.execute(input('run_code'))), /excluded by Studio/);
-    assert.equal(calls, 0);
-    modeRelease(); release();
+    // A provider enabled later in the preset scope (an ancestor) and one in the Agent's own scope.
+    const lateInherited = parent.ctx.tools.register({ ...tool('schedule_list'), execute: async () => { calls++; return 'ok'; } });
+    child.ctx.tools.register({ ...tool('own_late'), execute: async () => { calls++; return 'ok'; } });
+    assert.deepEqual(ctx.tools.schemas(key).map(t => t.name).sort(), ['own_late', 'read', 'schedule_list']);
+    assert.equal((await ctx.tools.execute(input('schedule_list'))).isError, false);
+    assert.equal((await ctx.tools.execute(input('own_late'))).isError, false);
+    assert.equal(calls, 2);
+    lateInherited();
+    assert.equal(ctx.tools.get('schedule_list', key), undefined);
+    // Unrelated tools keep working after a provider goes away.
+    assert.equal((await ctx.tools.execute(input('read'))).isError, false);
+    // The unselected starting tool stays out of the starting surface.
+    assert.equal(ctx.tools.get('write', key), undefined);
+    release();
   } finally { await child.dispose(); await parent.dispose(); }
 });
 test('download bundle adds policy dependency and preset declaration without mutating compiled rows', () => {
   const plugins = load('- name: "@deepseek-ai/dsh-persona"\n  disabled: !!js process.platform === "win32"\n  config:\n    complete: false\n', { schema: entryListSchema });
   const {files} = createPresetBundle({ id: 'my-policy', title: 'My policy', plugins, policy: policy({}) });
   assert.equal(plugins.length, 1);
-  assert.equal(JSON.parse(files['package.json']).dependencies['@matamt-dbg/dsh-studio'], '0.2.9');
+  assert.equal(JSON.parse(files['package.json']).dependencies['@matamt-dbg/dsh-studio'], '0.3.0');
   assert.match(files['cordis.patch.yml'], /!!js/);
   const config = load(files['cordis.patch.yml'], { schema: entryListSchema })[0].insert[0].config;
   assert.deepEqual(config.plugins[0].disabled, plugins[0].disabled);

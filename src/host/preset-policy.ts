@@ -78,8 +78,16 @@ function patchParameter(parameters: Record<string, unknown>, path: string, descr
   node.description = description;
 }
 
-/** Install into an already scoped agent/preview context. Disposer is idempotent and rolls back failures. */
-export function installPolicy(ctx: Context, scopeKey: object, config: PresetPolicyConfig): () => void {
+/**
+ * Install into an already scoped agent/preview context. Disposer is idempotent and rolls back failures.
+ *
+ * The selection is the preset's starting tool set, not an allowlist: unselected tools the Agent
+ * inherits at install time are masked with `restrict({ deny })`, while tools registered later
+ * under new names, and this scope's own registrations, follow DSH's normal tool flow. Selected
+ * tools that are absent, or own-scope tools that cannot be shadowed, are reported through `warn`
+ * and skipped instead of blocking the Agent.
+ */
+export function installPolicy(ctx: Context, scopeKey: object, config: PresetPolicyConfig, warn: (message: string) => void = () => {}): () => void {
   validatePolicy(config);
   if (scopeOf(ctx) !== scopeKey) throw new Error('Studio policy requires its owning scoped context');
   // run_code is transport, not an end-capability. Never pass it to restrict or
@@ -88,18 +96,19 @@ export function installPolicy(ctx: Context, scopeKey: object, config: PresetPoli
     throw new Error('Studio policy does not support PTC presentation or the reserved run_code tool; configure this preset with native tool presentation');
   }
   const missing = config.tools.filter(name => ctx.tools.get(name, scopeKey) === undefined);
-  if (missing.length) throw new Error(`Studio policy selected tools unavailable: ${missing.join(', ')}`);
-  // Public restrict masks inherited definitions, not this scope's own tools.
-  // Probe with an empty allow-list, then restore synchronously even on failure.
-  // Reject own registrations, including same-name shadows: permitting them would
-  // promise exposure enforcement that the supported public API cannot provide.
+  if (missing.length) warn(`Studio policy selected tools unavailable: ${missing.join(', ')}`);
+  // Public restrict masks inherited definitions, not this scope's own tools. Probe with an
+  // empty allow-list to tell the two apart, then restore synchronously even on failure.
   const restoreProbe = ctx.tools.restrict({ allow: [] });
-  try {
-    const local = ctx.tools.schemas(scopeKey);
-    if (local.length) throw new Error(`Studio policy does not support own-scope tools: ${local.map(tool => tool.name).join(', ')}; register providers in an ancestor preset scope. Public API cannot hide late own-scope schemas; dynamic own-scope providers are unsupported`);
-  } finally { restoreProbe(); }
+  let local: Set<string>;
+  try { local = new Set(ctx.tools.schemas(scopeKey).map(tool => tool.name)); }
+  finally { restoreProbe(); }
   const selected = new Set(config.tools);
-  const definitions = config.tools.map(name => {
+  const deny = ctx.tools.schemas(scopeKey).map(tool => tool.name).filter(name => !selected.has(name) && !local.has(name));
+  // An own-scope tool cannot be shadowed in its own layer; leave it unpatched rather than fail.
+  const unpatchable = config.tools.filter(name => local.has(name) && (config.toolOverrides[name] || config.execution?.defaults[name] || config.execution?.batch?.tool === name));
+  if (unpatchable.length) warn(`Studio policy cannot apply overrides to agent-scope tools: ${unpatchable.join(', ')}`);
+  const definitions = config.tools.filter(name => !local.has(name) && !missing.includes(name)).map(name => {
     const definition = ctx.tools.get(name, scopeKey)!;
     const override = config.toolOverrides[name];
     const defaults = config.execution?.defaults[name];
@@ -129,13 +138,8 @@ export function installPolicy(ctx: Context, scopeKey: object, config: PresetPoli
   const disposers: Array<() => void> = [];
   const dispose = () => { for (const release of disposers.splice(0).reverse()) release(); };
   try {
-    disposers.push(ctx.tools.restrict({ allow: [...selected] }));
-    // Public API gap: a plugin can register an own-scope schema after installation;
-    // restrict cannot hide it and tools/change is only a notification, not a veto.
-    // Do not monkeypatch the registry or claim an exact late-schema boundary.
-    // The monotonic guard still denies every unselected body, including run_code
-    // if another plugin switches presentation later. Providers must remain stable.
-    disposers.push(ctx.tools.guard(execution => selected.has(execution.name) ? undefined : 'Tool excluded by Studio preset policy'));
+    // A snapshot of names, not a guard: later registrations and removals stay DSH's to decide.
+    if (deny.length) disposers.push(ctx.tools.restrict({ deny }));
     for (const definition of definitions) disposers.push(ctx.tools.register(definition));
     for (const [name, text] of Object.entries(config.sections)) disposers.push(ctx.systemPrompt.section({ name, order: ctx.systemPrompt.getSectionOrder(POLICY_SECTION_ORDERS[name]!), text, interpolate: false }));
     disposers.push(ctx.systemPrompt.section({ name: 'studio:additional', order: Number.MAX_SAFE_INTEGER, text: config.prompt, interpolate: false }));
@@ -153,24 +157,25 @@ export function apply(ctx: Context, config: PresetPolicyConfig): void {
   const registry = ctx.get('agents' as never) as AgentRegistry | undefined;
   const hideable = config.childToolFilter?.deny ?? [];
   // subagent_role passes each role's toolFilter to DSH, which restricts the child natively and
-  // persists it for resume. Those tools are invisible to the child, so the full policy would reject
+  // persists it for resume. Those tools are invisible to the child, so the full policy would report
   // them as unavailable. Install the child policy without exactly the hideable tools this child
-  // cannot see. A tool that is missing but not hideable still fails closed as unavailable.
+  // cannot see. A tool that is missing but not hideable is reported as unavailable and skipped.
   const policyFor = (agent: PolicyAgent) => {
     if (!hideable.length) return config;
     // Hidden means masked on this Agent while the preset itself still provides it; a tool the
-    // preset lost is not hidden and stays in the policy so the Agent fails closed.
+    // preset lost is not hidden and stays in the policy so its absence is reported.
     const provided = (name: string) => scopeOf(ctx) === undefined || ctx.tools.get(name, scopeOf(ctx)) !== undefined;
     const hidden = hideable.filter(name => agent.ctx.tools.get(name, agent) === undefined && provided(name));
     return hidden.length ? childPolicy(config, hidden) : config;
   };
+  const warn = (message: string) => { ctx.logger?.warn?.(message); };
   const installed = new Map<PolicyAgent, () => void>();
   const installing = new Set<PolicyAgent>();
   const install = (agent: PolicyAgent) => {
     if (installed.has(agent) || installing.has(agent)) return;
     // Reserve first: registering the patched definitions emits tools/change synchronously.
     installing.add(agent);
-    try { installed.set(agent, installPolicy(agent.ctx, agent, policyFor(agent))); }
+    try { installed.set(agent, installPolicy(agent.ctx, agent, policyFor(agent), warn)); }
     finally { installing.delete(agent); }
   };
   const remove = (agent: PolicyAgent) => { installed.get(agent)?.(); installed.delete(agent); };
@@ -189,9 +194,9 @@ export function apply(ctx: Context, config: PresetPolicyConfig): void {
   }
   const belongs = (agent: PolicyAgent) => scopeChainOf(scopeOf(agent.ctx)).includes(composition);
   // Fail closed but keep retrying: an Agent that joined this preset but cannot take its policy
-  // yet must not run the unrestricted inherited tool set, so every call is denied. The usual
-  // cause is transient: the previous preset's own-scope tool (tool-subagent's `subagent`) is
-  // removed asynchronously after the same tools/change, and that removal emits tools/change again.
+  // must not run with half-applied overrides, so every call is denied with the reason. Only
+  // invalid policy data reaches this (unknown parameter paths, PTC presentation, conflicting
+  // prompt sections); tool availability and agent-scope registrations never block.
   const blocked = new Map<PolicyAgent, { release: () => void; reason: string }>();
   const unblock = (agent: PolicyAgent) => { blocked.get(agent)?.release(); blocked.delete(agent); };
   const block = (agent: PolicyAgent, error: unknown) => {

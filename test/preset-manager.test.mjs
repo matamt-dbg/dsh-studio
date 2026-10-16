@@ -18,7 +18,7 @@ test('preset creation keeps tab drafts together and list applies/deletes owned p
   const click = async text => act(async () => [...document.querySelectorAll('button')].find(b => b.textContent === text).click());
   try {
     await act(async () => root.render(React.createElement(OptimizationPrototype, { locale: 'en', presetActions: api, catalog: { presets: [{ id: 'minimal', tools: [], sections: [], promptProviders: [] }], tools: [] } })));
-    assert.deepEqual([...document.querySelectorAll('nav button')].map(b => b.textContent), ['Preset list', 'Create preset', 'Tool providers']);
+    assert.deepEqual([...document.querySelectorAll('nav button')].map(b => b.textContent), ['Preset list', 'Create preset']);
     assert.deepEqual([...document.querySelectorAll('[role=tab]')].map(b => b.textContent), ['Prompts & tools', 'Execution settings', 'Subagent settings']);
     await click('Create preset');
     const name = [...document.querySelectorAll('label')].find(e => e.textContent === 'Preset name').querySelector('input');

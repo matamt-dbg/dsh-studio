@@ -30,8 +30,10 @@ test('built client mounts read-only catalog and registers Studio optimization', 
   assert.deepEqual(Array.from(plugin.inject), ['slots', 'locale', 'remote']);
   const registrations = [];
   const subscriptions = [];
+  const mounts = [];
   const ctx = {
-    get: () => ({ async $mount(contract) { assert.equal(contract.descriptors[0].method, 'read');
+    // The runtime registers one Remote contribution per package; a second $mount fails activation.
+    get: name => name !== 'remote' ? undefined : ({ async $mount(contract) { assert.equal(mounts.filter(item => item.package === contract.package).length, 0, 'one $mount per package'); mounts.push(contract); assert.equal(contract.descriptors[0].method, 'read');
       const parameter = contract.descriptors.find(item => item.method === 'preview').parameters[0];
       assert.equal(parameter.codec.mode, 'strict', 'Remote input requires a strict codec at activation');
       const schema = parameter.codec.create();
@@ -40,6 +42,8 @@ test('built client mounts read-only catalog and registers Studio optimization', 
       for (const invalid of [null, {}, { ...request, providers: [1] }, { ...request, tools: 'read' }, { ...request, model: null }]) assert.throws(() => schema.parse(invalid));
       return () => {}; } }),
     effect: fn => fn(),
+    // Optional services such as the right sidebar never appear in this fake runtime.
+    inject: () => ({ dispose() {} }),
     locale: { addLanguage() {}, subscribe() { return () => {}; } },
     slots: {
       entriesOfSlot: () => [],
@@ -49,10 +53,16 @@ test('built client mounts read-only catalog and registers Studio optimization', 
     },
   };
   await plugin.apply(ctx);
-  assert.deepEqual(registrations.map(item => item.name), ['main', 'local.dsh-studio.services', 'sidebar.panellist']);
-  assert.equal(registrations[0].key, 'local-dsh-studio');
-  assert.equal(registrations[1].id, 'optimization-prototype');
-  assert.equal(registrations[2].id, 'local-dsh-studio');
-  assert.deepEqual(Object.keys(registrations[0].children), ['local.dsh-studio.services']);
+  // Without the right sidebar, Pixie adds only its Studio settings page; the tab and /pixie row need sidebarRightTabs.
+  assert.deepEqual(registrations.map(item => item.name), ['local.dsh-studio.services', 'main', 'local.dsh-studio.services', 'sidebar.panellist']);
+  assert.equal(registrations[0].id, 'pixie');
+  assert.equal(registrations[1].key, 'local-dsh-studio');
+  assert.equal(registrations[2].id, 'optimization-prototype');
+  assert.equal(registrations[3].id, 'local-dsh-studio');
+  const pixie = mounts[0].descriptors.filter(item => item.service === 'studioPixie');
+  assert.ok(pixie.length > 0);
+  assert.ok(pixie.every(item => item.parameters.every(parameter => parameter.codec.mode === 'strict')));
+  assert.equal(pixie.find(item => item.method === 'follow').mode, 'stream');
+  assert.deepEqual(Object.keys(registrations[1].children), ['local.dsh-studio.services']);
   assert.deepEqual(subscriptions, ['local.dsh-studio.services']);
 });

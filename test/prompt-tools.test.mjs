@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React, { act } from 'react';
 import { JSDOM } from 'jsdom';
 import { PromptToolsPrototype, defaultProvidedTools } from '../src/prompt-tools-prototype.tsx';
-import { promptProviders, selectPromptProviders } from '../src/prompt-composition.ts';
+import { promptProviders } from '../src/prompt-composition.ts';
 
 test('run_code cannot be selected directly or via presets; legacy selections can only be removed', async () => {
   const dom = new JSDOM('<div id="root"></div>');
@@ -40,11 +40,9 @@ test('run_code cannot be selected directly or via presets; legacy selections can
   } finally { await act(async () => root.unmount()); dom.window.close(); }
 });
 
-test('prompt providers are explicitly classified and nested dependencies preserved', () => {
+test('prompt providers are explicitly classified inside nested groups', () => {
   const rows = [{ name: 'cordis:group', group: true, config: [{ name: '@deepseek-ai/dsh-persona', config: { prefix: 'Hello' } }, { name: 'tool-provider' }] }];
-  assert.equal(promptProviders(rows)[0].name, '@deepseek-ai/dsh-persona');
-  assert.deepEqual(selectPromptProviders(rows, [])[0].config, [{ name: 'tool-provider' }]);
-  assert.throws(() => selectPromptProviders(rows, ['unknown']));
+  assert.deepEqual(promptProviders(rows).map(provider => provider.name), ['@deepseek-ai/dsh-persona']);
   assert.equal(rows[0].config.length, 2);
 });
 

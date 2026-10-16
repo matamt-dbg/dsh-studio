@@ -47,7 +47,20 @@ test('Optimized seeds once, supports edit/apply/unapply, survives restart, and o
   // The locked built-in re-aligns to the shipped allow list instead of freezing its first seed.
   assert.deepEqual((await restored.list())[0].request.tools, ['read']);
   assert.equal(b.registrations.get(template.id).name, 'Optimized');
-  await restored.unapply(template.id); await restored.dispose();
+  // A snapshot composed by an older build (empty compaction group) is rebuilt from the current base.
+  const stale = (await import('node:fs/promises'));
+  const data = JSON.parse(await stale.readFile(file, 'utf8'));
+  await restored.dispose();
+  data.presets[0].applied.plugins = '- id: compaction\n  name: cordis:group\n  group: true\n  config: []\n';
+  await stale.writeFile(file, JSON.stringify(data));
+  const r = await runtime(); const realigned = new PresetStore(r.ctx, file);
+  const base = [{ id: 'compaction', name: 'cordis:group', group: true, config: [{ id: 'compaction-basic', name: '@deepseek-ai/dsh-compaction-basic' }] }, { id: 'spill-policy', name: '@deepseek-ai/dsh-spill-policy' }];
+  await realigned.ensureOptimized(['read'], base);
+  assert.ok(r.registrations.get(template.id).plugins[0].config.some(row => row.name === '@deepseek-ai/dsh-compaction-basic'));
+  await realigned.dispose();
+  const b2 = await runtime(); const again = new PresetStore(b2.ctx, file);
+  await again.initialize();
+  await again.unapply(template.id); await again.dispose();
   const c = await runtime(); const reopened = new PresetStore(c.ctx, file);
   const retained = await reopened.ensureOptimized(['different'], []);
   assert.equal(retained.status, 'draft'); assert.equal(c.registrations.size, 0);

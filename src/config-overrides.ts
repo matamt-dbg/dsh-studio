@@ -39,3 +39,52 @@ export function applyConfigOverrides(rows: CompositionRow[], overrides: ConfigOv
   });
   return visit(rows);
 }
+
+/**
+ * Non-tool execution features older builds dropped when only persona was selected. Used to detect
+ * those gaps in applied snapshots; every Master entry may be excluded, not only these.
+ */
+export const LEGACY_DROPPED_PACKAGES: readonly string[] = Object.freeze([
+  '@deepseek-ai/dsh-agent-instructions', '@deepseek-ai/dsh-time-context', '@deepseek-ai/dsh-skill-filesystem',
+  '@deepseek-ai/dsh-compaction-basic', '@deepseek-ai/dsh-command-compact', '@deepseek-ai/dsh-compaction-tool-result-pruner',
+]);
+/** Packages that cannot run without another one in the same composition (`inject`-level dependency). */
+export const CONFIG_REQUIRES: Readonly<Record<string, string>> = Object.freeze({
+  '@deepseek-ai/dsh-command-compact': '@deepseek-ai/dsh-compaction-basic',
+});
+/**
+ * Entry ids that leaving `excluded` out also removes: the excluded ids plus every entry whose
+ * required package no longer remains (e.g. /compact without compaction-basic).
+ */
+export function effectiveExclusions(rows: CompositionRow[], excluded: readonly string[]): string[] {
+  const entries = configEntries(rows);
+  const result = new Set(excluded);
+  for (let changed = true; changed;) {
+    changed = false;
+    const remaining = new Set(entries.filter(entry => !result.has(entry.id)).map(entry => entry.row.name));
+    for (const entry of entries) {
+      const needs = CONFIG_REQUIRES[entry.row.name];
+      if (!result.has(entry.id) && needs && !remaining.has(needs)) { result.add(entry.id); changed = true; }
+    }
+  }
+  return entries.map(entry => entry.id).filter(id => result.has(id));
+}
+/**
+ * Base composition with explicit exclusions removed. Unknown ids fail, and an id cannot be both
+ * excluded and overridden: leaving an override unset is "use the default", never "exclude".
+ */
+export function applyConfigExclusions(rows: CompositionRow[], excluded: readonly string[], overrides: ConfigOverrides = {}): CompositionRow[] {
+  if (!excluded.length) return rows;
+  const known = new Set(configEntries(rows).map(entry => entry.id));
+  for (const id of excluded) {
+    if (!known.has(id)) throw new Error(`Unknown master Config entry: ${id}`);
+    if (Object.hasOwn(overrides, id)) throw new Error(`Config entry is both overridden and excluded: ${id}`);
+  }
+  const drop = new Set(effectiveExclusions(rows, excluded));
+  const visit = (items: CompositionRow[], parent = ''): CompositionRow[] => items.flatMap(row => {
+    const id = parent ? `${parent}/${row.id}` : row.id!;
+    if (row.group && Array.isArray(row.config)) return [{ ...row, config: visit(row.config, id) }];
+    return drop.has(id) ? [] : [row];
+  });
+  return visit(rows);
+}

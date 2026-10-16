@@ -13,11 +13,11 @@ DSH Studio is a page inside the DeepSeek Harness web GUI for building **agent pr
   - [Subagent settings](#subagent-settings)
 - [Adapt Optimized to your work](#adapt-optimized-to-your-work)
 - [Apply a preset to DSH](#apply-a-preset-to-dsh)
-- [Tool providers](#tool-providers)
 - [Tools that depend on your profile](#tools-that-depend-on-your-profile)
 - [Where data is stored](#where-data-is-stored)
 - [Troubleshooting](#troubleshooting)
 - [Appendix: Check a preset in a live session](appendix/preset-check.md)
+- [Appendix: Pixie Gate guide](appendix/pixie-gate.md)
 
 ## Install and open Studio
 
@@ -44,7 +44,7 @@ The list shows every preset Studio manages:
 
 | Preset | What it is |
 |---|---|
-| **Studio Master** | Read-only reference that contains every tool available in this profile. Use it to see what you can select. |
+| **Studio Master** | Read-only reference. It follows the running DSH `standard` preset and adds the plugins Studio provides (`read_batch`, `spill-policy` and others) plus any you add. Use it to see which tools and plugins you can select. |
 | **Optimized** | Built-in starting point for coding agents: a fixed list of 22 everyday tools, tuned tool descriptions and execution defaults, and short working instructions. It is locked: copy it to make changes. See [Adapt Optimized to your work](#adapt-optimized-to-your-work). |
 | Your presets | Anything you create or copy. |
 
@@ -57,7 +57,10 @@ Each card shows its status — **Applied**, **Needs reapply** (saved changes not
 
 If several presets share a warning, it is shown once above the cards instead of on every card.
 
-Optimized follows the installed Studio version. Each time Studio starts, it resets Optimized to that version's tool list and defaults. If Optimized was applied, Studio reapplies it; if you unapplied it, it stays unapplied. Your copies are never changed.
+Optimized follows the installed Studio version and DSH `standard`. Each time Studio starts, it realigns Optimized. If Optimized was applied, Studio reapplies it; if you unapplied it, it stays unapplied. Your copies are never changed.
+
+- **Missing features**: if an earlier Studio version left features out when applying (compaction, for example), the card says so. **Restore** shows what will be added and, once you confirm, reapplies the saved settings. Overrides, roles and Pixie Gate links are kept.
+- **Tool and Config changes**: when a DSH update or a plugin install or removal changes what is available, a notice appears above the list on the next start. **Review** lists additions (`+`), removals (`-`) and schema changes (`~`) with the preset settings that would be cleaned; **Confirm and clean** removes the missing items from your presets. Nothing changes until you confirm.
 
 ## Edit a preset
 
@@ -95,13 +98,23 @@ Edited tools are marked **Modified**. Changes apply to this preset only.
 
 ![Prompt preview](images/en/prompt-preview.png)
 
-**Preview prompt** assembles the system prompt exactly as DSH would for this preset, without starting an agent or calling a model. The left side lists every section in order; the right side lists the tools the model receives. Expand a tool to see its description and parameters (name, type, required, description) as an indented list. If you change settings while the preview is open, it tells you to run it again.
+**Preview prompt** shows what DSH sends the model for this preset, without starting an agent or calling a model. Switch between three views at the top:
+
+- **System prompt & tools**: every section in order, with the tools the model receives on the right. Expand a tool to see its description and parameters (name, type, required, description).
+- **Runtime context**: the current state appended after the system prompt on every request (permissions, sandbox and so on), by plugin. It depends on session state, so the values are examples.
+- **Turn start**: the AGENTS.md instructions, current time and skill list added as conversation messages at each turn. They are examples made with the folder and time Studio runs in now. The text comes from files or the clock and cannot be edited; the settings that shape it (`timeZone`, `maxBytes`, instruction file candidates and so on) are editable right below. They are the same values as Execution settings, and **Reset** returns to the default.
+
+Content that appears only while running, such as notes after tool results (a subfolder AGENTS.md) or compaction summaries, is not previewed. If you change settings while the preview is open, it tells you to run it again.
 
 ### Execution settings
 
 ![Execution settings](images/en/execution-settings.png)
 
-Override plugin configuration for this preset only — for example, how much tool output is shown inline before it is saved to a file (`spill-policy`). Check a plugin to override it, then **Edit** to change fields. Only fields you change are saved; unchecking a plugin resets it. Plugins whose settings cannot be read are shown disabled, and so are the `tool-subagent` Configs, which `subagent_role` replaces.
+Execution settings has two parts.
+
+**Included plugins**: every plugin in Studio Master is included in the preset by default. Each row shows its origin (`standard`, `Studio`, `Added`) and state (**Defaults**, **Override**, **Excluded**). Uncheck a row to leave that plugin out of this preset. Plugins that need it leave with it (removing automatic compaction also removes `/compact`). Applying is blocked if a selected tool loses its plugin. **Add plugin** adds or removes a package installed in your profile, by name, in Studio Master. Activation is checked first, and a failure keeps the previous state.
+
+**Config**: override values of included plugins for this preset only — for example, how much tool output stays inline before it is saved to a file (`spill-policy`). Check an entry and **Edit** its fields; only changed fields are saved, and unchecking returns to the defaults. Leaving a plugin out happens in Included plugins above. To turn off only automatic compaction, override `auto` to `false` here (`/compact` stays). Plugins whose settings cannot be read are shown disabled, and so are the `tool-subagent` Configs, which `subagent_role` replaces.
 
 ### Subagent settings
 
@@ -206,7 +219,8 @@ Optimized is tuned for **coding-agent work**: reading and editing code, running 
 | Search X, or generate images and videos | Turn on `x_search`, `image_generate` or `video_generate` (only when a plugin in your profile provides them). |
 | Do research, writing or operations instead of coding | Rewrite **Additional Studio instructions** for that work, and drop tools it does not need. |
 | Change how much tool output stays inline | Adjust `spill-policy` in **Execution settings**. |
-| Tune any other plugin behavior | Turn on that plugin in **Execution settings** and edit only the fields you need. |
+| Tune any other plugin behavior | Turn on that plugin in **Execution settings → Config** and edit only the fields you need. |
+| Leave a feature out entirely | Uncheck it in **Execution settings → Included plugins**. |
 | Steer how the model uses a tool | Edit its description, usage instructions or parameter text in the tool's **Details**. |
 | Delegate to specialists | Add roles in **Subagent settings** with their own model, reasoning effort and persona. |
 | Keep subagents focused | Add tools such as `ask_user_question` to the **Subagent Tool Filter**, or give a role its own list. See [Subagent Tool Filter](#subagent-tool-filter). |
@@ -223,21 +237,19 @@ An applied preset also appears under **CUSTOM** in DSH **Settings → Agent pres
 
 If applying fails, the previously applied version stays in effect and the list explains why. **Unapply from DSH** removes the preset from DSH but keeps it in Studio.
 
-## Tool providers
-
-**Tool providers** registers tools from other installed plugins in the Studio tool list, so presets can select them. Enter a JSON array of entries with `id`, `name` (the installed package) and `config`, then select **Validate and update master**. Registering runs the plugin's code, so add only plugins you trust. Studio does not install packages; install them first.
-
 ## Tools that depend on your profile
 
 Studio Master lists only the tools that the plugins in **this profile** register. Some tools come from plugins that only certain environments load. For example, the desktop app adds `load_workspace_dependencies`, `x_search`, `image_generate` and `video_generate`, but a `dsh web` profile or a headless runtime may not have them. Optimized never selects these tools, so it works in every profile.
 
-A preset can use only the tools it lists. If any selected tool is missing from the profile, Studio does not drop it silently:
+When a selected tool is missing from the profile:
 
 - In the editor, the tool is marked **Not available in this profile**.
 - Applying the preset fails, and the previously applied version stays in effect.
-- Starting or resuming a session with an already applied preset fails with `Studio policy selected tools unavailable: <tool>`.
+- An already applied preset keeps working without that tool after DSH restarts, and the list shows a notice. Other tool calls are not blocked.
 
-To use such a tool, install the plugin that provides it in that profile, or turn it on in the Studio tool list with **Tool providers**. If you work in several profiles, keep a separate copy for each profile and turn on only the tools that profile provides.
+The tools a preset selects are the session's **starting tool set**. Tools that another plugin registers under a new name after the session starts, and tools DSH attaches to each session directly (such as schedules), are not blocked by Studio and can be used as is. These tools do not appear in the preset tool list.
+
+To use such a tool, install the plugin that provides it in that profile, or add it to Studio Master with **Execution settings → Included plugins → Add plugin**. If you work in several profiles, keep a separate copy for each profile and turn on only the tools that profile provides.
 
 ## Where data is stored
 
@@ -255,6 +267,6 @@ Your saved presets are kept and migrated automatically.
 
 **A preset shows "Needs reapply".** It was saved after it was last applied. Apply it again to update DSH.
 
-**Applying or starting fails with "does not supply tools" or "selected tools unavailable".** The preset selects a tool that this profile does not provide, such as `load_workspace_dependencies` outside the desktop app. Install the plugin that provides it, or turn the tool off in your copy and apply again. See [Tools that depend on your profile](#tools-that-depend-on-your-profile).
+**Applying fails with "does not supply tools" or "not provided by this composition", or the list notes "selected tools unavailable".** The preset selects a tool that this profile does not provide, such as `load_workspace_dependencies` outside the desktop app, or you excluded the plugin that provides it. Install or include the plugin, or turn the tool off in your copy and apply again. See [Tools that depend on your profile](#tools-that-depend-on-your-profile).
 
-**Optimized has different tools after an update.** This is expected: Optimized follows the installed Studio version. Your copies keep their own tools.
+**Optimized has different tools or plugins after an update.** This is expected: Optimized follows the installed Studio version and DSH `standard`. Your copies keep their own tools.

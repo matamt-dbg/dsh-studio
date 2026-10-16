@@ -1,0 +1,82 @@
+{
+ "id": "471eeb0f-0476-4b2b-ab1a-ea9821109c87",
+ "gateId": "r5-input",
+ "gateName": "R5 지시 점검",
+ "point": "input",
+ "when": "user-message",
+ "sessionId": "session-r5",
+ "startedAt": 1792127645733,
+ "original": "[GATE] PIXIE_GATE_TEST.md 지침을 읽고 그대로 수행해. 완료 조건: 지침의 단계 1~5를 모두 보고하고 마지막 줄이 GATE-OK이면 끝.",
+ "finalText": "[GATE] PIXIE_GATE_TEST.md 지침을 읽고 그대로 수행해. 완료 조건: 지침의 단계 1~5를 모두 보고하고 마지막 줄이 GATE-OK이면 끝.",
+ "applied": "appended",
+ "usage": {
+  "inputTokens": 653,
+  "outputTokens": 799,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0
+ },
+ "status": "done",
+ "endedAt": 1792127651300,
+ "hooksInput": "unverified",
+ "result": {
+  "verdict": "pass",
+  "original": "[GATE] PIXIE_GATE_TEST.md 지침을 읽고 그대로 수행해. 완료 조건: 지침의 단계 1~5를 모두 보고하고 마지막 줄이 GATE-OK이면 끝.",
+  "subject": "[GATE] PIXIE_GATE_TEST.md 지침을 읽고 그대로 수행해. 완료 조건: 지침의 단계 1~5를 모두 보고하고 마지막 줄이 GATE-OK이면 끝.",
+  "notes": [
+   "R5 input gate ran"
+  ],
+  "stages": {},
+  "records": [
+   {
+    "id": "pixie-ask-1",
+    "result": {
+     "verdict": "note",
+     "text": "Read and follow PIXIE_GATE_TEST.md, report steps 1–5, and finish with GATE-OK.",
+     "reason": "Summarize the request in one short English sentence.",
+     "usage": {
+      "inputTokens": 123,
+      "outputTokens": 204,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0
+     }
+    },
+    "subjectBytes": 158,
+    "textBytes": 80
+   },
+   {
+    "id": "pixie-judge-2",
+    "result": {
+     "verdict": "pass",
+     "reason": "Does the request include a clear done condition?",
+     "data": {
+      "noul": 1,
+      "threshold": 0.5
+     },
+     "usage": {
+      "inputTokens": 244,
+      "outputTokens": 225,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0
+     }
+    },
+    "subjectBytes": 158,
+    "textBytes": 0
+   }
+  ],
+  "hooks": {},
+  "appliedPolicy": "pass",
+  "forward": {
+   "kind": "append",
+   "text": "[GATE] PIXIE_GATE_TEST.md 지침을 읽고 그대로 수행해. 완료 조건: 지침의 단계 1~5를 모두 보고하고 마지막 줄이 GATE-OK이면 끝.",
+   "contexts": [
+    "Pixie 요약: Read and follow PIXIE_GATE_TEST.md, report steps 1–5, and finish with GATE-OK."
+   ],
+   "source": "studio-pixie-gate"
+  }
+ },
+ "output": {
+  "verdict": "pass",
+  "append": "Pixie 요약: Read and follow PIXIE_GATE_TEST.md, report steps 1–5, and finish with GATE-OK.",
+  "note": "R5 input gate ran"
+ }
+}

@@ -61,28 +61,49 @@ test('an Agent created directly under the Studio preset gets the policy exactly 
   assert.equal(ctx.tools.get('read', agent).description, 'Studio read');
 });
 
-test('an Agent that joins but cannot take the policy fails closed', async () => {
+test('an own-scope tool on the Agent no longer blocks the policy or other tools', async () => {
   const { ctx, standard, studio, createAgent, recompose } = await runtime();
   const agent = await createAgent(standard);
-  agent.ctx.tools.register(tool('own'));  // own-scope tools are rejected by installPolicy
+  agent.ctx.tools.register(tool('own'));
+  recompose(agent, studio);
+  assert.deepEqual(ctx.tools.schemas(agent).map(t => t.name).sort(), ['own', 'read']);
+  assert.equal(ctx.tools.get('read', agent).description, 'Studio read');
+  for (const name of ['read', 'own']) {
+    const result = await ctx.tools.execute({ name, callId: name, arguments: {}, agent, signal: new AbortController().signal });
+    assert.equal(result.isError, false, name);
+  }
+});
+
+test('reserved schedule tools registered on root Agents do not block the preset', async () => {
+  const { ctx, studio, createAgent } = await runtime();
+  const agent = await createAgent(studio);
+  // dsh-schedule 0.2.0-rc.2 registers its four tools on each root Agent's own scope after agent/created.
+  for (const name of ['schedule_create', 'schedule_list', 'schedule_delete', 'schedule_update']) agent.ctx.tools.register(tool(name));
+  assert.deepEqual(ctx.tools.schemas(agent).map(t => t.name).sort(), ['read', 'schedule_create', 'schedule_delete', 'schedule_list', 'schedule_update']);
+  for (const name of ['read', 'schedule_list']) {
+    const result = await ctx.tools.execute({ name, callId: name, arguments: {}, agent, signal: new AbortController().signal });
+    assert.doesNotMatch(JSON.stringify(result), /could not be installed|excluded/, name);
+  }
+});
+
+test('an Agent that cannot take an invalid policy fails closed with the reason', async () => {
+  const { ctx, standard, studio, createAgent, recompose } = await runtime({ ...config, toolOverrides: { read: { parameters: { typo: 'x' } } } });
+  const agent = await createAgent(standard);
   recompose(agent, studio);
   const result = await ctx.tools.execute({ name: 'read', callId: 'c', arguments: {}, agent, signal: new AbortController().signal });
-  assert.match(JSON.stringify(result), /could not be installed/);
+  assert.match(JSON.stringify(result), /could not be installed: Unknown parameter path: typo/);
 });
 
 // Production: standard's tool-subagent leaves its own-scope `subagent` on the Agent and removes
 // it asynchronously after the same tools/change that reparented the Agent.
-test('a blocked Agent takes the policy once the previous preset releases its own-scope tool', async () => {
+test('the previous preset own-scope tool does not delay the policy and leaves when released', async () => {
   const { ctx, standard, studio, createAgent, recompose } = await runtime();
   const agent = await createAgent(standard);
   const releaseSubagent = agent.ctx.tools.register(tool('subagent'));
   recompose(agent, studio);
-  const blocked = await ctx.tools.execute({ name: 'read', callId: 'c', arguments: {}, agent, signal: new AbortController().signal });
-  assert.match(JSON.stringify(blocked), /could not be installed/);
-
-  releaseSubagent();  // unregistering emits tools/change
-  assert.deepEqual(ctx.tools.schemas(agent).map(t => t.name), ['read']);
   assert.equal(ctx.tools.get('read', agent).description, 'Studio read');
+  releaseSubagent();
+  assert.deepEqual(ctx.tools.schemas(agent).map(t => t.name), ['read']);
   const allowed = await ctx.tools.execute({ name: 'read', callId: 'c', arguments: {}, agent, signal: new AbortController().signal });
   assert.doesNotMatch(JSON.stringify(allowed), /could not be installed|excluded/);
 });

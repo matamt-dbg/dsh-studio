@@ -1,18 +1,19 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { createScope } from '@deepseek-ai/dsh-scope';
-import { renderPrompt, renderContextSnapshot } from '@deepseek-ai/dsh-system-prompt';
+import { renderPrompt, renderContextSnapshot, renderContextSections } from '@deepseek-ai/dsh-system-prompt';
 import { randomUUID } from 'node:crypto';
 import { type PreviewRequest, type PreviewResult } from '../prompt-composition.ts';
 import { compositionPlan, parseComposition } from './composition-plan.ts';
 import { installPolicy } from './preset-policy.ts';
 import { delegationTools } from '../delegation.ts';
+import { turnInjections, type ModuleImporter } from './turn-injections.ts';
 export { parseComposition };
 export { promptProviders } from '../prompt-composition.ts';
 
 /** Real assembly in a disposable child scope; same plan and policy used by exported presets. */
 export async function assemblePreview(ctx: Context, input: PreviewRequest): Promise<PreviewResult> {
   // Preview the same tool surface that apply registers: generic delegation folds into subagent_role.
-  const { request, plugins } = await compositionPlan(ctx, { ...input, tools: delegationTools(input.tools) });
+  const { request, plugins, entries } = await compositionPlan(ctx, { ...input, tools: delegationTools(input.tools) });
   const id = `studio-preview-${randomUUID()}`;
   const unregister = await ctx.agentPresets.register({ id, plugins: plugins as never });
   try {
@@ -30,11 +31,13 @@ export async function assemblePreview(ctx: Context, input: PreviewRequest): Prom
         if (request.model.trim()) child.ctx.systemPrompt.variable('model', () => request.model.trim());
         const assembly = await ctx.systemPrompt.assemble({ scope: key });
         const actual = assembly.tools.map(tool => tool.name);
-        if (actual.some(name => !request.tools.includes(name)) || request.tools.some(name => !actual.includes(name))) throw new Error('Assembler tool output differs from the selected tools');
+        // Selected tools that are not installed are skipped, as at apply time; nothing unselected may appear.
+        if (actual.some(name => !request.tools.includes(name))) throw new Error('Assembler tool output differs from the selected tools');
         return {
           prompt: renderPrompt(assembly),
           sections: assembly.sections.map(section => ({ name: section.name, text: renderPrompt({ ...assembly, sections: [section] }) })).filter(section => section.text),
-          context: renderContextSnapshot(assembly), tools: assembly.tools,
+          context: renderContextSnapshot(assembly), contexts: renderContextSections(assembly).map(({ name, text }) => ({ name, text })), tools: assembly.tools,
+          injections: await turnInjections(entries, ctx.get('loader' as never) as ModuleImporter | undefined, { cwd: process.cwd() }),
         };
       } finally { await child.dispose(); }
     } finally { await lease[Symbol.asyncDispose](); }

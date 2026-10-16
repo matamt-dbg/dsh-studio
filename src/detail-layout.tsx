@@ -5,11 +5,12 @@ import React from 'react';
 export interface DetailPage { id: string; label: string; group?: string; content: React.ReactNode }
 
 /** Render a service's left navigation and independently scrolling detail pages.
- * @param props Service title and subtitle, navigation label, controlled page selection, and an optional navigation footer.
+ * Every Studio service uses this frame so switching services keeps the same layout; the service tab already names it, so the menu has no title.
+ * @param props Navigation label, controlled page selection, and an optional navigation footer.
  * @returns Navigation with retained inactive pages.
  */
-export function DetailLayout({ title, subtitle, navigation, pages, selected, onSelect, footer }: {
-  title: string; subtitle?: string; navigation: string; pages: readonly DetailPage[]; footer?: React.ReactNode;
+export function DetailLayout({ navigation, pages, selected, onSelect, footer }: {
+  navigation: string; pages: readonly DetailPage[]; footer?: React.ReactNode;
   selected: string; onSelect: (id: string) => void;
 }) {
   const id = React.useId();
@@ -17,7 +18,6 @@ export function DetailLayout({ title, subtitle, navigation, pages, selected, onS
   React.useLayoutEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; }, [selected]);
   return <div className="studio-layout">
     <nav className="studio-nav" aria-label={navigation}>
-      <div className="studio-nav-head"><strong className="studio-nav-title">{title}</strong>{subtitle && <span className="studio-nav-subtitle">{subtitle}</span>}</div>
       {pages.map((page, index) => <React.Fragment key={page.id}>
         {page.group && page.group !== pages[index - 1]?.group && <span className="studio-nav-group">{page.group}</span>}
         <button type="button" className="studio-nav-item"

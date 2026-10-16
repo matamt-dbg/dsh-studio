@@ -5,9 +5,10 @@ export const BUILTIN_TOOL_PRESETS = ['standard', 'ptc', 'minimal', 'cordis'] as 
 /**
  * The everyday tool surface Optimized ships with, and the only tools it selects.
  *
- * A fixed allow list, not "everything except a few": a profile plugin that registers an extra tool
- * (x_search, image_generate, video_generate, load_workspace_dependencies, ...) must not enlarge the
- * preset behind the user's back. Generic and legacy subagent names stay allowed so
+ * A fixed starting selection, not "everything except a few": a profile plugin that registers an
+ * extra tool (x_search, image_generate, ...) does not enlarge this saved selection. It is not a
+ * runtime allowlist either: tools a provider registers after the Agent starts follow DSH's normal
+ * flow (see installPolicy). Generic and legacy subagent names stay allowed so
  * {@link delegationTools} can fold them into `subagent_role`.
  */
 export const OPTIMIZED_TOOLS: readonly string[] = [

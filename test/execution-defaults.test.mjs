@@ -65,7 +65,8 @@ test('scoped adapter preserves definition callbacks, original receiver, and disp
     assert.equal(observed.args.timeoutMs, 50);
     assert.equal(original.parameters.properties.timeoutMs.default, undefined);
     dispose(); dispose();
-    assert.deepEqual(releases, ['restrict', 'section', 'tool', 'guard', 'restrict']);
+    // Probe release, then the policy: nothing to deny here, and no execution guard any more.
+    assert.deepEqual(releases, ['restrict', 'section', 'tool']);
     original.name = 'read_batch';
     original.parameters = { type: 'object', properties: { calls: { type: 'array', minItems: 1, maxItems: 8 } } };
     const disposeBatch = installPolicy(child.ctx, key, { tools: ['read_batch'], toolOverrides: {}, sections: {}, prompt: '', execution: { defaults: {}, batch: { tool: 'read_batch', parameter: 'calls', maxItems: 2 } } });

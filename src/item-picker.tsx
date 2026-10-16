@@ -6,12 +6,12 @@ export interface PickerItem { name: string; description: string; title?: string;
   /** Shown on and cannot be turned off; `lockedReason` explains why (for example, inherited from a default). */
   lockedReason?: string }
 
-type Filter = 'all' | 'selected' | 'modified';
+export type Filter = 'all' | 'selected' | 'modified';
 
 /** Single list with in-place selection: a row never moves when it is added or removed.
  * Search and the all/selected/modified filter narrow the same list; item settings open in a dialog.
  */
-export function ItemPicker({ label, items, selected, onChange, labels, renderDetails, isModified, hasDetails }: {
+export function ItemPicker({ label, items, selected, onChange, labels, renderDetails, isModified, hasDetails, filters = ['all', 'selected', 'modified'], badge }: {
   label: string;
   items: PickerItem[];
   selected: string[];
@@ -20,6 +20,10 @@ export function ItemPicker({ label, items, selected, onChange, labels, renderDet
   renderDetails?: (name: string) => React.ReactNode;
   isModified?: (name: string) => boolean;
   hasDetails?: (name: string) => boolean;
+  /** Filter tabs to offer; `all` should stay first. */
+  filters?: readonly Filter[];
+  /** Extra state tag after the title (e.g. Defaults/Override/Excluded). */
+  badge?: (name: string) => React.ReactNode;
 }) {
   const [query, setQuery] = React.useState('');
   const [filter, setFilter] = React.useState<Filter>('all');
@@ -37,7 +41,7 @@ export function ItemPicker({ label, items, selected, onChange, labels, renderDet
     <div className="studio-picker-bar">
       <input type="search" aria-label={labels.search} placeholder={labels.searchHint} value={query} onChange={event => setQuery(event.target.value)} />
       <div className="studio-picker-filters" role="radiogroup" aria-label={labels.filter}>
-        {(['all', 'selected', 'modified'] as const).map(value => <button key={value} type="button" role="radio" aria-checked={filter === value} className="studio-picker-filter" onClick={() => setFilter(value)}>
+        {filters.map(value => <button key={value} type="button" role="radio" aria-checked={filter === value} className="studio-picker-filter" onClick={() => setFilter(value)}>
           {labels[value]}<span className="studio-count">{counts[value]}</span>
         </button>)}
       </div>
@@ -56,6 +60,7 @@ export function ItemPicker({ label, items, selected, onChange, labels, renderDet
               {(locked ? item.lockedReason : item.disabledReason && !on ? item.disabledReason : item.description) && <span className="studio-picker-description">{locked ? item.lockedReason : item.disabledReason && !on ? item.disabledReason : item.description}</span>}
             </span>
           </button>
+          {badge?.(item.name)}
           {modified(item.name) && <span className="studio-badge" data-tone="info" data-studio-modified="true">{labels.modifiedTag}</span>}
           {details && <Button small aria-label={`${labels.settings}: ${item.name}`} aria-haspopup="dialog" onClick={() => setDetail(item.name)}>{labels.settings}</Button>}
         </li>;

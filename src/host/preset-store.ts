@@ -13,12 +13,18 @@ import { compositionPlan, parseComposition } from './composition-plan.ts';
 import { executableRoles, parseRoles, roleToolFilter } from '../role-settings.ts';
 import { delegationTools, migratePolicyConfig, renameLegacyRoleKey, ROLE_PLUGIN, ROLE_TOOL, withoutDelegationPlugins } from '../delegation.ts';
 import type { CompositionRow } from '../prompt-composition.ts';
+import { cleanRequest, cleanRoles, type CleanablePreset } from '../master-snapshot.ts';
+import { applyConfigExclusions, LEGACY_DROPPED_PACKAGES } from '../config-overrides.ts';
+import { masterComposition } from './master-composition.ts';
+import { MASTER_PRESET_ID } from '../master-preset.ts';
 
 
 export interface StudioPreset {
   id: string; name: string; description: string; request: PreviewRequest;
   conveniences: unknown; agents: unknown; updatedAt: string; appliedAt?: string;
   status: 'draft' | 'applied' | 'modified'; applyWarning?: string;
+  /** Non-tool features the applied snapshot lacks although the preset does not exclude them. */
+  missingFeatures?: string[];
 }
 interface StoredPreset extends StudioPreset { applied?: { name: string; description: string; plugins: string } }
 const owned = (id: string) => id === OPTIMIZED_PRESET_ID || /^studio-user-[a-f0-9-]{36}$/.test(id);
@@ -42,6 +48,22 @@ function migrateLegacyNames(row: StoredPreset): void {
   row.applied = { ...row.applied, plugins: dump(visit(parseComposition(row.applied.plugins)), { schema: entryListSchema, noRefs: true }) };
 }
 
+const packageNames = (rows: CompositionRow[]): string[] => rows.flatMap(row => row.disabled === true ? [] : row.group && Array.isArray(row.config) ? packageNames(row.config as CompositionRow[]) : [row.name]);
+/**
+ * Features an older build dropped from the applied snapshot (e.g. compaction when only persona was
+ * selected). Legacy data has no exclusions, so absence is never read as the user's intent; it is
+ * only reported, and restoring it waits for the user to reapply.
+ */
+export function missingFeatures(row: Pick<StoredPreset, 'request' | 'applied'>, master: CompositionRow[] = masterComposition()): string[] {
+  if (!row.applied || row.request.preset !== MASTER_PRESET_ID) return [];
+  try {
+    const expected = packageNames(applyConfigExclusions(master, row.request.configExclusions ?? [], row.request.configOverrides ?? {}))
+      .filter(name => LEGACY_DROPPED_PACKAGES.includes(name));
+    const present = new Set(packageNames(parseComposition(row.applied.plugins)));
+    return expected.filter(name => !present.has(name));
+  } catch { return []; }
+}
+
 /** Profile-local Studio data, never a Loader patch or profile package mutation. */
 export function studioStorePath(env: NodeJS.ProcessEnv = process.env, profile?: { readonly dir: string }): string {
   const directory = profile?.dir ?? env.DSH_PROFILE_DIR;
@@ -52,6 +74,9 @@ export function studioStorePath(env: NodeJS.ProcessEnv = process.env, profile?: 
 /** Serializes mutations; retains last applied composition separately from unsaved-to-DSH drafts. */
 export class PresetStore {
   private rows: StoredPreset[] = [];
+  /** Current Studio Master; missing-feature checks compare against it, never against a guess. */
+  private master: CompositionRow[] | undefined;
+  setMaster(rows: CompositionRow[]) { this.master = structuredClone(rows); }
   private disposers = new Map<string, () => Promise<void>>();
   private ready?: Promise<void>;
   private tail: Promise<unknown> = Promise.resolve();
@@ -70,12 +95,17 @@ export class PresetStore {
         }
       } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
       for (const row of this.rows) if (row.applied) {
-        try { await this.mount(row.id, row.applied); }
+        try { const warnings = await this.mount(row.id, row.applied); if (warnings.length) row.applyWarning = [...new Set([row.applyWarning, ...warnings].filter(Boolean))].join('\n'); }
         catch (error) { row.applyWarning = `Restore failed: ${String(error)}`; row.status = 'modified'; }
       }
     })();
   }
-  private async mount(id: string, definition: NonNullable<StoredPreset['applied']>) {
+  /**
+   * @param strict - fail when a selected tool is missing. Apply is strict: the Master supplied every
+   *   selected tool, so a gap means this preset's own exclusions removed its provider. Restore at
+   *   startup is lenient and reports the gap instead.
+   */
+  private async mount(id: string, definition: NonNullable<StoredPreset['applied']>, strict = false) {
     const plugins = parseComposition(definition.plugins);
     const dispose = await this.ctx.agentPresets.register({ id, name: definition.name, description: definition.description, plugins: plugins as never });
     try {
@@ -87,13 +117,20 @@ export class PresetStore {
         : row.group && Array.isArray(row.config) ? policies(row.config as CompositionRow[])
           : row.name === POLICY_PLUGIN ? [row.config as unknown as PresetPolicyConfig] : []);
       const configs = policies(plugins);
+      const warnings: string[] = [];
       if (configs.length) {
         const lease = await this.ctx.agentPresets.acquireScope(id);
         try {
           const key = {};
           const child = createScope(this.ctx, key, { parent: lease.key });
           const releases: Array<() => void> = [];
-          try { for (const config of configs) releases.push(installPolicy(child.ctx, key, config)); }
+          try {
+            if (strict) {
+              const missing = [...new Set(configs.flatMap(config => config.tools.filter(name => child.ctx.tools.get(name, key) === undefined)))];
+              if (missing.length) throw new Error(`Selected tools are not provided by this composition: ${missing.join(', ')}. Include the plugin that provides them again, or deselect these tools.`);
+            }
+            for (const config of configs) releases.push(installPolicy(child.ctx, key, config, message => warnings.push(message)));
+          }
           finally {
             try { for (const release of releases.reverse()) release(); }
             finally { await child.dispose(); }
@@ -101,6 +138,7 @@ export class PresetStore {
         } finally { await lease[Symbol.asyncDispose](); }
       }
       this.disposers.set(id, dispose);
+      return warnings;
     } catch (error) { await dispose(); throw error; }
   }
   private async persist(rows: StoredPreset[]) {
@@ -116,7 +154,11 @@ export class PresetStore {
     this.tail = result.catch(() => {});
     return result;
   }
-  private public(row: StoredPreset): StudioPreset & { template?: boolean; nonDeletable?: boolean } { const { applied, ...value } = row; return structuredClone({ ...value, ...(row.id === OPTIMIZED_PRESET_ID ? { template: true, nonDeletable: true } : {}) }); }
+  private public(row: StoredPreset): StudioPreset & { template?: boolean; nonDeletable?: boolean } {
+    const { applied, ...value } = row;
+    const missing = this.master ? missingFeatures(row, this.master) : [];
+    return structuredClone({ ...value, ...(missing.length ? { missingFeatures: missing } : {}), ...(row.id === OPTIMIZED_PRESET_ID ? { template: true, nonDeletable: true } : {}) });
+  }
   /** Compose the Optimized applied snapshot: the template request over the current base composition. */
   private optimizedApplied(request: PreviewRequest, plugins: CompositionRow[]) {
     const delegates = request.tools.includes(ROLE_TOOL);
@@ -132,10 +174,13 @@ export class PresetStore {
   ensureOptimized(tools: string[], plugins: CompositionRow[]) { return this.serial(async () => {
     const template = optimizedTemplate(tools);
     const existing = this.rows.find(row => row.id === OPTIMIZED_PRESET_ID);
-    if (existing && JSON.stringify(existing.request) === JSON.stringify(template.request)) return this.public(existing);
-    const now = new Date().toISOString();
-    // Compose the applied snapshot lazily: an unapplied draft never needs the base composition.
     const buildApplied = () => ({ name: template.name, description: template.description, plugins: this.optimizedApplied(template.request, plugins) });
+    // Also re-align an applied snapshot composed by an older build (e.g. one that dropped compaction).
+    // A base that cannot compose keeps the last applied snapshot, as before.
+    const current = () => { try { return buildApplied().plugins; } catch { return existing?.applied?.plugins; } };
+    if (existing && JSON.stringify(existing.request) === JSON.stringify(template.request)
+      && (!existing.applied || existing.applied.plugins === current())) return this.public(existing);
+    const now = new Date().toISOString();
     if (!existing) {
       const applied = buildApplied();
       const row: StoredPreset = { id: template.id, name: template.name, description: template.description, request: template.request, conveniences: {}, agents: [], updatedAt: now, appliedAt: now, status: 'applied', applied, ...(template.applyWarning ? { applyWarning: template.applyWarning } : {}) };
@@ -162,6 +207,25 @@ export class PresetStore {
     return this.public(refresh);
   }); }
   list() { return this.serial(async () => this.rows.map(row => this.public(row))); }
+  /** User presets the catalog cleanup may rewrite; Optimized follows its template instead. */
+  cleanable() { return this.serial(async (): Promise<CleanablePreset[]> => this.rows.filter(row => row.id !== OPTIMIZED_PRESET_ID).map(row => structuredClone({ id: row.id, name: row.name, request: row.request, agents: row.agents }))); }
+  /**
+   * Delete confirmed removed names from saved drafts in one write. Applied snapshots stay as they
+   * are (sessions that use them are not reconfigured); a changed preset is marked for reapply.
+   */
+  cleanup(tools: readonly string[], configs: readonly string[]) { return this.serial(async () => {
+    const now = new Date().toISOString();
+    const rows = this.rows.map(row => {
+      if (row.id === OPTIMIZED_PRESET_ID) return row;
+      const request = cleanRequest(row.request, tools, configs);
+      const agents = cleanRoles(row.agents, tools);
+      if (JSON.stringify(request) === JSON.stringify(row.request) && JSON.stringify(agents) === JSON.stringify(row.agents)) return row;
+      return { ...row, request, agents, updatedAt: now, status: row.applied ? 'modified' as const : row.status };
+    });
+    const changed = rows.filter((row, index) => row !== this.rows[index]).length;
+    if (changed) await this.persist(rows);
+    return changed;
+  }); }
   save(payload: string) { return this.serial(async () => {
     const value = JSON.parse(payload);
     if (!value || typeof value.name !== 'string' || !value.name.trim() || value.name.length > 120 || typeof value.description !== 'string') throw new Error('Invalid preset name or description');
@@ -207,9 +271,10 @@ export class PresetStore {
     const applied = { name: old.name, description: old.description, plugins: dump([...withoutDelegationPlugins(plugins), ...rolePlugins, { id: 'studio-policy', name: POLICY_PLUGIN, config: { tools: [...new Set(tools)], toolOverrides: keep(request.toolOverrides ?? {}), sections: request.sections ?? {}, prompt: request.prompt, ...(execution ? { execution } : {}), ...(childToolFilter ? { childToolFilter } : {}) } }], { schema: entryListSchema, noRefs: true }) };
     await this.disposers.get(id)?.(); this.disposers.delete(id);
     try {
-      await this.mount(id, applied);
+      const warnings = await this.mount(id, applied, true);
       const row: StoredPreset = { ...old, applied, appliedAt: new Date().toISOString(), status: 'applied' };
-      delete row.applyWarning;
+      // Missing selected tools no longer block: the preset applies without them and says so.
+      if (warnings.length) row.applyWarning = warnings.join('\n'); else delete row.applyWarning;
       await this.persist(this.rows.map(item => item.id === id ? row : item));
       return this.public(row);
     } catch (error) {

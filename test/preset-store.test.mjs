@@ -89,7 +89,7 @@ test('generic delegation tools fold into subagent_role even without saved roles'
   assert.deepEqual(plugins.find(row=>row.name==='@matamt-dbg/dsh-studio/roles').config.roles,[]);
   await store.dispose();
 });
-test('restore rejects missing policy dependencies without losing the applied snapshot and recovers on reactivation', async () => {
+test('restore applies without a missing selected tool, reports it, and keeps the applied snapshot', async () => {
   const file = join(await mkdtemp(join(tmpdir(), 'studio-dependency-')), 'presets.json');
   const a = await runtime(); const first = new PresetStore(a.ctx, file);
   const draft = await first.save(JSON.stringify({ name: 'Dependency', description: '', request: { ...request, tools: ['read'] } }));
@@ -98,8 +98,8 @@ test('restore rejects missing policy dependencies without losing the applied sna
   const before = await readFile(file, 'utf8');
   const b = await runtime(); b.removeTool('read'); const missing = new PresetStore(b.ctx, file);
   const [failed] = await missing.list();
-  assert.equal(failed.status, 'modified'); assert.match(failed.applyWarning, /read/);
-  assert.equal(b.registrations.has(draft.id), false);
+  assert.equal(failed.status, 'applied'); assert.match(failed.applyWarning, /selected tools unavailable: read/);
+  assert.equal(b.registrations.has(draft.id), true);
   assert.equal(await readFile(file, 'utf8'), before); await missing.dispose();
   const c = await runtime(); const recovered = new PresetStore(c.ctx, file);
   assert.equal((await recovered.list())[0].status, 'applied');
@@ -170,5 +170,39 @@ test('the policy may hide the union of the default and every role list, resolved
   await store.apply(extend.id);
   plugins=r.registrations.get(draft.id).plugins;
   assert.deepEqual(plugins.at(-1).config.childToolFilter,{deny:['read']});
+  await store.dispose();
+});
+test('confirmed catalog cleanup rewrites only affected drafts, marks applied ones for reapply, keeps applied snapshots', async () => {
+  const file = join(await mkdtemp(join(tmpdir(), 'studio-cleanup-')), 'presets.json');
+  const a = await runtime(); const store = new PresetStore(a.ctx, file);
+  const hit = await store.save(JSON.stringify({ name: 'Hit', description: '', request: { ...request, tools: ['read'], toolOverrides: { read: { description: 'r' } } } }));
+  await store.apply(hit.id);
+  const appliedBefore = a.registrations.get(hit.id);
+  const other = await store.save(JSON.stringify({ name: 'Other', description: '', request: { ...request, tools: [] } }));
+  const before = await store.cleanable();
+  assert.deepEqual(before.map(row => row.id).sort(), [hit.id, other.id].sort());
+  assert.equal(await store.cleanup(['read'], []), 1);
+  const rows = await store.list();
+  const cleaned = rows.find(row => row.id === hit.id);
+  assert.deepEqual(cleaned.request.tools, []); assert.deepEqual(cleaned.request.toolOverrides, {});
+  assert.equal(cleaned.status, 'modified');
+  assert.equal(rows.find(row => row.id === other.id).status, 'draft');
+  assert.equal(a.registrations.get(hit.id), appliedBefore, 'the running registration is not rebuilt');
+  const saved = await readFile(file, 'utf8');
+  assert.equal(await store.cleanup(['read'], []), 0, 'repeat confirmation is a no-op');
+  assert.equal(await readFile(file, 'utf8'), saved);
+  await store.dispose();
+});
+test('apply refuses a composition that no longer provides a selected tool, keeping the previous snapshot', async () => {
+  const file = join(await mkdtemp(join(tmpdir(), 'studio-strict-')), 'presets.json');
+  const a = await runtime(); const store = new PresetStore(a.ctx, file);
+  const draft = await store.save(JSON.stringify({ name: 'Strict', description: '', request: { ...request, tools: ['read'] } }));
+  await store.apply(draft.id);
+  const before = a.registrations.get(draft.id);
+  a.removeTool('read');
+  // The source check fires first here; with Master exclusions the strict mount check reports the same gap.
+  await assert.rejects(store.apply(draft.id), /does not supply tools: read|not provided by this composition: read/);
+  assert.deepEqual(a.registrations.get(draft.id).plugins, before.plugins, 'the previous applied snapshot is mounted again');
+  assert.equal((await store.list())[0].status, 'applied');
   await store.dispose();
 });
