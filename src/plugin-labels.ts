@@ -28,6 +28,7 @@ const labels: Record<string, Label> = {
   '@deepseek-ai/dsh-tool-ask-user': L('사용자에게 질문', 'Ask the user', '询问用户', 'ask_user_question 도구', 'ask_user_question tool', 'ask_user_question 工具'),
   '@deepseek-ai/dsh-tool-todo': L('할 일 목록', 'Todo list', '待办列表', 'todo_write 도구', 'todo_write tool', 'todo_write 工具'),
   '@deepseek-ai/dsh-tool-web': L('웹 검색·가져오기', 'Web search & fetch', '网页搜索与获取', 'web_search · web_fetch 도구', 'web_search and web_fetch tools', 'web_search、web_fetch 工具'),
+  '@deepseek-ai/dsh-web-deepseek-api': L('DeepSeek 검색·가져오기 API', 'DeepSeek Search & Fetch API', 'DeepSeek 搜索与获取 API', '웹 검색 설정에서 켜면 web_search · web_fetch가 이 API를 사용', 'web_search and web_fetch use this API when turned on in web search settings', '在网页搜索设置中开启后，web_search、web_fetch 使用此 API'),
   '@deepseek-ai/dsh-tool-present': L('결과 파일 표시', 'Present files', '展示文件', 'present 도구', 'present tool', 'present 工具'),
   '@deepseek-ai/dsh-spill-policy': L('긴 결과 파일로 넘기기', 'Spill long results', '长结果转存', '토큰 예산을 넘는 결과를 파일로 저장', 'Stores results over the token budget in files', '将超出 token 预算的结果存为文件'),
   '@deepseek-ai/dsh-tool-cordis': L('플러그인 개발 조회', 'Plugin inspection', '插件开发查询', 'cordis_inspect_* 도구', 'cordis_inspect_* tools', 'cordis_inspect_* 工具'),

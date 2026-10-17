@@ -91,14 +91,19 @@ test('keys and namespaces of one supported version are not stray; missing in eit
 
 // The extracted DSH sources are fork research data and are not exported with the public snapshot.
 const sourcesDir = new URL('../docs/research/ko-locale/', import.meta.url);
-test('shipped dictionaries pass against both supported DSH sources', { skip: !existsSync(new URL('source-rc2.json', sourcesDir)) && 'DSH locale sources are not in this checkout' }, () => {
-  const sources = ['source-rc2.json', 'source-alpha2.json']
+// Keys whose placeholders changed in DSH 0.2.1-rc.1. The Korean follows 0.2.1-rc.1 and later; older runtimes show the
+// newer placeholder literally (accepted for 0.6.1).
+const VERSION_CONFLICTS = { 'dsh-v0.2.0-rc.2': ['pluginManager.installDoneRestart', 'pluginManager.reasonIncompatibleVersion', 'pluginManager.restartNotice'], 'dsh-v0.2.1-alpha.2': ['pluginManager.installDoneRestart', 'pluginManager.reasonIncompatibleVersion', 'pluginManager.restartNotice'] };
+test('shipped dictionaries pass against every supported DSH source', { skip: !existsSync(new URL('source-rc2.json', sourcesDir)) && 'DSH locale sources are not in this checkout' }, () => {
+  const sources = ['source-rc2.json', 'source-alpha2.json', 'source-rc1-0.2.1.json', 'source-rc2-0.2.1.json']
     .map(name => JSON.parse(readFileSync(new URL(`../docs/research/ko-locale/${name}`, import.meta.url), 'utf8')));
   const result = checkDshKoSupport(dshKo, sources);
   assert.deepEqual({ strayNamespaces: result.strayNamespaces, strayKeys: result.strayKeys }, { strayNamespaces: [], strayKeys: [] });
   for (const report of result.reports) {
+    const allowed = new Set(VERSION_CONFLICTS[report.source] ?? []);
     for (const finding of report.namespaces) {
-      assert.deepEqual({ missing: finding.missing, placeholders: finding.placeholders }, { missing: [], placeholders: [] }, `${report.source} ${finding.ns}`);
+      const placeholders = finding.placeholders.filter(key => !allowed.has(`${finding.ns}.${key}`));
+      assert.deepEqual({ missing: finding.missing, placeholders }, { missing: [], placeholders: [] }, `${report.source} ${finding.ns}`);
     }
   }
 });

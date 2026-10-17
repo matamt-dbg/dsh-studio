@@ -136,7 +136,8 @@ test('recipes page lists recipes, saves JSON specs through the Remote, and repor
   globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const React = (await import('react')).default; const { act } = await import('react');
   const { createRoot } = await import('react-dom/client');
-  const { LoopRecipesPage } = await import('../src/pixie-loop-recipes-page.tsx');
+  const { LoopRecipesPage, EXAMPLE_RECIPE_SPEC } = await import('../src/pixie-loop-recipes-page.tsx');
+  validateRecipeSpec(JSON.parse(EXAMPLE_RECIPE_SPEC));
   let recipes = [{ name: 'ko', description: 'Korean review', spec: validateRecipeSpec(spec), checks, compiledBy: 'spec', savedAt: 1 }];
   const saved = [];
   const actions = {
@@ -148,6 +149,13 @@ test('recipes page lists recipes, saves JSON specs through the Remote, and repor
   await act(async () => root.render(React.createElement(LoopRecipesPage, { actions, locale: 'ko' })));
   assert.match(host.textContent, /ko검토/); assert.match(host.textContent, /Korean review · 검사 1개/);
   const input = (label, value) => { const node = host.querySelector(`[aria-label="${label}"]`); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(node), 'value').set; setter.call(node, value); node.dispatchEvent(new window.Event('input', { bubbles: true })); };
+  const saveButton = () => [...host.querySelectorAll('button')].find(button => button.textContent === '확인하고 저장');
+  await act(async () => { input('이름', 'Bad Name'); input('명세 (JSON)', JSON.stringify(spec)); });
+  assert.match(host.textContent, /소문자, 숫자, -만 쓸 수 있습니다/); assert.equal(saveButton().disabled, true);
+  await act(async () => { input('이름', 'ko'); });
+  assert.match(host.textContent, /기존 ko 레시피를 바꿉니다/);
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === '예시 넣기').click());
+  assert.equal(host.querySelector('[aria-label="명세 (JSON)"]').value, EXAMPLE_RECIPE_SPEC);
   await act(async () => { input('이름', 'bad'); input('명세 (JSON)', JSON.stringify(spec)); });
   await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === '확인하고 저장').click());
   assert.match(host.textContent, /Calibration failed: x/);

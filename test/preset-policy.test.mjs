@@ -143,7 +143,7 @@ test('download bundle adds policy dependency and preset declaration without muta
   const plugins = load('- name: "@deepseek-ai/dsh-persona"\n  disabled: !!js process.platform === "win32"\n  config:\n    complete: false\n', { schema: entryListSchema });
   const {files} = createPresetBundle({ id: 'my-policy', title: 'My policy', plugins, policy: policy({}) });
   assert.equal(plugins.length, 1);
-  assert.equal(JSON.parse(files['package.json']).dependencies['@matamt-dbg/dsh-studio'], '0.6.0');
+  assert.equal(JSON.parse(files['package.json']).dependencies['@matamt-dbg/dsh-studio'], '0.6.1');
   assert.match(files['cordis.patch.yml'], /!!js/);
   const config = load(files['cordis.patch.yml'], { schema: entryListSchema })[0].insert[0].config;
   assert.deepEqual(config.plugins[0].disabled, plugins[0].disabled);

@@ -3,6 +3,22 @@ import assert from 'node:assert/strict';
 import { apply } from '../src/host/role-tool.ts';
 import { parseRoles, executableRoles } from '../src/role-settings.ts';
 const role = {name:'Reviewer',role:'review',model:'route/model/variant',reasoning:'high',spawn:'fork',persona:'Review carefully',overrides:{danger:true}};
+test('a runtime without native child policy must not silently ignore persona and tool filters', async () => {
+  let definition; let calls = 0;
+  const ctx = {
+    get: () => undefined,
+    tools: { register: value => { definition = value; } },
+    subagents: {
+      resolveMaxDepth: () => 1,
+      getProvider: () => ({ capabilities: { agentPreset: true, agentOptions: true } }),
+      startActivation: async () => { calls++; return { childId: 'unrestricted' }; },
+    },
+  };
+  apply(ctx, { roles: [{ ...role, model: 'inherit', reasoning: 'inherit' }], toolFilter: { deny: ['read'] } });
+  await assert.rejects(definition.execute({ action: 'call', role: 'review', task: 'review' },
+    { agent: { id: 'parent' }, signal: new AbortController().signal }), /Studio.*child.*policy/i);
+  assert.equal(calls, 0, 'No child may start without its policy owner');
+});
 test('roles validate and project only supported executable settings',()=>{
   assert.deepEqual(parseRoles([role]),[role]);
   assert.equal('overrides' in executableRoles([role])[0],false);

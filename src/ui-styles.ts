@@ -664,7 +664,9 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui ul.studio-loop-items, .studio-ui ol.studio-loop-attempts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .studio-ui .studio-loop-item { display: grid; gap: 2px; width: 100%; padding: 8px 10px; border: .5px solid var(--studio-line); border-radius: var(--studio-control-radius); background: var(--studio-surface); color: var(--studio-ink); font: inherit; text-align: start; cursor: pointer; }
 .studio-ui .studio-loop-item:hover, .studio-ui .studio-loop-item[aria-expanded=true] { background: var(--studio-hover); }
-.studio-ui .studio-loop-spec { width: 100%; min-height: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.studio-ui .studio-loop-spec { width: 100%; min-height: 240px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; tab-size: 2; }
+.studio-ui .studio-settings-card > .studio-card-footer { padding: 12px 0 16px; }
+.studio-ui .studio-settings-card > [role=alert] { margin-top: 12px; }
 .studio-ui .studio-loop-attempt { display: grid; gap: 6px; padding: 8px 10px; border-inline-start: 2px solid var(--studio-line); }
 .studio-ui .studio-gate-block { display: grid; gap: 6px; padding-top: 10px; border-top: .5px solid var(--studio-line); }
 .studio-ui .studio-gate-session-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

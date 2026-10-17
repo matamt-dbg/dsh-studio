@@ -132,5 +132,6 @@ function RoleDialog({ draft, models, locale, onClose, onSave }: {
       </select>)}
     </div>
     {field(t('persona'), <textarea rows={8} value={fields.persona} onChange={e => set({ persona: e.target.value })} />)}
+    <p className="studio-muted studio-hint">{t('personaHint')}</p>
   </DetailDialog>;
 }

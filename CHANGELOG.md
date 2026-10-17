@@ -2,6 +2,64 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.6.1 — 2026-10-17
+
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+
+0.6.0 was released on GitHub but not on npm. 0.6.1 includes the changes listed under [0.6.0](#060--2026-10-17). See [What's new in 0.6.1](docs/highlights.md) for a walkthrough with screenshots, including a Pixie Loop example.
+
+### Highlights
+
+- **DSH `0.2.1-rc.1` and `0.2.1-rc.2` support.** These releases no longer apply a role's instructions and Tool Filter when a subagent starts. Studio now saves each role subagent's instructions and Tool Filter when it is created and applies them before it runs, for both Fresh and Fork subagents. Running role subagents with these instructions and Tool Filter was tested on `0.2.1-rc.1`; on `0.2.1-rc.2`, which made no change to the APIs Studio uses for this, only saving and reapplying roles was tested. They are stored under `<profile>/studio-data/child-policies/` and reused when a finished subagent is continued.
+- **Loop recipe editor.** **Insert example** fills in a working spec, invalid names are flagged while you type, and the page tells you before a save replaces an existing recipe.
+
+### Changes
+
+- Role and session-role editors explain which instructions apply: session instructions replace the preset role's instructions for new subagents, and subagents already created keep theirs.
+- SettingsX registers each shortcut separately. If another plugin already uses a default key, that command is added without a key; other commands are unaffected.
+
+### Verification
+
+- The 0.6.1 package was installed into a new isolated profile of unmodified DSH `0.2.1-rc.2`; Web startup and four HTTP checks passed (Master, Optimized copy, session roles, role save/reapply/restore).
+- DSH `0.2.1-rc.1` (an earlier 0.6 build; the role-subagent code has not changed since): installed into a new isolated profile of the unmodified runtime. Fresh and Fork role subagents kept their instructions and Tool Filter, also after a restart, using a local test model instead of an external one. A missing policy file stopped the subagent before any model call.
+- DSH `0.2.1-rc.2` desktop app (an earlier 0.6 build): Studio loaded and showed existing presets. Running role subagents was not tested on this version.
+- DSH `0.2.0-rc.2` and `0.2.1-alpha.2`: the same four HTTP checks passed on a fresh install of 0.6.0. Running role subagents and the desktop app were not tested on these versions.
+- Not tested on any version: external model calls in these checks, upgrading data from 0.5.0, and operating systems other than macOS. Back up your profile before upgrading.
+
+### Upgrade notes
+
+- Keep `<profile>/studio-data/child-policies/` when backing up or moving a profile. A role subagent whose file is missing or damaged will not run.
+- On DSH `0.2.1-rc.2`, 2,710 of its 2,910 client strings are translated, including the plugin market, web search settings and the newer model settings. 74 strings without a natural translation yet stay in English. Three plugin-manager messages follow `0.2.1-rc.1` and later, so on `0.2.0-rc.2` and `0.2.1-alpha.2` they show a placeholder such as `{reason}` as text.
+
+### 한국어
+
+DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` 또는 `0.2.1-rc.2`가 필요합니다.
+
+0.6.0은 GitHub에만 공개했고, npm에는 올리지 않았습니다. 0.6.1에는 [0.6.0](#060--2026-10-17)에 적힌 변경 사항이 포함됩니다. 화면과 Pixie Loop 사용 예시는 [0.6.1 새 기능](docs/highlights.ko.md)을 참고하세요.
+
+#### 주요 변경
+
+- **DSH `0.2.1-rc.1`, `0.2.1-rc.2` 지원.** 이 버전부터는 DSH가 서브에이전트를 시작할 때 역할 지침과 Tool Filter를 적용하지 않습니다. 따라서 Studio는 역할 서브에이전트를 만들 때 지침과 Tool Filter를 저장해 두고, 실행 전에 직접 적용합니다. Fresh와 Fork 모두 마찬가지입니다. 이 지침과 Tool Filter로 역할 서브에이전트를 실제로 실행하는 것은 `0.2.1-rc.1`에서 확인했습니다. `0.2.1-rc.2`의 경우 Studio가 여기에서 사용하는 API에 변경이 없으며, 역할 저장·재적용까지만 확인했습니다. 이 값은 `<프로필>/studio-data/child-policies/`에 저장되며, 종료된 서브에이전트를 이어서 실행할 때도 다시 사용됩니다.
+- **Loop 레시피 편집기.** **예시 넣기**로 바로 사용할 수 있는 명세를 채우고, 잘못된 이름은 입력하는 즉시 알려 주며, 저장 시 기존 레시피가 변경될 경우에도 미리 알려 줍니다.
+
+#### 변경 사항
+
+- 역할 편집기와 세션 역할 편집기에서 어떤 지침이 적용되는지 안내합니다. 세션 지침은 새로 만드는 서브에이전트에 프리셋 역할 지침 대신 적용되며, 이미 만든 서브에이전트의 지침은 바뀌지 않습니다.
+- SettingsX는 단축키를 하나씩 개별 등록합니다. 다른 플러그인이 같은 기본 키를 이미 사용 중이면 해당 명령만 키 없이 추가되고, 다른 명령은 영향을 받지 않습니다.
+
+#### 검증
+
+- 0.6.1 패키지를 수정하지 않은 DSH `0.2.1-rc.2`의 새 격리 프로필에 설치했고, Web 기동과 HTTP 검사 4개(Master, Optimized 복사, 세션 역할, 역할 저장·재적용·복원)가 통과했습니다.
+- DSH `0.2.1-rc.1`(이전 0.6 빌드, 이후 역할 서브에이전트 코드 변경 없음): 수정하지 않은 런타임의 새 격리 프로필에 설치했습니다. 외부 모델 대신 로컬 테스트 모델로 Fresh·Fork 역할 서브에이전트가 지침과 Tool Filter를 유지하는 것을 재시작 후까지 확인했습니다. 정책 파일이 없으면 모델을 호출하기 전에 실행을 멈췄습니다.
+- DSH `0.2.1-rc.2` 데스크톱 앱(이전 0.6 빌드)에서 Studio가 로드되고 기존 프리셋이 표시되는 것을 확인했습니다. 이 버전에서는 역할 서브에이전트 실행을 확인하지 않았습니다.
+- DSH `0.2.0-rc.2`, `0.2.1-alpha.2`: 0.6.0을 새로 설치한 뒤 동일한 HTTP 검사 4개가 통과했습니다. 이 버전들에서는 역할 서브에이전트 실행과 데스크톱 앱을 확인하지 않았습니다.
+- 모든 버전 공통으로 이 검사들의 외부 모델 호출, 0.5.0 데이터 업그레이드, macOS 이외 OS는 확인하지 않았습니다. 업데이트 전에 프로필을 백업하세요.
+
+#### 업그레이드 참고
+
+- 프로필을 백업하거나 옮길 때에는 `<프로필>/studio-data/child-policies/`도 함께 보존하세요. 이 파일이 없거나 손상되면 해당 역할 서브에이전트는 실행되지 않습니다.
+- DSH `0.2.1-rc.2`에서는 클라이언트 문구 2,910개 중 2,710개를 번역했습니다. 플러그인 마켓, 웹 검색 설정, 새 모델 설정이 포함됩니다. 자연스러운 번역을 찾지 못한 74개는 영어로 둡니다. 플러그인 관리의 안내 문구 3개는 `0.2.1-rc.1` 이후 기준이라, `0.2.0-rc.2`·`0.2.1-alpha.2`에서는 `{reason}` 같은 자리표시자가 글자 그대로 보입니다.
+
 ## 0.6.0 — 2026-10-17
 
 Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.

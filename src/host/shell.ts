@@ -20,6 +20,7 @@ import { MASTER_PRESET_ID, MASTER_PRESET_NAME } from '../master-preset.ts';
 import { StudioUpdater } from './studio-update.ts';
 import { PixieService } from './pixie-service.ts';
 import { SessionRoleService } from './session-role-service.ts';
+import { installRoleChildPolicies } from './role-child-policy.ts';
 import { installSkill } from './skill-install.ts';
 import { pixieHookSkill, pixieLoopSkill } from './pixie-hook-skill.ts';
 import { CatalogBaseline } from './catalog-baseline.ts';
@@ -58,6 +59,7 @@ export default class StudioCatalog extends TypertRemoteService {
     super(ctx, 'studioCatalog');
     // Shell environment variables are not the Desktop Host's launch environment.
     const storePath = studioStorePath(process.env, ctx.get('profileContext'));
+    installRoleChildPolicies(ctx, join(dirname(storePath), 'child-policies'));
     this.extensions = new MasterExtensions(join(dirname(storePath), 'master-extensions.json'));
     this.baseline = new CatalogBaseline(join(dirname(storePath), 'catalog-snapshot.json'));
     this.store = new PresetStore(ctx, storePath);

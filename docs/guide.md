@@ -25,7 +25,7 @@ DSH Studio is a page inside the DeepSeek Harness web GUI for building **agent pr
 
 ## Install and open Studio
 
-Studio requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.
+Studio requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
 
 Install Studio into the DSH profile you use. `web` is the profile of `dsh web`; `desktop` is the profile of the DeepSeek Harness desktop app.
 
@@ -269,7 +269,7 @@ Session roles are stored per session in `<profile>/studio-data/session-roles/`. 
 
 ![DSH settings shown in Korean](images/ko/dsh-korean-settings.png)
 
-Installing Studio adds **한국어** (Korean) to DSH's language list. Choose it in DSH **Settings → General → Language**, and DSH's own screens — chat, sidebars, settings, plugin manager, Trajectory and more — switch to Korean along with Studio. Studio translates 2,610 of the 2,779 client strings in DSH `0.2.0-rc.2` and `0.2.1-alpha.2`.
+Installing Studio adds **한국어** (Korean) to DSH's language list. Choose it in DSH **Settings → General → Language**, and DSH's own screens — chat, sidebars, settings, plugin manager, Trajectory and more — switch to Korean along with Studio. Studio translates 2,610 of the 2,779 client strings in DSH `0.2.0-rc.2` and `0.2.1-alpha.2`. On DSH `0.2.1-rc.2`, 2,710 of its 2,910 client strings are translated, including the plugin market, web search settings and the newer model settings. 74 strings without a natural translation yet stay in English. Three plugin-manager messages follow `0.2.1-rc.1` and later, so on `0.2.0-rc.2` and `0.2.1-alpha.2` they show a placeholder such as `{reason}` as text.
 
 - Untranslated strings stay in English: 58 strings without a natural translation yet, plus app names, units and format strings that are kept as they are.
 - Tab names Chat and Trajectory and product names such as DeepSeek, DSH and MCP stay in English.
@@ -341,6 +341,8 @@ To use such a tool, install the plugin that provides it in that profile, or add 
 ## Where data is stored
 
 Presets are saved per DSH profile in `<profile>/studio-data/`. Per-session subagent roles are saved per session under `session-roles/` there. Applying a preset registers a Studio-owned DSH agent preset; Studio never edits DSH's own presets or your profile's package list.
+
+On DSH `0.2.1-rc.1` and later, each role child's instructions and Tool Filter are saved at creation under `child-policies/`. Keep this directory when backing up or moving a profile: completed children also use it when continued. A missing or invalid policy file prevents that child from running. Later role edits do not change an existing child's policy. Running role children this way was tested on `0.2.1-rc.1`; on `0.2.1-rc.2`, only saving and reapplying roles was tested.
 
 ## Troubleshooting
 

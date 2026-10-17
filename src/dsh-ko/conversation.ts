@@ -368,6 +368,8 @@ export default {
     'web.http': 'HTTP',
     'web.noResults': '검색 결과 없음',
     'web.sourcesTruncated': '출처 목록 일부 생략됨',
+    'row.imageSize': '{width}x{height}px, {bytes}바이트',
+    'row.imageSizeDownscaled': '{width}x{height}px ({originalWidth}x{originalHeight}px에서 축소됨), {bytes}바이트',
   },
   fallback: ['hero.headline', 'input.send.steer', 'terminal.sendInput', 'tool.title.ralph', 'detail.tasks.nextPage'],
 } satisfies DshKoNamespace;

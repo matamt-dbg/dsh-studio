@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 import { ProviderAccounts } from '../src/settingsx-accounts.tsx';
 import { providerTemplate } from '../src/provider-templates.ts';
 import { SettingsXPage } from '../src/settingsx-page.tsx';
-import { STUDIO_COMMANDS, readDisabled, DISABLED_KEY, resolveSessionTarget } from '../src/settingsx-commands.ts';
+import { STUDIO_COMMANDS, readDisabled, DISABLED_KEY, registerIsolated, resolveSessionTarget } from '../src/settingsx-commands.ts';
 
 const dom = new JSDOM('<!doctype html><body></body>');
 globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -65,6 +65,24 @@ test('provider page lists registered, invalid, and conflicting files and reloads
   await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === '다시 읽기').click());
   assert.equal(reloads, 1);
   assert.match(host.textContent, /아직 정의 파일이 없습니다/);
+});
+
+test('a rejected default key falls back to an unbound command; other failures skip only that command', () => {
+  const taken = new Set(['studio.session-cycle.previous']);
+  const calls = [];
+  const register = command => {
+    calls.push([command.id, Object.keys(command.defaults).length]);
+    if (command.id === 'broken') throw new Error('Duplicate shortcut command: broken');
+    if (taken.has(command.id) && Object.keys(command.defaults).length > 0) throw new Error('Conflicting shortcut defaults');
+    return () => {};
+  };
+  const errors = [];
+  const keyed = { id: 'studio.session-cycle.previous', defaults: { 'desktop:macos': { code: 'BracketLeft', modifiers: ['primary', 'shift'] } } };
+  assert.equal(typeof registerIsolated(register, keyed, error => errors.push(error)), 'function');
+  assert.equal(registerIsolated(register, { id: 'broken', defaults: {} }, error => errors.push(error)), null);
+  assert.equal(typeof registerIsolated(register, { id: 'studio.settingsx.copy-cwd', defaults: {} }), 'function');
+  assert.deepEqual(calls, [['studio.session-cycle.previous', 1], ['studio.session-cycle.previous', 0], ['broken', 0], ['studio.settingsx.copy-cwd', 0]]);
+  assert.equal(errors.length, 1);
 });
 
 test('disabled command ids survive only when known; session targets block while loading', () => {

@@ -83,6 +83,7 @@ export function RoleEditor({ locale, roles, onChange, loadModels, defaultPersona
           onChange={deny => update({ toolFilter: { mode: role.toolFilter!.mode, deny } })} t={t} />}
       </div>}
       {field(t('역할 지침 (persona)', 'Role instructions (persona)', '角色指令（persona）'), <textarea rows={6} value={role.persona} placeholder={defaultPersona} onChange={e => update({ persona: e.target.value })} />)}
+      <p className="studio-muted studio-hint">{t('이 지침은 이 역할로 새로 생성하는 서브에이전트에 적용됩니다. 세션의 Subagents 탭에서 역할을 재정의하면 세션 값이 우선합니다. 이미 생성한 자식의 지침은 바뀌지 않습니다.', 'These instructions apply to new subagents created with this role. A role override in the session’s Subagents tab takes precedence. Existing children keep their instructions.', '这些指令应用于使用此角色新建的子代理。会话 Subagents 标签中的角色覆盖优先，已创建的子代理指令不变。')}</p>
       {!role.persona && defaultPersona && <p className="studio-muted studio-hint">{t('흐린 글씨는 프리셋의 기본 persona입니다. 비워 두면 이 내용이 그대로 쓰입니다.', 'The dimmed text is the preset default persona; it is used while this field is empty.', '浅色文字是预设的默认 persona，留空时使用该内容。')}</p>}
 </>}
     </DetailDialog>

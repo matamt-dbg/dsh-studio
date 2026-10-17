@@ -80,8 +80,10 @@ test('a temporary role is added with name and id, and removed with Remove', asyn
   assert.equal(button('Save', dialog).disabled, true, 'name and id are required');
   const [name, id] = dialog.querySelectorAll('input');
   await change(dom, name, 'Scout'); await change(dom, id, 'scout');
+  assert.match(dialog.textContent, /Saved instructions are used for new subagents/);
+  await change(dom, dialog.querySelector('textarea'), 'Investigate primary sources');
   await act(async () => button('Save', dialog).click());
-  assert.deepEqual(h.calls[0], ['add', { name: 'Scout', role: 'scout', model: 'inherit', reasoning: 'inherit', persona: '' }]);
+  assert.deepEqual(h.calls[0], ['add', { name: 'Scout', role: 'scout', model: 'inherit', reasoning: 'inherit', persona: 'Investigate primary sources' }]);
   const card = document.querySelector('.studio-role-card');
   assert.match(card.textContent, /This session/);
   assert.match(card.textContent, /New conversation/);

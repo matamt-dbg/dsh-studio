@@ -307,6 +307,8 @@ Give `route.question` the id of a choice question; each item's final answer to i
 
 ## Recipes
 
+![Loop recipes page with a saved recipe and the editor](../images/en/pixie-loop-recipes.png)
+
 Save specs you reuse under a name in **Studio → Pixie → Gates → Loop recipes**. A recipe is a spec without `items` and `output`. Saving compiles the criteria and checks them against the calibration examples once; a failed check saves nothing. Runs reuse the saved questions without compiling or calibrating again.
 
 | Where | How |
@@ -334,6 +336,8 @@ exit 11
 ```
 
 ## Viewing runs
+
+![A run in Pixie tab › Loops: the checks, and an item that passed on the second attempt after Pixie feedback](../images/en/pixie-loop-run.png)
 
 Open **Pixie tab → Loops** in the session's right sidebar. Selecting a run shows:
 

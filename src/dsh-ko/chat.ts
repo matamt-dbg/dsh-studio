@@ -190,6 +190,8 @@ export default {
     'stats.dialog.ttft': '첫 토큰까지 평균 소요 시간(TTFT)',
     'stats.dialog.usageTitle': '토큰 사용량',
     'view.chat': 'Chat',
+    'message.taskStopped': '작업 중지됨',
+    'message.failure.interrupted': 'DSH 프로세스가 이 턴이 끝나기 전에 종료되었습니다(예: 종료 중 강제 종료, 충돌 또는 시간 초과). 따라서 DSH가 다시 시작되었을 때 해당 턴은 닫혔습니다. 완료되지 않은 도구 호출의 결과는 알 수 없습니다.',
   },
   fallback: ['message.failure.accountSignInRequired', 'message.turnUsage.reasoning'],
 } satisfies DshKoNamespace;

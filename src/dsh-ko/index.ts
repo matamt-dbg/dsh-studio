@@ -25,10 +25,12 @@ import openInApp from './open-in-app.ts';
 import permissionAccess from './permission.access.ts';
 import plan from './plan.ts';
 import pluginManager from './pluginManager.ts';
+import pluginMarket from './pluginMarket.ts';
 import question from './question.ts';
 import reference from './reference.ts';
 import scheduleCatalog from './schedule.catalog.ts';
 import scheduleManager from './schedule.manager.ts';
+import secretMask from './secretMask.ts';
 import sessionInspector from './session-inspector.ts';
 import sessionLogDownload from './session-log-download.ts';
 import settings from './settings.ts';
@@ -89,10 +91,12 @@ export const dshKo: DshKoDictionaries = {
   'permission.access': permissionAccess,
   plan: plan,
   pluginManager: pluginManager,
+  pluginMarket: pluginMarket,
   question: question,
   reference: reference,
   'schedule.catalog': scheduleCatalog,
   'schedule.manager': scheduleManager,
+  secretMask: secretMask,
   'session-inspector': sessionInspector,
   'session-log-download': sessionLogDownload,
   settings: settings,

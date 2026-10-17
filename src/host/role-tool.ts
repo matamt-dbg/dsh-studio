@@ -11,6 +11,7 @@ import { ROLE_TOOL } from '../delegation.ts';
 import { studioStorePath } from './preset-store.ts';
 import { readSessionRoles, sessionRolesRoot } from './session-role-store.ts';
 import { headerLookup, resolveRootSession, type SessionLineage } from './session-root.ts';
+import type { PreparedRoleChild } from './role-child-policy-contract.ts';
 
 export const name = 'studio-role';
 export const inject = ['tools', 'subagents', 'llm'];
@@ -73,32 +74,52 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (role.reasoning !== 'inherit') agentOptions.reasoningEffort = ReasoningEffortId(role.reasoning);
       const maxDepth = ctx.subagents.resolveMaxDepth();
-      // Same native restriction tool-subagent applies from its toolFilter Config, for fresh and fork
-      // alike. A role's own list extends or replaces the preset default; roles without one use the default.
+      // A role's list extends or replaces the preset default; roles without one use the default.
       const hidden = roleToolFilter(role, presetDefault);
       const toolFilter = hidden.length ? { deny: hidden } : undefined;
+      const provider = role.spawn === 'fork' ? 'fork' : 'spawn';
+      // rc.1 replaces native persona/toolFilter with preset selection, which fork cannot use.
+      // The public provider capabilities distinguish that API from the two legacy runtimes.
+      const backend = ctx.subagents.getProvider?.(provider);
+      const capabilities = backend?.capabilities as { persona?: boolean; toolFilter?: boolean; agentPreset?: boolean } | undefined;
+      const needsPolicyOwner = capabilities !== undefined && 'agentPreset' in capabilities
+        && (capabilities.persona !== true || capabilities.toolFilter !== true);
+      let prepared: PreparedRoleChild | undefined;
+      if (needsPolicyOwner) {
+        const owner = ctx.get('studioChildPolicies');
+        if (!owner) throw new Error('Studio child policy owner is unavailable; no child was started');
+        prepared = await owner.prepare(exec.agent.id, hidden, role.persona || undefined);
+      }
       const spec = {
-        provider: role.spawn === 'fork' ? 'fork' : 'spawn', label: role.name,
+        provider, label: role.name,
+        ...(prepared ? { childId: prepared.childId } : {}),
         request: { parent: exec.agent, prompt: [{ type: 'text' as const, text: args.task }],
           ...(Object.keys(agentOptions).length ? { agentOptions } : {}),
-          ...(role.persona ? { persona: role.persona } : {}),
+          ...(!prepared && role.persona ? { persona: role.persona } : {}),
           ...(maxDepth === undefined ? {} : { maxDepth }),
-          ...(toolFilter ? { toolFilter } : {}),
+          ...(!prepared && toolFilter ? { toolFilter } : {}),
         },
         signal: exec.signal,
       };
-      // Both methods are public native APIs, but each exists in only one supported runtime:
-      // 0.2.0-rc.2 has startContinuable, 0.2.1-alpha.2 unified it into startActivation. Type both as optional.
+      // 0.2.0-rc.2 has startContinuable; alpha.2 and rc.1 use startActivation.
+      // Their public capability declarations decide who owns per-child policy.
       type Start<T> = (input: T) => Promise<{ childId: string }>;
       const native = ctx.subagents as unknown as {
         startActivation?: Start<typeof spec & { delivery: 'parent' }>;
         startContinuable?: Start<typeof spec>;
       };
-      const started = typeof native.startActivation === 'function'
-        ? await native.startActivation({ ...spec, delivery: 'parent' })
-        : native.startContinuable ? await native.startContinuable(spec)
-          : (() => { throw new Error('This DSH runtime lacks a native child start API'); })();
-      return { result: JSON.stringify({ kind: 'activation', subagentId: started.childId, role: role.role }) };
+      try {
+        exec.signal.throwIfAborted();
+        const started = typeof native.startActivation === 'function'
+          ? await native.startActivation({ ...spec, delivery: 'parent' })
+          : native.startContinuable ? await native.startContinuable(spec)
+            : (() => { throw new Error('This DSH runtime lacks a native child start API'); })();
+        if (prepared && started.childId !== prepared.childId) throw new Error('DSH did not preserve the Studio child policy identity');
+        return { result: JSON.stringify({ kind: 'activation', subagentId: started.childId, role: role.role }) };
+      } catch (error) {
+        await prepared?.abandon();
+        throw error;
+      }
     },
   }));
 }

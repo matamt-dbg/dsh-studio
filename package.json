@@ -29,7 +29,7 @@
     "react-dom": "18.3.1",
     "@types/react": "18.3.27",
     "esbuild": "0.25.12",
-    "tsx": "4.21.0",
+    "tsx": "4.23.13",
     "typescript": "^6.0.3",
     "@deepseek-ai/cordis": "~4.0.4",
     "@deepseek-ai/dsh-client-ui-renderer": "0.2.0-rc.2",

@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import type { StudioContext } from './contracts.js';
-import { currentCwd, DISABLED_KEY, readDisabled, resolveSessionTarget, STUDIO_COMMANDS, type SessionSnapshots, type StudioCommandSpec } from './settingsx-commands.ts';
+import { currentCwd, DISABLED_KEY, readDisabled, registerIsolated, resolveSessionTarget, STUDIO_COMMANDS, type SessionSnapshots, type StudioCommandSpec } from './settingsx-commands.ts';
 import { settingsxText } from './settingsx-locale.ts';
 import { commandLabel, SettingsXPage, type CommandRowState, type SettingsXShortcuts } from './settingsx-page.tsx';
 
@@ -59,12 +59,13 @@ export function mountSettingsX(ctx: StudioContext, options: { navFooter?: (local
       for (const spec of STUDIO_COMMANDS) {
         const want = !disabled.has(spec.id);
         if (want && !live.has(spec.id)) {
-          live.set(spec.id, services.shortcuts.register({
+          const dispose = registerIsolated(command => services.shortcuts.register(command), {
             id: spec.id, label: () => commandLabel(locale(), spec), aliases: ['studio', 'settingsx', spec.key],
             defaults: spec.defaultMac ? { 'desktop:macos': spec.defaultMac } : {},
             regions: spec.key === 'fullscreen' || spec.key === 'copyCwd' ? ['page', 'editable', 'terminal'] : ['page', 'editable'], modals: [],
             resolve: context => resolveFor(spec, context.modal),
-          }));
+          } as Parameters<ShortcutsSlice['register']>[0], error => console.warn(`[studio] shortcut ${spec.id} was not registered`, error));
+          if (dispose) live.set(spec.id, dispose);
         } else if (!want && live.has(spec.id)) { live.get(spec.id)!(); live.delete(spec.id); }
       }
     };

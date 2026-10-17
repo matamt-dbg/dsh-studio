@@ -34,6 +34,13 @@ export default {
     'shortcut.open': '설정 열기',
     title: '설정',
     trigger: '설정',
+    'hostRelease.later': '나중에',
+    'hostRelease.description': '서비스 버전이 변경되었습니다. 이 페이지의 실시간 업데이트가 일시 중지되었습니다. 새 버전을 불러오려면 새로고침하십시오.',
+    'hostRelease.page': '페이지',
+    'hostRelease.reload': '새 버전을 불러오려면 새로고침하십시오.',
+    'hostRelease.service': '서비스',
+    'hostRelease.title': '서비스 버전이 변경되었습니다',
+    'hostRelease.unknown': '알 수 없음',
   },
   fallback: ['desktop.update.tasksChanged', 'developerTools.description'],
 } satisfies DshKoNamespace;

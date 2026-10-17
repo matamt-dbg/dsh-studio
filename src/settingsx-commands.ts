@@ -25,6 +25,22 @@ export const STUDIO_COMMANDS: readonly StudioCommandSpec[] = [
   { key: 'fullscreen', id: `${prefix}.fullscreen` },
 ];
 
+/**
+ * Register one command so a failure cannot take the others down. DSH throws when a default key overlaps another
+ * command's default (for example a leftover plugin that owns the same keys); the command then registers unbound and
+ * users assign a key in DSH's shortcut settings. Any other failure skips only this command.
+ * @returns the disposer, or null when DSH rejected the command.
+ */
+export function registerIsolated<C extends { defaults: Record<string, unknown> }>(register: (command: C) => () => void, command: C, onError: (error: unknown) => void = () => {}): (() => void) | null {
+  try { return register(command); } catch (error) {
+    if (Object.keys(command.defaults).length > 0) {
+      try { return register({ ...command, defaults: {} }); } catch (retry) { onError(retry); return null; }
+    }
+    onError(error);
+    return null;
+  }
+}
+
 /** The slice of Client services session navigation reads. */
 export interface SessionSnapshots {
   sessions: { phase: string; ids: string[]; byId: Record<string, { id: string; cwd?: string } & Record<string, unknown>> };

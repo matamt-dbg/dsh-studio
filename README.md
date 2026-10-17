@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@matamt-dbg/dsh-studio"><img src="https://img.shields.io/npm/v/@matamt-dbg/dsh-studio" alt="npm version"></a>
-  <img src="https://img.shields.io/badge/DSH-0.2.0--rc.2%20%7C%200.2.1--alpha.2-4f6bff" alt="Supported DSH versions">
+  <img src="https://img.shields.io/badge/DSH-0.2.0--rc.2%20%7C%200.2.1--alpha.2%20%7C%200.2.1--rc.1%20%7C%200.2.1--rc.2-4f6bff" alt="Supported DSH versions">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
 </p>
 
@@ -44,7 +44,7 @@ Optimized is tuned for **coding-agent work**. It is a starting point, not a fixe
 
 ## Install
 
-Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
 
 ```sh
 dsh plugin --profile web add @matamt-dbg/dsh-studio       # dsh web
@@ -52,6 +52,18 @@ dsh plugin --profile desktop add @matamt-dbg/dsh-studio   # desktop app: quit th
 ```
 
 Restart the web GUI or the app, then open **DSH Studio** from the sidebar. Each profile keeps its own presets and its own set of tools.
+
+### Compatibility
+
+Each supported DSH version was checked on macOS with a fresh install into an isolated profile of the unmodified runtime. What was checked differs by version, and none of it is a full compatibility guarantee:
+
+| DSH | Checked |
+|---|---|
+| `0.2.1-rc.2` | Install, Web startup and four HTTP checks (Master, Optimized copy, session roles, role save/reapply/restore); Studio loading in the desktop app |
+| `0.2.1-rc.1` | The same HTTP checks; Fresh and Fork role subagents keeping their instructions and Tool Filter, also after a restart, with a local test model |
+| `0.2.0-rc.2`, `0.2.1-alpha.2` | The same HTTP checks |
+
+Not checked: external model calls in these checks, upgrading data from 0.5.0, and other operating systems. Back up your profile before upgrading. See the [0.6.1 release notes](CHANGELOG.md#061--2026-10-17).
 
 ## Features
 

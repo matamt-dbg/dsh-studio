@@ -116,6 +116,9 @@ export default {
     'viewOptions.onlyArchived': '보관된 대화만',
     'viewOptions.showArchived': '모든 대화(보관된 대화 포함)',
     'workspace.add': '워크스페이스 추가',
+    'menu.sessionId': '세션 ID 복사',
+    'toast.sessionIdCopied': '세션 ID를 복사했습니다',
+    'toast.sessionIdCopyFailed': '복사에 실패했습니다. 다시 시도해 주십시오.',
   },
   fallback: ['archive.confirm.other.one', 'archive.confirm.other.other'],
 } satisfies DshKoNamespace;

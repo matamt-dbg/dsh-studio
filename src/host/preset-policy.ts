@@ -5,6 +5,7 @@ import type { PromptSectionOrderName } from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 import type {} from '@deepseek-ai/dsh-agent-preset-registry';
 import { sectionsOnlyFor } from '../tool-prompt-sections.ts';
+import { roleChildPolicy } from './role-child-policy-contract.ts';
 
 export interface PresetPolicyConfig {
   tools: string[];
@@ -12,7 +13,7 @@ export interface PresetPolicyConfig {
   sections: Record<string, string>;
   prompt: string;
   execution?: ExecutionDefaults;
-  /** Selected tools hidden from every subagent (fresh and fork) started under this preset. */
+  /** Union of the selected tools that any role may hide; each child uses its own fixed list. */
   childToolFilter?: { deny: string[] };
 }
 
@@ -156,11 +157,13 @@ export function apply(ctx: Context, config: PresetPolicyConfig): void {
   validatePolicy(config);
   const registry = ctx.get('agents' as never) as AgentRegistry | undefined;
   const hideable = config.childToolFilter?.deny ?? [];
-  // subagent_role passes each role's toolFilter to DSH, which restricts the child natively and
-  // persists it for resume. Those tools are invisible to the child, so the full policy would report
+  // Legacy DSH persists native toolFilter; rc.1 uses Studio's immutable child snapshot instead.
+  // Those tools are invisible to the child, so the full policy would report
   // them as unavailable. Install the child policy without exactly the hideable tools this child
   // cannot see. A tool that is missing but not hideable is reported as unavailable and skipped.
   const policyFor = (agent: PolicyAgent) => {
+    const fixed = roleChildPolicy(ctx, agent);
+    if (fixed) return childPolicy(config, fixed.deny);
     if (!hideable.length) return config;
     // Hidden means masked on this Agent while the preset itself still provides it; a tool the
     // preset lost is not hidden and stays in the policy so its absence is reported.
