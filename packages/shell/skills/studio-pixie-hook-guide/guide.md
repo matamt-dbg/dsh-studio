@@ -55,6 +55,7 @@ When the verdict is stop, the replacement and addition never reach the main mode
 
 | Option | Default | Description |
 | --- | --- | --- |
+| Pixie Loop recipe | None | Judge with a saved [Pixie Loop recipe](pixie-loop.md#recipes) instead of the task. **Check** stops when the content does not pass, with Pixie's feedback as the reason. **Repair** reworks the content until it passes and replaces it (user message, agent message, and tool result points only). Cannot be combined with a hook script |
 | Pixie hook script | None | A script run before the task. See [below](#pixie-hook-scripts) |
 | Show the result in the chat | On | Shows the result right under what the gate checked. See [Chat notes](#chat-notes-and-per-session-switches) |
 | Confirm before replacing | Off | Stops a real replacement and shows it as a suggestion (message points) |
@@ -112,14 +113,16 @@ Inside a script, the `pixie` command calls the Pixie model. It is first on the s
 ```sh
 pixie ask "<instruction>" [--input]
 pixie judge [--type bool|select|score] --question "<question>" [type arguments] [--json] [--input]
+pixie loop --recipe <name> [--mode check|repair] [--json] [--input]
 ```
 
 - With `--input` the helper reads its input from stdin; otherwise it uses the gate target.
 - `ask` prints the answer and exits 0, using the Pixie model.
 - `judge` judges with the [decision engine](#decision-engine); types and output follow the table there.
+- `loop` runs a saved [Pixie Loop recipe](pixie-loop.md#recipes) on one input. `check` (default) exits 0 and prints the input when it passes, otherwise exits 1 and prints the reason. `repair` reworks it until it passes and prints the result with exit 0, or exits 1 with the reason. Newlines become `\n`. `--json` prints `{"recipe","mode","passed","output"?,"feedback"?,"reason","runId"}`. One run counts as one helper call; the recipe's attempt limit and the gate time limit bound its model calls. Recipes that run commands (`act`), episodes, and selections are not allowed. Runs are recorded in Pixie tab → Loops.
 - Usage, token, limit, and model errors exit 2 with a message on stderr. A failed helper call never decides the gate; the script's exit code does.
 - Limits: 20 calls and 256 KB per request for each run. Calls follow the gate time limit and cancellation; their usage is added to the gate and listed under **Helper calls** in the run record.
-- A token reaches only that run's ask and judge. The helper uses a Studio route on the DSH web server, so it is unavailable without one (for example, headless).
+- A token reaches only that run's ask, judge, and loop. The helper uses a Studio route on the DSH web server, so it is unavailable without one (for example, headless).
 
 ## Decision engine
 

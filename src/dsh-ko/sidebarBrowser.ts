@@ -1,0 +1,32 @@
+import type { DshKoNamespace } from '../dsh-ko-locale.ts';
+
+export default {
+  ko: {
+    'address.changed': 'URL이 변경되었습니다',
+    'address.placeholder': 'HTTP(S) 주소 입력',
+    back: '뒤로',
+    'error.application-origin': '내장 브라우저에서는 DSH 애플리케이션 자체를 열 수 없습니다.',
+    'error.credentials': '주소에 사용자 이름이나 암호를 포함할 수 없습니다.',
+    'error.empty': '주소를 입력해 주십시오.',
+    'error.invalid': '주소가 유효하지 않거나 너무 깁니다',
+    'error.protocol': 'HTTP 및 HTTPS 주소만 지원합니다. 로컬 파일은 문서 미리 보기를 사용하십시오.',
+    external: '시스템 브라우저에서 열기',
+    forward: '앞으로',
+    go: '이동',
+    'guide.description': '웹 페이지 탐색',
+    'guide.title': '브라우저',
+    'load.failed': '페이지를 불러오지 못했습니다. 새로 고치거나 시스템 브라우저에서 여십시오.',
+    'load.failed.detail': '페이지를 불러오지 못했습니다({code}): {description}',
+    loading: '페이지를 열고 있습니다…',
+    reload: '새로 고침',
+    'restore.action': '페이지 복원',
+    'restore.previous': '이전에 열었던 페이지',
+    'sandbox.disable': '샌드박스 제한 해제',
+    'sandbox.enable': '샌드박스 제한 복원',
+    'sandbox.warning': '샌드박스 제한이 해제되었습니다. 이 페이지는 최상위 앱을 탐색할 수 있고 다운로드, 모달 대화상자, 입력 잠금도 사용할 수 있습니다.',
+    'shortcut.noSession': '먼저 세션을 여십시오.',
+    start: '탐색을 시작하려면 HTTP(S) 주소를 입력하십시오.',
+    'type.label': '브라우저',
+  },
+  fallback: ['address.unknown'],
+} satisfies DshKoNamespace;

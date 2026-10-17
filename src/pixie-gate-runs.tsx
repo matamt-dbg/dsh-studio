@@ -125,7 +125,7 @@ export function GateRunsPanel({ actions, locale }: { actions: GateRunActions; lo
         <p className="studio-card-meta">{gatePointText(locale, shown.point)} · {fullTime(shown.startedAt)}{shown.hooksInput === 'unverified' ? ` · ${t('unverified')}` : ''}</p>
         <dl className="studio-gate-facts">
           <dt>{t('applied')}</dt><dd><Badge tone={shown.applied === 'none' || shown.applied === 'pass' ? 'neutral' : 'info'}>{t(shown.applied)}</Badge></dd>
-          {shown.result?.concludedBy && <><dt>{t('concludedBy')}</dt><dd>{t(shown.result.concludedBy === 'script' ? 'concludedScript' : shown.result.concludedBy === 'skipped' ? 'concludedSkipped' : 'concludedPixie')}</dd></>}
+          {shown.result?.concludedBy && <><dt>{t('concludedBy')}</dt><dd>{t(shown.result.concludedBy === 'script' ? 'concludedScript' : shown.result.concludedBy === 'skipped' ? 'concludedSkipped' : shown.result.concludedBy === 'loop' ? 'concludedLoop' : 'concludedPixie')}</dd></>}
           {shown.output && <><dt>{t('verdict')}</dt><dd><Badge tone={shown.output.verdict === 'stop' ? 'warning' : 'success'}>{t(shown.output.verdict === 'stop' ? 'stop' : 'pass')}</Badge></dd></>}
           {shown.output?.reason !== undefined && !shown.rejection && <><dt>{t('reason')}</dt><dd>{shown.output.reason}</dd></>}
           {shown.reason && <><dt>{t('applyNote')}</dt><dd>{shown.reason}</dd></>}

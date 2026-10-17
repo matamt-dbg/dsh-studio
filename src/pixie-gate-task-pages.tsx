@@ -2,7 +2,7 @@
 import React from 'react';
 import { Badge, Button, DetailDialog, Disclosure, Notice, PageHead, PickOption, SectionHead, Segmented, SettingsRow, Toggle } from './ui.tsx';
 import { gateTaskText, type GateTaskKey } from './pixie-gate-task-locale.ts';
-import { GATE_GUIDE_URL, GATE_SCRIPT_DIR, GATE_TEMPLATES, GATE_WHENS, enabledFor, isMessage, showsInChat, isTool, makeTask, taskFromTemplate, taskProblem, taskVariables, type GateTask, type GateTemplate } from './pixie-gate-task.ts';
+import { GATE_GUIDE_URL, GATE_SCRIPT_DIR, GATE_TEMPLATES, GATE_WHENS, canRepair, enabledFor, isMessage, showsInChat, isTool, makeTask, taskFromTemplate, taskProblem, taskVariables, type GateTask, type GateTemplate } from './pixie-gate-task.ts';
 import type { GateOutput, gateOutputPlan } from './pixie-gate-task-contracts.ts';
 import type { GateTasksRead } from './pixie-gate-definitions.ts';
 import type { PixieUsage } from './pixie-contracts.ts';
@@ -25,6 +25,8 @@ export interface GateTaskActions {
   openFolder?(path: string): Promise<void>;
   trial(request: { task: GateTask; text: string; toolName?: string }): { result: Promise<GateTrialResponse>; cancel(): void };
   presets(): Promise<{ id: string; name: string }[]>;
+  /** Saved Pixie Loop recipe names (#31); absent on hosts without the feature. */
+  recipes?(): Promise<string[]>;
 }
 
 /** Shared state for both gate pages: one draft list, saved as a whole (`saveGateDefinitions`). */
@@ -107,6 +109,8 @@ export function GateTaskEditor({ task: initial, open, locale, actions, onApply, 
     try { setScripts(await actions.scripts()); } catch (cause) { setScriptError(cause instanceof Error ? cause.message : String(cause)); }
   }, [actions]);
   React.useEffect(() => { if (open) void refreshScripts(); }, [open, refreshScripts]);
+  const [recipes, setRecipes] = React.useState<string[]>();
+  React.useEffect(() => { if (open && actions.recipes) actions.recipes().then(setRecipes, () => setRecipes([])); }, [open, actions]);
   React.useEffect(() => { setTask(initial); setProblem(undefined); setSample(''); setTrial(undefined); }, [initial]);
   React.useEffect(() => () => { if (trial?.state === 'running') trial.cancel(); }, [trial]);
   if (!task) return <DetailDialog open={false} title="" onClose={onClose} />;
@@ -141,7 +145,18 @@ export function GateTaskEditor({ task: initial, open, locale, actions, onApply, 
         {problemAt('instruction')}
       </SettingsRow>
       <Disclosure title={t('advanced')}>
-        <SettingsRow title={t('script')} description={t('scriptHint')} control={<select className="studio-compact" aria-label={t('script')} value={task.advanced.script ?? ''} onChange={event => { const { script: _, ...rest } = task.advanced; set({ advanced: event.target.value ? { ...rest, script: event.target.value } : rest }); }}>
+        {actions.recipes && <SettingsRow title={t('loop')} description={t('loopHint')} control={<span className="studio-inline-actions">
+          <select className="studio-compact" aria-label={t('loop')} disabled={!!task.advanced.script} value={task.advanced.loop?.recipe ?? ''} onChange={event => { const { loop: _, ...rest } = task.advanced; set({ advanced: event.target.value ? { ...rest, loop: { recipe: event.target.value, mode: task.advanced.loop?.mode ?? 'check' } } : rest }); }}>
+            <option value="">{t('noLoop')}</option>
+            {(recipes ?? []).map(name => <option key={name} value={name}>{name}</option>)}
+            {task.advanced.loop && !(recipes ?? []).includes(task.advanced.loop.recipe) && <option value={task.advanced.loop.recipe}>{`${task.advanced.loop.recipe} ${t('loopMissing')}`}</option>}
+          </select>
+          {task.advanced.loop && <Segmented label={t('loop')} value={task.advanced.loop.mode} options={[{ value: 'check', label: t('loopCheck') }, ...(canRepair(task.when) ? [{ value: 'repair' as const, label: t('loopRepair') }] : [])]} onChange={mode => adv({ loop: { ...task.advanced.loop!, mode } })} />}
+        </span>}>
+          {task.advanced.script && <p className="studio-muted">{t('loopScript')}</p>}
+          {task.advanced.loop?.mode === 'repair' && !canRepair(task.when) && <Notice>{t('loopRepairPoint')}</Notice>}
+        </SettingsRow>}
+        <SettingsRow title={t('script')} description={t('scriptHint')} control={<select className="studio-compact" aria-label={t('script')} disabled={!!task.advanced.loop} value={task.advanced.script ?? ''} onChange={event => { const { script: _, ...rest } = task.advanced; set({ advanced: event.target.value ? { ...rest, script: event.target.value } : rest }); }}>
           <option value="">{t('noScript')}</option>
           {(scripts?.scripts ?? []).map(name => <option key={name} value={name}>{name}</option>)}
           {task.advanced.script && !(scripts?.scripts ?? []).includes(task.advanced.script) && <option value={task.advanced.script}>{`${task.advanced.script} ${t('scriptMissing')}`}</option>}

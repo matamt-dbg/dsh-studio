@@ -523,6 +523,9 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
   .studio-ui .studio-component-summary { display: none; }
   .studio-ui .studio-facts { grid-template-columns: 1fr; gap: 4px; }
 }
+.studio-ui .studio-subscription-meter { display: grid; gap: 6px; font-size: 12px; }
+.studio-ui .studio-subscription-meter progress { width: 100%; height: 6px; accent-color: var(--studio-muted); }
+.studio-ui .studio-settings-card { min-width: 0; overflow-wrap: anywhere; }
 /* Settings card rows, segmented choice, and switch (shapes follow DSH Settings, SegmentedControl, and Switch). */
 .studio-ui .studio-settings-card { padding: 4px 20px; border: .5px solid var(--studio-line); border-radius: var(--studio-radius); background: var(--studio-surface); }
 .studio-ui .studio-settings-row { display: grid; gap: 10px; padding: 14px 0; border-bottom: .5px solid var(--studio-line); }
@@ -657,6 +660,12 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui .studio-gate-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; align-items: baseline; margin: 0; font-size: 13px; }
 .studio-ui .studio-gate-facts dt { color: var(--studio-muted); font-size: 12px; }
 .studio-ui .studio-gate-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.studio-ui .studio-loop-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-ui ul.studio-loop-items, .studio-ui ol.studio-loop-attempts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.studio-ui .studio-loop-item { display: grid; gap: 2px; width: 100%; padding: 8px 10px; border: .5px solid var(--studio-line); border-radius: var(--studio-control-radius); background: var(--studio-surface); color: var(--studio-ink); font: inherit; text-align: start; cursor: pointer; }
+.studio-ui .studio-loop-item:hover, .studio-ui .studio-loop-item[aria-expanded=true] { background: var(--studio-hover); }
+.studio-ui .studio-loop-spec { width: 100%; min-height: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.studio-ui .studio-loop-attempt { display: grid; gap: 6px; padding: 8px 10px; border-inline-start: 2px solid var(--studio-line); }
 .studio-ui .studio-gate-block { display: grid; gap: 6px; padding-top: 10px; border-top: .5px solid var(--studio-line); }
 .studio-ui .studio-gate-session-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .studio-ui .studio-gate-session-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
@@ -671,6 +680,11 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui .studio-gate-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .studio-ui .studio-gate-path code { padding: 1px 6px; border-radius: var(--studio-small-radius); background: var(--studio-inset); overflow-wrap: anywhere; }
 .studio-ui .studio-gate-path .studio-button { margin: 0; }
+.studio-ui .studio-provider-credential { display: grid; gap: 6px; }
+.studio-ui .studio-provider-credential > p { margin: 0; }
+.studio-ui .studio-inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.studio-ui .studio-inline-form input { flex: 1 1 200px; width: auto; max-width: 320px; }
+.studio-ui .studio-inline-form .studio-button { margin: 0; }
 .studio-ui .studio-gate-judge { display: grid; gap: 8px; }
 .studio-ui .studio-gate-judge .studio-field { margin: 0; }
 .studio-ui .studio-gate-trial { display: grid; gap: 8px; padding-top: 12px; border-top: .5px solid var(--studio-line); }
@@ -692,6 +706,12 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
   .studio-ui .studio-gate-node { width: auto; max-width: 180px; }
   .studio-ui .studio-gate-node-meta { display: none; }
   .studio-ui .studio-gate-io { grid-template-columns: minmax(0, 1fr); }
+}
+/* Subagents conversation view: centered like the chat column, narrows on its own width. */
+.studio-ui.studio-session-roles-view { container: studio-session-roles / inline-size; width: 100%; max-width: 960px; margin: 0 auto; padding: 20px 24px 32px; box-sizing: border-box; }
+@container studio-session-roles (max-width: 560px) {
+  .studio-ui.studio-session-roles-view { padding: 16px 12px 24px; }
+  .studio-ui .studio-session-roles .studio-tool-cards.studio-card-pair { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 480px) {
   .studio-ui .studio-card, .studio-ui article, .studio-ui .studio-agents { padding: 12px; }

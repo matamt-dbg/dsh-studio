@@ -23,6 +23,8 @@ await compile({
 await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/batch-tool.ts'], outfile: 'packages/shell/batch.js', bundle: true, minify: true, platform: 'node', format: 'esm', target: 'node22', external: ['@deepseek-ai/*'] });
 await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/judge-tool.ts'], outfile: 'packages/shell/judge.js',
   bundle: true, platform: 'node', format: 'esm', target: 'node22', packages: 'external', external: ['@deepseek-ai/*'] });
+await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/pixie-loop-tool.ts'], outfile: 'packages/shell/loop.js',
+  bundle: true, platform: 'node', format: 'esm', target: 'node22', packages: 'external', external: ['@deepseek-ai/*'] });
 for (const part of ['shell']) {
   await compile({
     absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: [`src/host/${part}.ts`], outfile: `packages/${part}/index.js`,
@@ -37,7 +39,9 @@ for (const part of ['shell']) {
 }
 
 // Agent skills ship as files next to index.js; the Host installs them into <DSH home>/skills on start.
-import { cp, mkdir as mkdirp } from 'node:fs/promises';
+// The folder is rebuilt from scratch so skills from earlier builds or other branches never reach the package.
+import { cp, mkdir as mkdirp, rm } from 'node:fs/promises';
+await rm(new URL('packages/shell/skills/', import.meta.url), { recursive: true, force: true });
 const skillOut = new URL('packages/shell/skills/studio-pixie-hook-guide/', import.meta.url);
 await mkdirp(skillOut, { recursive: true });
 // Docs live in release/docs here and in docs/ in the published repository.
@@ -46,3 +50,8 @@ const docsRoot = ['release/docs/', 'docs/'].map(dir => new URL(dir, import.meta.
 if (!docsRoot) throw new Error('build: Pixie Gate guide not found in release/docs or docs');
 await cp(new URL('appendix/studio-pixie-hook-guide/SKILL.md', docsRoot), new URL('SKILL.md', skillOut));
 await cp(new URL('appendix/pixie-gate.md', docsRoot), new URL('guide.md', skillOut));
+const loopSkillOut = new URL('packages/shell/skills/studio-pixie-loop-guide/', import.meta.url);
+await mkdirp(loopSkillOut, { recursive: true });
+await cp(new URL('appendix/studio-pixie-loop-guide/SKILL.md', docsRoot), new URL('SKILL.md', loopSkillOut));
+await cp(new URL('appendix/pixie-loop.md', docsRoot), new URL('guide.md', loopSkillOut));
+// studio-provider-guide is not shipped: SettingsX providers are excluded from the release (#28 D10).

@@ -70,7 +70,7 @@ export interface GateResult {
   /** Who produced the gate output; absent on records written before #27 and on runs that failed before concluding. */
   concludedBy?: GateConclusion;
 }
-export type GateConclusion = 'pixie' | 'script' | 'skipped';
+export type GateConclusion = 'pixie' | 'script' | 'skipped' | 'loop';
 
 /** Actual middleware action, never inferred from the result verdict. */
 export type GateApplied = 'pass' | 'replaced' | 'appended' | 'rejected' | 'steered' | 'blocked' | 'denied' | 'none';

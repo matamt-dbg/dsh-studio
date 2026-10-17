@@ -20,8 +20,9 @@ Help the user build a Pixie Gate: a task the Pixie model runs at one point of an
    | `turn-end` | The agent's final answer |
 
 2. Write the task (`instruction`) in plain words. Say which of the five output fields to use: verdict (`pass`/`stop`), reason, replacement, addition, note. Check the guide's application table: at `tool-before` and `turn-end` replacement and addition become notes; at `turn-end` stop asks the agent to redo with the reason.
-3. For a judgment (yes/no threshold, picking one of fixed options, a graded score), write a hook script that calls `pixie judge` and decides the outcome itself: exit 10 to pass untouched, exit 11 to print the gate output, exit 0 only when Pixie should interpret the result. Gates have no judge option; the engine (LLM or TypeSafe Jev) is set in Studio → Pixie → Gates → Decision engine.
-4. Use a hook script only when the two fields cannot express the flow: conditions (only some tools), loops, or external measurement. Prefer no script.
+3. When the user already has a Pixie Loop recipe for the check, prefer the gate's **Pixie Loop recipe** advanced option (`advanced.loop: { recipe, mode: "check" | "repair" }`) with no script: check stops with Pixie's feedback, repair replaces the content once it passes (user-message, agent-message, tool-after only). It cannot be combined with `advanced.script`.
+4. For a judgment (yes/no threshold, picking one of fixed options, a graded score), write a hook script that calls `pixie judge` and decides the outcome itself: exit 10 to pass untouched, exit 11 to print the gate output, exit 0 only when Pixie should interpret the result. Gates have no judge option; the engine (LLM or TypeSafe Jev) is set in Studio → Pixie → Gates → Decision engine.
+5. Use a hook script only when the two fields cannot express the flow: conditions (only some tools), loops, or external measurement. Prefer no script.
 
 ## Write a script
 
@@ -29,6 +30,7 @@ Help the user build a Pixie Gate: a task the Pixie model runs at one point of an
 - Read the target from stdin. Print what the task needs to stdout (256 KB max); print a JSON object to fill `{{hooks.<name>.data}}`. `<name>` is the file name without its last extension.
 - Exit 0 to run the Pixie task, 10 to skip the gate, 11 to apply stdout as the gate output (a JSON object with optional `verdict`, `reason`, `replace`, `append`, `note`; no Pixie call). Anything else is an error. A gate whose script always exits 10 or 11 may have an empty task; exit 0 then fails.
 - Use `pixie ask "<instruction>" [--input]` and `pixie judge [--type bool|select|score] --question "…" [--json] [--input]`. bool takes `--threshold` (default 0.5) and optional `--true`/`--false` meanings, prints the yes probability, exits 0 at or above the threshold and 1 below; select takes two or more `--option name="description"` and prints the chosen name; score takes 2–10 `--level "description"` (lowest first) and prints the score. `--json` prints `{"type","label","answer","engine"}`. Errors exit 2 and never become a "no". With `--input` the helper reads stdin; otherwise it uses the gate target. At most 20 helper calls per run.
+- Use `pixie loop --recipe <name> [--mode check|repair] [--json] [--input]` to run a saved Pixie Loop recipe on the input: exit 0 when it passes (stdout: the input, or the repaired text for `repair`), exit 1 with the reason when it does not, exit 2 on errors. Newlines in stdout become `\n`; use `--json` (`passed`, `output`, `reason`, `feedback`) to read them safely. One loop is one helper call. Recipes with `act`, episodes, or selection are refused.
 - Write the whole judgment in `--question`: question IDs never reach the model. For several inputs (source and translation, answer and evidence), pipe a JSON object built with `jq` and name its fields in backticks in the question.
 - The script runs in the session working directory under the session sandbox. Do not write files unless the session can write; never try to escape the sandbox.
 - In the task, reference only `{{hooks.<name>.text}}` and `{{hooks.<name>.data}}` of the chosen script.
@@ -42,7 +44,7 @@ Do not edit `definitions.json` unless the user asks you to; prefer guiding them 
 
 ```json
 { "id": "<uuid>", "name": "…", "enabled": true, "when": "user-message", "instruction": "…",
-  "advanced": { "confirmReplace": false, "onError": "pass", "agents": "root", "timeoutMs": 60000, "maxSteers": 1, "showInChat": true, "script": "optional.sh" },
+  "advanced": { "confirmReplace": false, "onError": "pass", "agents": "root", "timeoutMs": 60000, "maxSteers": 1, "showInChat": true, "script": "optional.sh", "loop": { "recipe": "optional-recipe", "mode": "check" } },
   "presetIds": ["<preset id>"], "disabledPresetIds": ["<attached preset where it is off>"] }
 ```
 

@@ -324,6 +324,7 @@ var POLICY_PLUGIN = `${PACKAGE_NAME}/policy`;
 var ROLE_PLUGIN = `${PACKAGE_NAME}/roles`;
 var BATCH_PLUGIN = `${PACKAGE_NAME}/batch`;
 var JUDGE_PLUGIN = `${PACKAGE_NAME}/judge`;
+var LOOP_PLUGIN = `${PACKAGE_NAME}/loop`;
 
 // src/delegation.ts
 var LEGACY_ROLE_TOOL = "studio_role";

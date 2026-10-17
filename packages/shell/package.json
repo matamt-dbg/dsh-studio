@@ -1,6 +1,6 @@
 {
   "name": "@matamt-dbg/dsh-studio",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "DSH Studio: build, edit and apply DeepSeek Harness agent presets — tools, prompts, Configs and role-based subagents — from the web GUI.",
   "keywords": [
     "deepseek-harness",
@@ -24,7 +24,8 @@
     "./policy": "./policy.js",
     "./roles": "./roles.js",
     "./batch": "./batch.js",
-    "./judge": "./judge.js"
+    "./judge": "./judge.js",
+    "./loop": "./loop.js"
   },
   "files": [
     "index.js",
@@ -33,6 +34,7 @@
     "roles.js",
     "batch.js",
     "judge.js",
+    "loop.js",
     "skills",
     "cordis.patch.yml"
   ],

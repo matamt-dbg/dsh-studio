@@ -21,6 +21,9 @@ import { HELPER_ROUTE, PixieGateHelper } from './pixie-gate-helper.ts';
 import { PixieGateSettings } from './pixie-gate-settings.ts';
 import { trialGate } from './pixie-gate-trial.ts';
 import { JEV_KEY_REF, judgeEngineFor, type JevCredentials } from './jev-judge.ts';
+import { PixieLoopStore } from './pixie-loop-store.ts';
+import { PixieLoopRecipes } from './pixie-loop-recipe-store.ts';
+import type { LoopRunRecord } from '../pixie-loop-contracts.ts';
 
 /** What the Pixie tab shows for one session. */
 export interface PixieView {
@@ -86,6 +89,8 @@ export class PixieService extends TypertRemoteService {
   private runtime: PixieRuntime;
   private live: PixieLive;
   private gates: PixieGateStore;
+  private loops: PixieLoopStore;
+  private recipes: PixieLoopRecipes;
   private definitions: PixieGateDefinitions;
   private gateRunner: GateInputDeps['runner'];
   private helper: PixieGateHelper;
@@ -106,6 +111,8 @@ export class PixieService extends TypertRemoteService {
     this.gateSettings = new PixieGateSettings(join(dataDir, 'pixie-gate', 'settings.json'));
     this.store = new PixieStore(join(dataDir, 'pixie'));
     this.gates = new PixieGateStore(join(dataDir, 'pixie'));
+    this.loops = new PixieLoopStore(join(dataDir, 'pixie'));
+    this.recipes = new PixieLoopRecipes(join(dataDir, 'pixie-loop', 'recipes.json'));
     this.settings = new PixieSettingsStore(join(dataDir, 'pixie-settings.json'));
     this.definitions = new PixieGateDefinitions(join(dataDir, 'pixie-gate', 'definitions.json'));
     this.helper = new PixieGateHelper({ binDirectory: resolve(dataDir, 'pixie-gate', 'bin'), url: () => this.helperUrl });
@@ -136,6 +143,7 @@ export class PixieService extends TypertRemoteService {
         return new GateTaskRunner({
         scriptDirectory, scriptSupported: this.scriptSupported(), shell: ctx.get('shell') as unknown as HookShell | undefined, helper: this.helper,
         llm, ...(settings.model ? { model: settings.model } : {}), ...(judge ? { judge } : {}),
+        loop: { recipe: name => this.recipes.get(name), record: run => this.loops.put(run) },
         });
       },
       recorder: this.gates,
@@ -169,6 +177,7 @@ export class PixieService extends TypertRemoteService {
           const existing = new Set(listed.items.map(item => item.sessionId));
           await this.store.prune(async sessionId => existing.has(sessionId));
           await this.gates.prune(async () => listed.items);
+          await this.loops.prune(async () => listed.items);
         })().catch(error => { if (!lifetime.signal.aborted) ctx.logger?.warn?.(`studio pixie: prune skipped: ${String(error)}`); });
       };
       const first = setTimeout(prune, 0);
@@ -304,6 +313,26 @@ export class PixieService extends TypertRemoteService {
   async *followGates(sessionId: string, signal: AbortSignal): AsyncIterable<GateRunFrame> {
     yield* this.gates.follow(sessionId, signal);
   }
+
+  /** Pixie Loop runs of one session, written by the `pixie_loop` tool plugin (#31). Read-only here. */
+  @Remote
+  async loopRuns(sessionId: string): Promise<LoopRunRecord> { return this.loops.view(sessionId); }
+
+  /** Saved Pixie Loop recipes (#31 S14). */
+  @Remote
+  async loopRecipes() { return this.recipes.read(); }
+
+  /** Save a recipe; payload `{ name, description?, spec }`. Checks are compiled and calibrated now; a failed calibration saves nothing. */
+  @Remote
+  async saveLoopRecipe(payload: string, signal: AbortSignal) {
+    const settings = await this.settings.read();
+    const llm: PixieLlm = { stream: options => llmOf(this.ctx).stream(options) };
+    const judge = judgeEngineFor(settings, { llm, credentials: this.credentials() });
+    return this.recipes.save(json(payload), { llm, model: settings.model, judge }, signal);
+  }
+
+  @Remote
+  async deleteLoopRecipe(name: string) { await this.recipes.remove(name); return this.recipes.read(); }
 
   @Remote
   async readSettings() { return this.settings.read(); }

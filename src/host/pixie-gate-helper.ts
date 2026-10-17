@@ -17,7 +17,11 @@ export interface HelperGrant {
   signal: AbortSignal;
   ask(instruction: string, input: string, signal: AbortSignal): Promise<string>;
   judge(request: HelperJudgeRequest, input: string, signal: AbortSignal): Promise<HelperJudgement>;
+  /** Run a saved Pixie Loop recipe on the input (#31 S16). */
+  loop?(recipe: string, mode: 'check' | 'repair', input: string, signal: AbortSignal): Promise<HelperLoopResult>;
 }
+/** One `pixie loop` outcome: exit 0 passed, 1 did not pass; stdout is the (repaired) text or the reason; `--json` adds details. */
+export interface HelperLoopResult { exit: 0 | 1; text: string; json: { recipe: string; mode: 'check' | 'repair'; passed: boolean; output?: string; feedback?: string; reason: string; runId: string } }
 /** Helper-facing question kinds; `bool` is Jev's noul, `select` its choice. */
 export type HelperJudgeType = 'bool' | 'select' | 'score';
 export interface HelperJudgeRequest { type: HelperJudgeType; question: JudgeQuestion; threshold: number }
@@ -73,6 +77,7 @@ export const HELPER_SCRIPT = `#!/usr/bin/env bash
 #   pixie ask "<instruction>" [--input]
 #   pixie judge [--type bool|select|score] --question "<question>" [--threshold 0.5] [--true ..] [--false ..]
 #               [--option name=desc ..] [--level desc ..] [--json] [--input]
+#   pixie loop --recipe <name> [--mode check|repair] [--json] [--input]
 # --input reads the helper input from stdin; otherwise the gate target is used.
 set -u
 fail() { printf 'pixie: %s\\n' "$1" >&2; exit 2; }
@@ -97,7 +102,19 @@ case "$command" in
       *) fail "unknown option: $1" ;;
     esac; shift; done
     [ -n "$question" ] || fail 'usage: pixie judge [--type bool|select|score] --question "<question>" [--threshold 0.5] [--true ..] [--false ..] [--option name=desc ..] [--level desc ..] [--json] [--input]' ;;
-  *) fail 'usage: pixie ask|judge ...' ;;
+  loop)
+    recipe=''; json=0
+    while [ $# -gt 0 ]; do case "$1" in
+      --recipe|--mode)
+        [ $# -ge 2 ] || fail "$1 needs a value"
+        [ "$1" = --recipe ] && recipe="$2"
+        args+=(--data-urlencode "\${1#--}=$2"); shift ;;
+      --json) json=1 ;;
+      --input) input=1 ;;
+      *) fail "unknown option: $1" ;;
+    esac; shift; done
+    [ -n "$recipe" ] || fail 'usage: pixie loop --recipe <name> [--mode check|repair] [--json] [--input]' ;;
+  *) fail 'usage: pixie ask|judge|loop ...' ;;
 esac
 [ "$input" = 1 ] && args+=(--data-urlencode 'input@-')
 # The token travels in a config on a file descriptor, never on the command line.
@@ -105,7 +122,7 @@ out=$(curl -sS --noproxy '*' -X POST -K <(printf 'header = "Authorization: Beare
 code=\${out##*$'\\n'}; body=\${out%$'\\n'*}
 [ "$code" = 200 ] || fail "HTTP $code: $body"
 if [ "$command" = ask ]; then printf '%s\\n' "$body"; exit 0; fi
-# judge body: exit code, plain answer, then the JSON line.
+# judge and loop body: exit code, plain answer, then the JSON line.
 status=\${body%%$'\\n'*}; rest=\${body#*$'\\n'}; text=\${rest%%$'\\n'*}; line=\${rest#*$'\\n'}
 if [ "$json" = 1 ]; then printf '%s\\n' "$line"; else printf '%s\\n' "$text"; fi
 exit "$status"
@@ -141,7 +158,7 @@ export class PixieGateHelper {
 
   readonly handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const action = new URL(req.url ?? '/', 'http://x').pathname.slice(HELPER_ROUTE.length);
-    if (action !== '/ask' && action !== '/judge') return send(res, 404, 'unknown helper');
+    if (action !== '/ask' && action !== '/judge' && action !== '/loop') return send(res, 404, 'unknown helper');
     if (req.method !== 'POST') return send(res, 405, 'POST only');
     const header = req.headers.authorization;
     const entry = typeof header === 'string' && header.startsWith('Bearer ') ? this.grants.get(hash(header.slice(7))) : undefined;
@@ -161,6 +178,14 @@ export class PixieGateHelper {
       if (!instruction) return send(res, 400, 'instruction is required');
       entry.calls++;
       call = entry.grant.ask(instruction, input, signal);
+    } else if (action === '/loop') {
+      const recipe = form.get('recipe')?.trim(), mode = form.get('mode') ?? 'check';
+      if (!recipe) return send(res, 400, 'recipe is required');
+      if (mode !== 'check' && mode !== 'repair') return send(res, 400, 'mode must be check or repair');
+      if (!entry.grant.loop) return send(res, 501, 'pixie loop is unavailable in this run');
+      entry.calls++;
+      // One loop counts as one helper call; the recipe's own attempt limit and the gate timeout bound its model calls.
+      call = entry.grant.loop(recipe, mode, input, signal).then(result => `${result.exit}\n${result.text.replace(/\n/g, '\\n')}\n${JSON.stringify(result.json)}`);
     } else {
       let request: HelperJudgeRequest;
       try { request = helperJudgeRequest(form); } catch (error) { return send(res, 400, error instanceof Error ? error.message : String(error)); }

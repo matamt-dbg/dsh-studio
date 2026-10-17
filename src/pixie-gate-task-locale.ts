@@ -27,6 +27,8 @@ const messages = {
   // advanced
   advanced: ['고급', 'Advanced', '高级'],
   script: ['Pixie 훅 스크립트', 'Pixie hook script', 'Pixie 钩子脚本'], scriptHint: ['Pixie 게이트 진행 전에 호출할 스크립트를 선택할 수 있습니다. 스크립트 출력 결과에 따라 Pixie 게이트를 건너뛸 수 있습니다.', 'Choose a script to call before the Pixie gate runs. Depending on the script output, the Pixie gate can be skipped.', '可选择在 Pixie 门控运行前调用的脚本。根据脚本输出结果，可以跳过 Pixie 门控。'],
+  loop: ['Pixie Loop 레시피', 'Pixie Loop recipe', 'Pixie Loop 配方'], loopHint: ['Pixie 한 번 대신 저장된 레시피로 판정합니다. 판정은 실패하면 막고, 고치기는 통과할 때까지 고친 내용으로 바꿉니다.', 'Judge with a saved recipe instead of one Pixie call. Check stops on failure; repair reworks the content until it passes and replaces it.', '用已保存的配方代替一次 Pixie 调用进行判定。检查在失败时拦下；修复会改写内容直到通过并替换。'],
+  noLoop: ['사용 안 함', 'None', '不使用'], loopCheck: ['판정', 'Check', '检查'], loopRepair: ['고치기', 'Repair', '修复'], loopMissing: ['(저장된 레시피 없음)', '(no saved recipe)', '（无已保存配方）'], loopScript: ['훅 스크립트와 함께 쓸 수 없습니다. 스크립트 안에서 pixie loop를 쓰세요.', 'Cannot be combined with a hook script; call pixie loop from the script instead.', '不能与钩子脚本同时使用；请在脚本中调用 pixie loop。'], loopRepairPoint: ['고치기는 내용을 바꿀 수 있는 시점(사용자 지시, 에이전트 메시지, 도구 결과)에서만 됩니다.', 'Repair works only where content can be replaced (user message, agent message, tool result).', '修复仅适用于可替换内容的时机（用户消息、代理消息、工具结果）。'],
   guideLink: ['스크립트 작성 가이드', 'script guide', '脚本编写指南'], resultGuide: ['가이드', 'Guide', '指南'],
   scriptEnv: ['DSH에서 bash 프로필을 지원할 때만 사용할 수 있습니다.', 'Available only when DSH runs with a bash profile.', '仅在 DSH 支持 bash 配置文件时可用。'],
   noScript: ['사용 안 함', 'None', '不使用'], scriptDir: ['스크립트 폴더', 'Script folder', '脚本文件夹'], copyPath: ['경로 복사', 'Copy path', '复制路径'], refresh: ['목록 새로고침', 'Refresh list', '刷新列表'],

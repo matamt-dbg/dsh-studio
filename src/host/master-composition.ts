@@ -1,5 +1,5 @@
 import type { CompositionRow } from '../prompt-composition.ts';
-import { BATCH_PLUGIN, JUDGE_PLUGIN, ROLE_PLUGIN } from '../package-name.ts';
+import { BATCH_PLUGIN, JUDGE_PLUGIN, LOOP_PLUGIN, ROLE_PLUGIN } from '../package-name.ts';
 const plugin = (id: string, config?: Record<string, unknown>, suffix = id): CompositionRow => ({ id, name: `@deepseek-ai/dsh-${suffix}`, ...(config ? { config } : {}) });
 
 /** DSH preset the Studio Master follows. */
@@ -13,7 +13,7 @@ export type PluginOrigin = 'standard' | 'studio' | 'added';
  * Config overrides stay addressable. The role plugin is not here: it joins standard's delegation group.
  */
 export function studioLayer(): CompositionRow[] {
-  return [plugin('spill-policy'), { id: 'studio-batch', name: BATCH_PLUGIN }, { id: 'studio-judge', name: JUDGE_PLUGIN },
+  return [plugin('spill-policy'), { id: 'studio-batch', name: BATCH_PLUGIN }, { id: 'studio-judge', name: JUDGE_PLUGIN }, { id: 'studio-loop', name: LOOP_PLUGIN },
     plugin('tool-cordis'), plugin('tool-plugin-manager', undefined, 'plugin-manager/tools')];
 }
 const roleRow = (): CompositionRow => ({ id: 'studio-master-roles', name: ROLE_PLUGIN, config: { roles: [] } });

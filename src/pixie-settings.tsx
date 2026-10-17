@@ -2,6 +2,8 @@
  * Uses the same {@link DetailLayout} frame as the preset service so every Studio service looks alike.
  */
 import React from 'react';
+import { LoopRecipesPage, type LoopRecipeActions } from './pixie-loop-recipes-page.tsx';
+import { loopText } from './pixie-loop-locale.ts';
 import { GateTaskCompositionPage, GateTaskScopePage, useGateTasks, type GateTaskActions } from './pixie-gate-task-pages.tsx';
 import { gateComposeText } from './pixie-gate-compose-locale.ts';
 import { Button, Notice, PageHead, Segmented, SettingsRow, Toggle } from './ui.tsx';
@@ -29,9 +31,9 @@ const NO_GATES: GateTaskActions = {
   saveScriptDirectory: async () => ({ directory: '', defaultDirectory: '', custom: false, supported: false, scripts: [] }),
   trial: () => ({ result: Promise.reject(new Error('Gate API unavailable')), cancel() {} }), presets: async () => [],
 };
-type PageId = 'model' | 'threads' | 'prompt' | 'judge' | 'gate-composition' | 'gate-scope';
+type PageId = 'model' | 'threads' | 'prompt' | 'judge' | 'gate-composition' | 'gate-scope' | 'loop-recipes';
 
-export function PixieSettingsPage({ actions, gateActions, locale, navFooter }: { actions: PixieSettingsActions; gateActions?: GateTaskActions; locale: string; navFooter?: React.ReactNode }) {
+export function PixieSettingsPage({ actions, gateActions, recipeActions, locale, navFooter }: { actions: PixieSettingsActions; gateActions?: GateTaskActions; recipeActions?: LoopRecipeActions; locale: string; navFooter?: React.ReactNode }) {
   const t = (key: PixieTextKey) => pixieText(locale, key);
   const [page, setPage] = React.useState<PageId>('model');
   // Both gate pages share one draft list; Save replaces the stored definitions.
@@ -176,6 +178,7 @@ export function PixieSettingsPage({ actions, gateActions, locale, navFooter }: {
       { id: 'gate-scope', group: gt('group'), label: gt('scope'), content: <GateTaskScopePage gates={gates} presets={gatePresets} locale={locale} /> },
       { id: 'judge', group: gt('group'), label: t('pageJudge'), content: judgePage },
     ] : []),
+    ...(recipeActions ? [{ id: 'loop-recipes', group: gt('group'), label: loopText(locale, 'recipes'), content: <LoopRecipesPage actions={recipeActions} locale={locale} /> }] : []),
   ]} />;
 }
 

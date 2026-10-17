@@ -26,12 +26,19 @@ export interface GateTask {
     maxSteers: number;
     /** Show the run's result in the chat. Absent means on; see {@link showsInChat}. */
     showInChat?: boolean;
+    /** Judge with a saved Pixie Loop recipe instead of one Pixie call (#31 S15). */
+    loop?: GateLoop;
   };
   /** Presets the gate is attached to. */
   presetIds: string[];
   /** Attached presets where this gate is switched off; `enabled` stays the gate-wide switch. */
   disabledPresetIds?: string[];
 }
+
+/** `check`: judge the target and stop with Pixie's feedback when it fails. `repair`: rework it until it passes and replace it. */
+export interface GateLoop { recipe: string; mode: 'check' | 'repair' }
+/** Points whose content a repair can replace. */
+export const canRepair = (when: GateWhen) => when === 'user-message' || when === 'agent-message' || when === 'tool-after';
 
 export type GateTemplateId = 'format-check' | 'agent-protocol' | 'command-guard' | 'tool-digest' | 'verify-answer';
 export interface GateTemplate { id: GateTemplateId; when: GateWhen }
@@ -52,7 +59,7 @@ export const GATE_GUIDE_URL = 'https://github.com/matamt-dbg/dsh-studio/blob/mai
 /** 0 runs the Pixie task, 10 skips the gate, 11 applies the script's stdout as the gate output without Pixie. */
 export const HOOK_EXIT = { continue: 0, skip: 10, direct: 11 } as const;
 export const HOOK_ENV: readonly string[] = ['PIXIE_POINT', 'PIXIE_TOOL_NAME', 'PIXIE_TOOL_ARGS', 'PIXIE_AGENT', 'PIXIE_SESSION_ID', 'PIXIE_TURN', 'PIXIE_GATE_NAME', 'PIXIE_URL', 'PIXIE_TOKEN'];
-export const HOOK_HELPERS: readonly string[] = ['pixie ask', 'pixie judge'];
+export const HOOK_HELPERS: readonly string[] = ['pixie ask', 'pixie judge', 'pixie loop'];
 
 /** On for this preset: switched on, attached, and not switched off for that preset. */
 export const enabledFor = (task: GateTask, preset: string) => task.enabled && task.presetIds.includes(preset) && !task.disabledPresetIds?.includes(preset);
@@ -88,7 +95,7 @@ export function taskVariables(task: GateTask): string[] {
 export function taskProblem(task: GateTask): 'name' | 'instruction' | 'limits' | undefined {
   if (!task.name.trim()) return 'name';
   // A script may conclude by itself (exit 10/11); it then needs no Pixie task. Exit 0 without one is a run error.
-  if (!task.instruction.trim() && task.advanced.script === undefined) return 'instruction';
+  if (!task.instruction.trim() && task.advanced.script === undefined && task.advanced.loop === undefined) return 'instruction';
   if (!(task.advanced.timeoutMs > 0) || !Number.isInteger(task.advanced.maxSteers) || task.advanced.maxSteers < 0) return 'limits';
   return undefined;
 }

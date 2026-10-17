@@ -7,7 +7,8 @@ import type { GateTaskRunner, GateTaskExecution } from './pixie-gate-task-runner
 /** Compatibility projection for the R3 execution cards, not a stage executor. */
 export async function executeTask(task: GateTask, original: string, signal: AbortSignal, runner: () => Promise<GateTaskRunner>, context?: () => HookContext) {
   let execution: GateTaskExecution;
-  try { execution = await (await runner()).run(task, original, signal, task.advanced.script ? context?.() : undefined); }
+  // Scripts need the hook context; loop gates need its session id to record their run in that session.
+  try { execution = await (await runner()).run(task, original, signal, task.advanced.script || task.advanced.loop ? context?.() : undefined); }
   catch (error) { execution = { status: signal.aborted ? 'cancelled' : 'error', error: String(error), usage: { inputTokens: 0, outputTokens: 0 } }; }
   const output: GateOutput = execution.output ?? { verdict: execution.status === 'error' && task.advanced.onError === 'block' ? 'stop' : 'pass', ...(execution.error ? { reason: execution.error } : {}) };
   const plan = gateOutputPlan(task, output, original);

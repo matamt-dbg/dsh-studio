@@ -29,6 +29,10 @@ const descriptor = (method: string, parameters: string[], extra: Record<string, 
 type RemoteValue<T> = Promise<{ ok: true; value: T } | { ok: false; error: { message: string } }>;
 interface PixieRemote {
   gateRuns(sessionId: string): RemoteValue<GateRunRecord>;
+  loopRuns(sessionId: string): RemoteValue<import('./pixie-loop-contracts.ts').LoopRunRecord>;
+  loopRecipes(): RemoteValue<import('./pixie-loop-recipes.ts').LoopRecipeList>;
+  saveLoopRecipe(payload: string, signal: AbortSignal): RemoteValue<import('./pixie-loop-recipes.ts').LoopRecipe>;
+  deleteLoopRecipe(name: string): RemoteValue<import('./pixie-loop-recipes.ts').LoopRecipeList>;
   followGates(sessionId: string): AsyncIterable<GateRunFrame> & { dispose(): void };
   resolveGateRejection(sessionId: string, runId: string, status: string): RemoteValue<unknown>;
   sessionGates(sessionId: string): RemoteValue<import('./pixie-gate-contracts.ts').SessionGates>;
@@ -69,6 +73,10 @@ interface SidebarServices {
 export function pixieDescriptors() {
   return [
     descriptor('gateRuns', ['sessionId']),
+    descriptor('loopRuns', ['sessionId']),
+    descriptor('loopRecipes', []),
+    descriptor('saveLoopRecipe', ['payload'], { cancellation: { parameter: 'signal' } }),
+    descriptor('deleteLoopRecipe', ['name']),
     descriptor('followGates', ['sessionId'], { mode: 'stream', cancellation: { parameter: 'signal' } }),
     descriptor('resolveGateRejection', ['sessionId', 'runId', 'status']),
     descriptor('sessionGates', ['sessionId']),
@@ -147,6 +155,7 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
     scripts: () => unwrap(remote().gateScripts()),
     saveScriptDirectory: (scriptDirectory: string) => unwrap(remote().saveGateScriptDirectory(JSON.stringify({ scriptDirectory }))),
     // Studio-made presets only: Studio Master is a read-only view of the DSH composition, not a Studio preset.
+    recipes: async () => (await unwrap(remote().loopRecipes())).recipes.map(recipe => recipe.name),
     presets: async () => {
       const catalog = ctx.get('remote.studioCatalog' as never) as unknown as { listPresets(): RemoteValue<{ id: string; name: string; readOnly?: boolean }[]> };
       return (await unwrap(catalog.listPresets())).filter(preset => !preset.readOnly).map(({ id, name }) => ({ id, name }));
@@ -158,10 +167,18 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
       await unwrap(session.openWorkspacePath({ path }));
     },
   };
+  const recipeActions = {
+    list: () => unwrap(remote().loopRecipes()),
+    save: (recipe: { name: string; description?: string; spec: unknown }) => {
+      const controller = new AbortController();
+      return { result: unwrap(remote().saveLoopRecipe(JSON.stringify(recipe), controller.signal)), cancel: () => controller.abort() };
+    },
+    remove: (name: string) => unwrap(remote().deleteLoopRecipe(name)),
+  };
   function SettingsPage() {
     const active = useLocale();
     // Rendered inside the shell surface, like the preset service, so both services share one frame.
-    return withMarkdown(<PixieSettingsPage actions={settingsActions} gateActions={gateActions} locale={active} navFooter={options.navFooter?.(active)} />);
+    return withMarkdown(<PixieSettingsPage actions={settingsActions} gateActions={gateActions} recipeActions={recipeActions} locale={active} navFooter={options.navFooter?.(active)} />);
   }
   ctx.slots.inject('local.dsh-studio.services', () => ctx.slots.register({
     name: 'local.dsh-studio.services', id: 'pixie', order: 10, label: () => pixieText(locale(), 'settingsTitle'),
@@ -171,6 +188,7 @@ export function mountPixie(ctx: StudioContext, options: { navFooter?: (locale: s
     view: () => unwrap(remote().view(sessionId)),
     follow: listener => followPixieStream(() => remote().follow(sessionId), listener),
     gateRuns: () => unwrap(remote().gateRuns(sessionId)),
+    loopRuns: () => unwrap(remote().loopRuns(sessionId)),
     followGates: listener => followPixieStream(() => remote().followGates(sessionId), listener),
     resolveGateRejection: (runId, status) => unwrap(remote().resolveGateRejection(sessionId, runId, status)),
     sessionGates: () => unwrap(remote().sessionGates(sessionId)),

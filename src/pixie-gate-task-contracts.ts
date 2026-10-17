@@ -1,4 +1,4 @@
-import { GATE_WHENS, enabledFor, taskProblem, type GateTask } from './pixie-gate-task.ts';
+import { GATE_WHENS, canRepair, enabledFor, taskProblem, type GateTask } from './pixie-gate-task.ts';
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const text = (value: unknown): value is string => typeof value === 'string' && !!value.trim();
@@ -14,6 +14,12 @@ export function validateGateTask(value: unknown): GateTask {
     || typeof advanced.maxSteers !== 'number'
     || (advanced.showInChat !== undefined && typeof advanced.showInChat !== 'boolean')) throw new Error('Invalid gate advanced options');
   if (advanced.script !== undefined && (typeof advanced.script !== 'string' || (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(advanced.script) || advanced.script.includes('..')))) throw new Error('Invalid gate script filename');
+  if (advanced.loop !== undefined) {
+    const loop = advanced.loop as Record<string, unknown> | undefined;
+    if (!object(loop) || typeof loop.recipe !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(loop.recipe) || !['check', 'repair'].includes(loop.mode as string) || Object.keys(loop).some(key => key !== 'recipe' && key !== 'mode')) throw new Error('Invalid gate loop: { recipe, mode: check | repair }');
+    if (loop.mode === 'repair' && !canRepair(value.when as GateTask['when'])) throw new Error('Gate loop repair needs a point whose content can be replaced (user message, agent message, tool result)');
+    if (advanced.script !== undefined) throw new Error('A gate uses either a hook script or a loop recipe; call pixie loop from the script to combine them');
+  }
   // The former judge option was removed (U26); a stored value is ignored and dropped on save.
   if (!Array.isArray(value.presetIds) || !value.presetIds.every(text)) throw new Error('Invalid gate presetIds');
   if (value.disabledPresetIds !== undefined && (!Array.isArray(value.disabledPresetIds) || !value.disabledPresetIds.every(text))) throw new Error('Invalid gate disabledPresetIds');

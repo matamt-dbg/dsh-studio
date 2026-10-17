@@ -62,13 +62,17 @@ Restart the web GUI or the app, then open **DSH Studio** from the sidebar. Each 
 - **Prompt preview** — see the system prompt, tool schemas, runtime context and per-turn messages a preset produces, without starting an agent.
 - **Execution settings** — every plugin is included by default; leave plugins out of a preset, add installed packages, and override plugin configuration for one preset only.
 - **Subagents** — DSH's generic subagent tools become a single `subagent_role` tool. Define roles with their own model, reasoning effort, fresh or fork start, and persona; with no roles, `subagent_role` starts a child that inherits the parent's settings.
+- **Per-session subagent roles** — a **Subagents** tab in each session changes a role's model, reasoning effort and instructions, or adds a role, for that session only.
+- **DSH in Korean** — choosing 한국어 in DSH's language setting also translates DSH's own screens.
+- **Studio shortcuts** — SettingsX adds keyboard commands DSH lacks: previous/next session, go to session 1–9, copy the working folder, full screen.
 - **Pixie and Pixie Gate** — a side model in the right sidebar (`/pixie`) that never enters the conversation, and gates that check prompts, tool calls and finished answers per preset. Hook scripts can judge with a decision engine (an LLM or TypeSafe Jev), conclude without Pixie, and leave notes under the answer, such as a Korean translation. Agents get the same engine as the `judge` tool, and a `studio-pixie-hook-guide` skill to write gates. See the [Pixie Gate guide](docs/appendix/pixie-gate.md).
+- **Pixie Loop** — the `pixie_loop` tool runs many independent items through work → exact checks → decision-engine judgment → Pixie feedback → retry outside the agent's context, and returns only counts, a results file and the items that still failed. Outputs can be run and judged by what they print (`act`), worked step by step, or picked from listed options. Saved recipes also judge or repair content in Pixie Gates and hook scripts (`pixie loop`). Runs show in the Pixie tab › Loops; a `studio-pixie-loop-guide` skill writes the specs. See the [Pixie Loop guide](docs/appendix/pixie-loop.md).
 
 | Prompts & tools | Prompt preview | Subagent roles |
 |---|---|---|
 | ![Tools](docs/images/en/tools.png) | ![Preview](docs/images/en/prompt-preview.png) | ![Roles](docs/images/en/role-editor.png) |
 
-**Introduction: [English](docs/introduction.md) · [한국어](docs/introduction.ko.md)** · **User guide: [English](docs/guide.md) · [한국어](docs/guide.ko.md)** · **[Changelog](CHANGELOG.md)**
+**What's new: [English](docs/highlights.md) · [한국어](docs/highlights.ko.md)** · **Introduction: [English](docs/introduction.md) · [한국어](docs/introduction.ko.md)** · **User guide: [English](docs/guide.md) · [한국어](docs/guide.ko.md)** · **[Changelog](CHANGELOG.md)**
 
 ## Quick start
 

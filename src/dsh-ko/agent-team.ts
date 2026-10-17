@@ -1,0 +1,31 @@
+import type { DshKoNamespace } from '../dsh-ko-locale.ts';
+
+export default {
+  ko: {
+    blocked: '종속성에 의해 차단됨',
+    current: '현재 대화',
+    empty: '아직 공유 작업이 없습니다. 대화에서 만들어 보십시오.',
+    failure: '저장된 팀 레코드가 올바르지 않습니다: {message}',
+    loading: '팀을 불러오고 있습니다…',
+    'memberStatus.failed': '실패함',
+    'memberStatus.inactive': '비활성',
+    'memberStatus.provisioning': '프로비저닝 중',
+    'memberStatus.running': '실행 중',
+    model: '모델',
+    open: '멤버 대화 열기',
+    owner: '소유자',
+    ready: '준비됨',
+    roster: '멤버',
+    'status.completed': '완료됨',
+    'status.in_progress': '진행 중',
+    'status.pending': '대기 중',
+    'task.collapse': '줄여서 보기',
+    'task.expand': '자세히 보기',
+    tasks: '공유 작업',
+    trigger: 'Agent Team',
+    unavailable: '팀을 사용할 수 없습니다',
+    unowned: '소유자 없음',
+    writeScopes: '쓰기 권한 범위',
+  },
+  fallback: ['blockedBy'],
+} satisfies DshKoNamespace;

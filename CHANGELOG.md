@@ -2,6 +2,74 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.6.0 — 2026-10-17
+
+Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.
+
+### Highlights
+
+- **Pixie Loop.** The new `pixie_loop` tool runs many independent items through work → exact checks → decision-engine judgment → Pixie feedback → retry, outside the agent's context. Criteria are compiled once into fixed questions and must separate pass and fail examples before the run starts. The agent gets back only counts, a results file and the items that still failed; every attempt is in **Pixie tab → Loops**. See the [Pixie Loop guide](docs/appendix/pixie-loop.md).
+- **Run, step and choose.** `act` runs each output with the session's `bash` tool and judges what it printed (for example trying CSS selectors in a page). `mode: "episode"` works step by step until a goal is reached, and `select` lets the decision engine pick one listed option per item or step. `route` groups results by a choice answer.
+- **Loop recipes in gates and hook scripts.** Save a spec as a recipe in **Studio → Pixie → Gates → Loop recipes**; its checks are calibrated once when saved. A gate can judge with a recipe (**Check** stops with Pixie's feedback, **Repair** replaces the content once it passes), and hook scripts can call `pixie loop --recipe <name>`.
+- **Per-session subagent roles.** A new **Subagents** tab next to Chat and Trajectory changes a role's model, reasoning effort and instructions for one session only, and adds roles that exist only in that session. The preset and other sessions are unchanged. See [Per-session subagent roles](docs/guide.md#per-session-subagent-roles).
+- **Independent of later preset changes.** The first change copies the whole role into the session; later preset edits do not reach the copy until you choose **Use preset**.
+- **Subagents follow their main session.** Subagents started from the session, and the subagents they start, use its roles. A subagent session's tab shows them read-only.
+- **Studio shortcuts.** **DSH Studio → SettingsX → Shortcuts** adds keyboard commands DSH does not have: previous/next session in sidebar order, go to session 1–9, copy the working folder, and full screen. Assign keys in DSH's shortcut settings. See [Studio shortcuts](docs/guide.md#studio-shortcuts-settingsx).
+- **DSH in Korean.** Choosing **한국어** in DSH **Settings → General → Language** now also translates DSH's own screens: 2,610 of the 2,779 client strings in DSH `0.2.0-rc.2` and `0.2.1-alpha.2` are translated, and 111 app names, units and format strings stay as they are. See [Show DSH in Korean](docs/guide.md#show-dsh-in-korean).
+
+### Changes
+
+- Studio Master includes the `pixie_loop` tool; Optimized does not. Studio installs a new `studio-pixie-loop-guide` skill into `<DSH home>/skills/`.
+- Loop runs are stored in `<profile>/studio-data/pixie/loops/` per session (latest 50) and removed with deleted sessions. Recipes are stored in `<profile>/studio-data/pixie-loop/recipes.json`.
+- `act` accepts only `bash`, requires `safeToRepeat: true`, quotes `{{output}}`, `{{input}}`, `{{id}}` as single shell words, and runs one at a time unless `isolated: true`.
+- Item contents are sent to the Pixie model provider and the decision engine.
+- Session role changes apply from the next delegation; subagents already running keep their settings.
+- Models are checked when a session role is saved and again before each call.
+- A session role added to a preset without roles is used instead of the parent-matching child.
+- Session roles are stored in `<profile>/studio-data/session-roles/`, kept for archived sessions and removed with deleted sessions.
+- Korean dictionaries are registered per DSH namespace. A namespace where DSH already ships Korean keeps DSH's dictionary, and Studio logs a warning for it; the other namespaces still register.
+- Strings without a natural Korean translation (58) and text from the DSH Host or desktop app stay in English.
+
+### Upgrade notes
+
+- A gate can use either a hook script or a loop recipe, not both; call `pixie loop` from the script to combine them.
+- Every session now shows the Chat / Subagents tab bar, also when developer tools (Trajectory) are off.
+- The model-visible `subagent_role` tool description no longer depends on whether the preset defines roles. It now tells the agent to use `action=list` and explains the parent-matching fallback, so existing presets see slightly different tool text.
+
+### 한국어
+
+DSH `0.2.0-rc.2` 또는 `0.2.1-alpha.2`가 필요합니다.
+
+#### 주요 변경
+
+- **Pixie Loop.** 새 `pixie_loop` 도구가 서로 독립인 항목 여러 개를 작업 → 정확한 검사 → 결정 엔진 판정 → Pixie 피드백 → 재시도로 처리합니다. 이 과정은 에이전트의 대화 밖에서 돕니다. 기준은 한 번만 질문으로 바뀌어 고정되고, 시작하기 전에 통과 예시와 실패 예시를 가를 수 있어야 합니다. 에이전트는 통과 수, 결과 파일, 끝내 통과하지 못한 항목만 돌려받고, 모든 시도는 **Pixie 탭 → 루프**에서 봅니다. [Pixie Loop 가이드](docs/appendix/pixie-loop.ko.md)를 참고하세요.
+- **실행, 단계별 진행, 선택.** `act`는 각 출력에 대해 세션의 `bash` 도구로 명령을 실행하고 그 결과로 판정합니다(예: 페이지의 CSS 셀렉터 테스트). `mode: "episode"`는 목표에 도달할 때까지 한 단계씩 진행하고, `select`는 각 항목이나 단계에서 결정 엔진이 보기 중 하나를 선택하도록 합니다. `route`는 choice 질문의 답에 따라 결과를 분기합니다.
+- **게이트와 훅 스크립트에서 쓰는 Loop 레시피.** **Studio → Pixie → 게이트 → Loop 레시피**에서 명세를 레시피로 저장합니다. 저장할 때 검사를 한 번 수행합니다. 게이트는 레시피로 판정할 수 있고(**판정**은 Pixie 피드백과 함께 차단하고, **고치기**는 통과하면 고친 내용으로 바꿉니다), 훅 스크립트는 `pixie loop --recipe <이름>`을 호출합니다.
+- **세션별 서브에이전트 역할.** Chat, Trajectory 옆에 있는 새 **Subagents** 탭에서 역할의 모델·추론 수준·지침을 해당 세션에서만 바꾸고, 그 세션에서만 사용할 역할을 추가합니다. 프리셋과 다른 세션은 변경되지 않습니다. [세션별 서브에이전트 역할](docs/guide.ko.md#세션별-서브에이전트-역할)을 참고하세요.
+- **이후 프리셋 변경과 무관.** 처음 바꿀 때 역할 전체가 세션에 복사됩니다. 이후 프리셋을 고쳐도 **프리셋 값 사용**을 누르기 전까지 복사본은 바뀌지 않습니다.
+- **서브에이전트는 메인 세션을 따릅니다.** 세션에서 시작된 서브에이전트와 그 서브에이전트가 다시 시작한 서브에이전트도 해당 세션의 역할을 사용합니다. 서브에이전트 세션의 탭은 읽기 전용입니다.
+- **Studio 단축키.** **DSH Studio → SettingsX → 단축키**에서 DSH에 없는 키보드 명령을 더합니다. 사이드바 순서로 이전·다음 세션, 세션 1–9로 이동, 작업 폴더 복사, 전체 화면입니다. 키는 DSH 단축키 설정에서 지정합니다. [Studio 단축키](docs/guide.ko.md#studio-단축키-settingsx)를 참고하세요.
+- **DSH 화면 한국어.** DSH **Settings → General → Language**(한국어 화면에서는 **설정 → 일반 → 언어**)에서 **한국어**를 고르면 DSH 자체 화면도 한국어로 바뀝니다. DSH `0.2.0-rc.2`·`0.2.1-alpha.2`의 클라이언트 문구 2,779개 중 2,610개를 번역했고, 앱 이름·단위·형식 문자열 111개는 그대로 둡니다. [DSH 화면을 한국어로 보기](docs/guide.ko.md#dsh-화면을-한국어로-보기)를 참고하세요.
+
+#### 변경 사항
+
+- Studio Master에는 `pixie_loop` 도구가 포함되고, Optimized에는 포함되지 않습니다. 새 스킬 `studio-pixie-loop-guide`는 `<DSH 홈>/skills/`에 자동으로 설치됩니다.
+- 루프 실행 기록은 세션별로 `<프로필>/studio-data/pixie/loops/`에 저장되며(최근 50개), 세션을 삭제하면 해당 세션의 기록도 함께 삭제됩니다. 레시피는 `<프로필>/studio-data/pixie-loop/recipes.json`에 저장됩니다.
+- `act`는 `bash`만 받고 `safeToRepeat: true`가 필요합니다. `{{output}}`, `{{input}}`, `{{id}}`는 셸 단어 하나로 감싸며, `isolated: true`가 아니면 한 번에 하나씩 실행합니다.
+- 항목의 내용은 Pixie 모델 제공자와 결정 엔진으로 전송됩니다.
+- 세션 역할 변경 사항은 다음 위임부터 적용되며, 이미 실행 중인 서브에이전트는 그대로입니다.
+- 세션 역할의 모델은 저장할 때와 매 호출 전에 확인합니다.
+- 역할이 없는 프리셋에 세션 역할을 추가하면 부모와 같은 설정 대신 그 역할로 위임합니다.
+- 세션 역할은 `<프로필>/studio-data/session-roles/`에 저장되며, 보관한 세션은 유지하고 삭제한 세션은 함께 지웁니다.
+- 한국어 사전은 DSH 네임스페이스별로 따로 등록합니다. DSH가 이미 한국어를 추가한 네임스페이스에서는 DSH 사전을 사용하고 경고만 남기며, 나머지 네임스페이스는 그대로 등록합니다.
+- 자연스러운 번역을 찾지 못한 문구 58개와 DSH Host·데스크톱 앱이 보내는 문구는 영어로 남습니다.
+
+#### 업그레이드 참고
+
+- 게이트는 훅 스크립트와 Loop 레시피 중 하나만 사용할 수 있습니다. 함께 사용하려면 스크립트 안에서 `pixie loop`를 호출하세요.
+- 개발자 도구(Trajectory)를 꺼 둬도 모든 세션에 Chat / Subagents 탭 줄이 표시됩니다.
+- 모델이 보는 `subagent_role` 도구 설명이 프리셋의 역할 유무와 상관없는 한 가지 문구로 바뀌었습니다. `action=list`로 역할을 확인하라는 안내와 역할이 없을 때 부모와 같은 설정으로 위임한다는 설명이 포함되어 있어, 기존 프리셋에서도 도구 문구가 조금 달라집니다.
+
 ## 0.5.0 — 2026-10-17
 
 Requires DSH `0.2.0-rc.2` or `0.2.1-alpha.2`.
