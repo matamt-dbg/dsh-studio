@@ -49,6 +49,53 @@ test('saving a recipe compiles and calibrates once; a calibration failure saves 
 
 const recipe = { name: 'ko', spec: validateRecipeSpec(spec), checks, compiledBy: 'spec', savedAt: 1 };
 
+test('check preserves trimmed output, recorded instruction and zero generation usage', async () => {
+  for (const target of ['  저장됨\n ', ' \n\t']) {
+    const outputs = [];
+    const accepting = { ...judge, async judge(request) { outputs.push(request.state.output); return { ok: true, answers: { korean: { type: 'noul', noul: 1 } } }; } };
+    const outcome = await runRecipeOn(recipe, 'check', target, { model, judge: accepting, llm: { stream() { assert.fail('passing check must not call LLM'); } } }, { sessionId: 's', signal: signal(), source: 'hook' });
+    assert.equal(outcome.passed, true);
+    assert.equal(outcome.output, target.trim());
+    assert.deepEqual(outputs, [target.trim()]);
+    assert.deepEqual(outcome.run.usage.pixie, { inputTokens: 0, outputTokens: 0 });
+    assert.equal(outcome.run.instruction, 'Reply with the user message exactly as given, unchanged.');
+  }
+});
+
+test('check failure uses only feedback LLM, while missing model and cancellation stay errors', async () => {
+  const calls = [];
+  const deps = { model, judge, llm: { stream(options) { calls.push(options.system); return reply('Write it in Korean.'); } } };
+  const options = { sessionId: 's', signal: signal(), source: 'gate' };
+  const failed = await runRecipeOn(recipe, 'check', 'Saved', deps, options);
+  assert.equal(failed.passed, false);
+  assert.deepEqual(calls, [INTERPRET_SYSTEM]);
+  assert.deepEqual(failed.run.usage.pixie, { inputTokens: 4, outputTokens: 2 });
+  calls.length = 0;
+  const missing = await runRecipeOn(recipe, 'check', '저장', { ...deps, model: undefined }, options);
+  assert.equal(missing.run.status, 'error');
+  assert.match(missing.reason, /No Pixie model/);
+  const controller = new AbortController(); controller.abort();
+  const cancelled = await runRecipeOn(recipe, 'check', '저장', deps, { ...options, signal: controller.signal });
+  assert.equal(cancelled.run.status, 'cancelled');
+  assert.equal(cancelled.passed, false);
+  assert.deepEqual(calls, []);
+});
+
+test('check exact-check failure bypasses judge and keeps feedback', async () => {
+  const exact = { ...recipe, spec: { ...recipe.spec, codeChecks: [{ type: 'regex', pattern: '^required$', expect: 'match' }] } };
+  const calls = [];
+  const outcome = await runRecipeOn(exact, 'check', 'other', {
+    model,
+    judge: { ...judge, async judge() { assert.fail('exact-check failure must bypass judge'); } },
+    llm: { stream(options) { calls.push(options.system); return reply('Use the required text.'); } },
+  }, { sessionId: 's', signal: signal(), source: 'hook' });
+  assert.equal(outcome.passed, false);
+  assert.equal(outcome.run.items[0].attempts.length, 1);
+  assert.equal(outcome.run.items[0].attempts[0].codeFailures.length, 1);
+  assert.equal(outcome.feedback, 'Use the required text.');
+  assert.deepEqual(calls, [INTERPRET_SYSTEM]);
+});
+
 test('check judges the target unchanged; repair reworks it with retries and returns the passing text', async () => {
   const pass = await runRecipeOn(recipe, 'check', '저장했습니다', { llm: llm(() => 'never used'), model, judge }, { sessionId: 's', signal: signal(), source: 'gate' });
   assert.equal(pass.passed, true); assert.deepEqual(recipeGateOutput('check', pass), { verdict: 'pass' });
@@ -86,6 +133,21 @@ test('a loop gate concludes from the recipe, records the run, and counts usage',
   task.advanced.loop = { recipe: 'ko', mode: 'check' };
   const stopped = await runner.run(task, 'Saved', signal(), { sessionId: 'session-1', cwd: '/tmp', turn: 1, agent: 'child' });
   assert.equal(stopped.output.verdict, 'stop'); assert.match(stopped.output.reason, /Did not pass ko/);
+});
+
+test('gate recording is final-only and rejection does not change its verdict', async () => {
+  const records = [];
+  const runner = new GateTaskRunner({ llm: llm(() => '저장됨'), model, judge, loop: {
+    recipe: async () => recipe,
+    record: async run => { records.push(run); throw new Error('record unavailable'); },
+  } });
+  const task = makeTask('Korean', 'agent-message', '');
+  task.advanced.loop = { recipe: 'ko', mode: 'check' };
+  const result = await runner.run(task, '저장됨', signal(), { sessionId: 'session-1', cwd: '/tmp', turn: 1, agent: 'child' });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(result.output, { verdict: 'pass' });
+  assert.equal(records.length, 1);
+  assert.equal(records[0].status, 'done');
 });
 
 function bash(command, env, stdin = '') {

@@ -28,3 +28,22 @@ test('packaged tasks use native jobs and reject failed or foreign dependencies',
  await assert.rejects(tool.execute({ command: 'bad', description: 'bad', requires_success: [first.task_id] }, { ...context, agent: { id: 'other' } }), /foreign/);
  await life.dispose();
 });
+test('read_batch without maxLines lets read use its own limit', async () => {
+ let tool; const calls = []; const life = createLifetime();
+ installBatch({ get: () => ({ register(t) { tool = t; return () => {}; }, async execute(call) { calls.push(call); return { isError: false, content: [] }; } }) }, life, true, 8, undefined);
+ await tool.execute({ calls: [{ name: 'read', arguments: { file_path: 'a' } }, { name: 'read', arguments: { file_path: 'b', limit: 5000 } }] }, exec());
+ assert.equal(calls.length, 2); assert.ok(!/requires limit/.test(tool.description));
+ await life.dispose();
+});
+test('read_batch spill exemption runs inside spill-policy and replaces the value', async () => {
+ const { Context } = await import('@deepseek-ai/cordis');
+ const { exemptFromSpill } = await import('../src/host/batch-tool.ts');
+ const ctx = new Context();
+ // Mirrors dsh-spill-policy: prepended, passes value replacements through, otherwise bounds content.
+ const seen = [];
+ ctx.on('tools/post-execute', async (e, r, next) => { const d = await next(); seen.push(d); return Object.hasOwn(d, 'value') ? d : { kind: 'accept', content: [{ type: 'text', text: 'SPILLED' }] }; }, { prepend: true });
+ exemptFromSpill(ctx);
+ const run = name => ctx.waterfall('tools/post-execute', { name }, { isError: false, value: [{ ok: 1 }], content: [] }, async () => ({ kind: 'accept' }));
+ const batch = await run('read_batch'); assert.deepEqual(batch, { kind: 'accept', value: [{ ok: 1 }] });
+ const bash = await run('bash'); assert.equal(bash.content[0].text, 'SPILLED');
+});

@@ -34,6 +34,7 @@ const labels: Record<string, Label> = {
   '@deepseek-ai/dsh-tool-cordis': L('플러그인 개발 조회', 'Plugin inspection', '插件开发查询', 'cordis_inspect_* 도구', 'cordis_inspect_* tools', 'cordis_inspect_* 工具'),
   '@deepseek-ai/dsh-plugin-manager/tools': L('플러그인 관리 도구', 'Plugin manager tool', '插件管理工具', 'plugin_manager 도구', 'plugin_manager tool', 'plugin_manager 工具'),
   '@matamt-dbg/dsh-studio/batch': L('여러 파일 한 번에 읽기', 'Batch reads', '批量读取', 'read_batch 도구 (Studio)', 'read_batch tool (Studio)', 'read_batch 工具 (Studio)'),
+  '@matamt-dbg/dsh-studio/edit-batch': L('한 파일 여러 곳 고치기', 'Batch edits', '批量编辑', 'edit_batch 도구 (Studio)', 'edit_batch tool (Studio)', 'edit_batch 工具 (Studio)'),
   '@matamt-dbg/dsh-studio/judge': L('결정 엔진 판정', 'Decision engine judge', '决策引擎判定', 'judge 도구 (Studio)', 'judge tool (Studio)', 'judge 工具 (Studio)'),
   '@matamt-dbg/dsh-studio/loop': L('Pixie 반복 작업', 'Pixie loop', 'Pixie 循环', 'pixie_loop 도구 (Studio)', 'pixie_loop tool (Studio)', 'pixie_loop 工具 (Studio)'),
   '@matamt-dbg/dsh-studio/roles': L('서브에이전트 역할', 'Subagent roles', '子代理角色', 'subagent_role 도구 (Studio)', 'subagent_role tool (Studio)', 'subagent_role 工具 (Studio)'),

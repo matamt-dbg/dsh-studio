@@ -323,6 +323,7 @@ var PACKAGE_NAME = "@matamt-dbg/dsh-studio";
 var POLICY_PLUGIN = `${PACKAGE_NAME}/policy`;
 var ROLE_PLUGIN = `${PACKAGE_NAME}/roles`;
 var BATCH_PLUGIN = `${PACKAGE_NAME}/batch`;
+var EDIT_BATCH_PLUGIN = `${PACKAGE_NAME}/edit-batch`;
 var JUDGE_PLUGIN = `${PACKAGE_NAME}/judge`;
 var LOOP_PLUGIN = `${PACKAGE_NAME}/loop`;
 
@@ -336,6 +337,7 @@ var OPTIMIZED_TOOLS = [
   "read",
   "write",
   "edit",
+  "edit_batch",
   "glob",
   "grep",
   "job_output",
@@ -353,7 +355,11 @@ var OPTIMIZED_TOOLS = [
   "interrupt_agent",
   "list_agents",
   "workflow",
-  "subagent_role"
+  "subagent_role",
+  "judge",
+  "pixie_loop",
+  "cordis_inspect_list",
+  "cordis_inspect_query"
 ];
 var ALLOWED_TOOLS = /* @__PURE__ */ new Set([...OPTIMIZED_TOOLS, ...GENERIC_DELEGATION_TOOLS, LEGACY_ROLE_TOOL]);
 
@@ -377,6 +383,11 @@ var POLICY_SECTION_ORDERS = Object.freeze({
   "tool:workflow": "TOOL_WORKFLOW"
 });
 
+// src/host/preset-store.ts
+import { dirname as dirname2, join as join2 } from "node:path";
+import { dump } from "js-yaml";
+import { entryListSchema as entryListSchema2 } from "@deepseek-ai/cordis-plugin-include";
+
 // src/config-overrides.ts
 var LEGACY_DROPPED_PACKAGES = Object.freeze([
   "@deepseek-ai/dsh-agent-instructions",
@@ -389,11 +400,6 @@ var LEGACY_DROPPED_PACKAGES = Object.freeze([
 var CONFIG_REQUIRES = Object.freeze({
   "@deepseek-ai/dsh-command-compact": "@deepseek-ai/dsh-compaction-basic"
 });
-
-// src/host/preset-store.ts
-import { dirname as dirname2, join as join2 } from "node:path";
-import { dump } from "js-yaml";
-import { entryListSchema as entryListSchema2 } from "@deepseek-ai/cordis-plugin-include";
 
 // src/provider-fields.ts
 var field = (key, type, value, minimum) => ({ key, type, ...value === void 0 ? {} : { value }, ...minimum === void 0 ? {} : { minimum } });

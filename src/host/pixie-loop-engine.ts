@@ -208,7 +208,7 @@ const bucketOf = (spec: LoopSpec, attempt: LoopAttempt | undefined) => {
 };
 
 /** Run one item: its own thread accumulates attempts (retry) or steps (episode) with feedback; nothing from other items enters it. */
-async function runItem(item: LoopItem, checks: LoopChecks | undefined, spec: LoopSpec, deps: LoopEngineDeps, lock: ActLock, signal: AbortSignal, usage: { pixie: PixieUsage; judge: PixieUsage }, onAttempt: (result: LoopItemResult) => void, budget: () => void): Promise<LoopItemResult> {
+async function runItem(item: LoopItem, checks: LoopChecks | undefined, spec: LoopSpec, deps: LoopEngineDeps, lock: ActLock, signal: AbortSignal, usage: { pixie: PixieUsage; judge: PixieUsage }, onAttempt: (result: LoopItemResult) => void, budget: () => void, outputSource?: 'input'): Promise<LoopItemResult> {
   // Each model or engine call checks the budget; an exceeded budget aborts `signal` before the next call starts.
   const spent = () => { budget(); signal.throwIfAborted(); };
   const system = generateSystem(spec);
@@ -237,7 +237,8 @@ async function runItem(item: LoopItem, checks: LoopChecks | undefined, spec: Loo
         return result;
       }
     } else {
-      output = await pixieCall(deps, system, requestMessages(thread, deps.model!), signal, usage.pixie);
+      // Recipe checks keep the historical pixieCall trim without synthesizing a model stream.
+      output = outputSource === 'input' ? item.input.trim() : await pixieCall(deps, system, requestMessages(thread, deps.model!), signal, usage.pixie);
       spent();
       thread.push({ role: 'assistant', text: output });
     }
@@ -278,7 +279,7 @@ async function runItem(item: LoopItem, checks: LoopChecks | undefined, spec: Loo
 }
 
 /** Run a loop over `items` with the validated `spec`. Never throws for model or engine failures: they end up in the run. */
-export async function runLoop(spec: LoopSpec, items: readonly LoopItem[], deps: LoopEngineDeps, options: { sessionId: string; signal: AbortSignal; runId?: string; outputPath?: string; checks?: LoopChecks; recipe?: string; source?: LoopRun['source'] }): Promise<LoopRun> {
+export async function runLoop(spec: LoopSpec, items: readonly LoopItem[], deps: LoopEngineDeps, options: { sessionId: string; signal: AbortSignal; runId?: string; outputPath?: string; checks?: LoopChecks; recipe?: string; source?: LoopRun['source']; outputSource?: 'input' }): Promise<LoopRun> {
   const now = deps.now ?? Date.now;
   const run: LoopRun = {
     id: options.runId ?? randomUUID(), sessionId: options.sessionId, status: 'compiling', startedAt: now(), instruction: spec.work.instruction, mode: spec.mode,
@@ -334,7 +335,7 @@ export async function runLoop(spec: LoopSpec, items: readonly LoopItem[], deps: 
         const item = items[next++]!;
         let result: LoopItemResult;
         try {
-          result = await runItem(item, checks, spec, deps, lock, signal, run.usage, partial => { live.set(item.id, structuredClone(partial)); checkTokens(); publish(); }, checkTokens);
+          result = await runItem(item, checks, spec, deps, lock, signal, run.usage, partial => { live.set(item.id, structuredClone(partial)); checkTokens(); publish(); }, checkTokens, options.outputSource);
         } catch (error) {
           const partial = live.get(item.id);
           result = signal.aborted ? { id: item.id, status: 'cancelled', attempts: partial?.attempts ?? [] }

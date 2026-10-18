@@ -1,10 +1,13 @@
 import React from 'react';
 import { Badge, Button, DetailDialog, Notice, PageHead, SplitButton, type BadgeTone } from './ui.tsx';
+import { executionOverrideCount } from './execution-defaults.ts';
 import type { PreviewRequest } from './prompt-composition.ts';
 import { CatalogChangeNotice, type CatalogChangeActions } from './master-change-notice.tsx';
 import { featureLabel } from './feature-inclusion.tsx';
 
-export type SavedPreset = { readOnly?: boolean; nonDeletable?: boolean; template?: boolean; id: string; name: string; description: string; request: PreviewRequest; agents: import('./role-settings.ts').StudioRole[]; conveniences?: { spill?: string }; status: 'draft' | 'applied' | 'modified'; applyWarning?: string; missingFeatures?: string[] };
+export type SavedPreset = { readOnly?: boolean; nonDeletable?: boolean; template?: boolean; id: string; name: string; description: string; request: PreviewRequest; agents: import('./role-settings.ts').StudioRole[]; conveniences?: { spill?: string }; status: 'draft' | 'applied' | 'modified'; applyWarning?: string; missingFeatures?: string[];
+  /** Optimized only: edited by the user / shipped defaults changed since the edit. */
+  customized?: boolean; newDefaults?: boolean };
 export type PresetActions = {
   list(): Promise<SavedPreset[]>;
   save(payload: string): Promise<SavedPreset>;
@@ -12,9 +15,11 @@ export type PresetActions = {
   models?(): Promise<import('./role-editor.tsx').RoleModelCatalog>;
   unapply?(id: string): Promise<unknown>;
   delete(id: string): Promise<unknown>;
+  /** Replace Optimized with the shipped defaults and apply them. */
+  restoreOptimized?(): Promise<SavedPreset>;
 };
 type ListLoad = { phase: 'loading' | 'ready' | 'failed'; items?: SavedPreset[]; error?: string };
-type ActionKind = 'apply' | 'unapply' | 'delete' | 'recover';
+type ActionKind = 'apply' | 'unapply' | 'delete' | 'recover' | 'restore';
 type ActionState = { id: string; kind: ActionKind; error?: string };
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 
@@ -26,6 +31,7 @@ export function PresetList({ locale, api, revision, onEdit, onCopy, changes }: {
   const [deleting, setDeleting] = React.useState<SavedPreset>();
   const [confirming, setConfirming] = React.useState(false);
   const [recovering, setRecovering] = React.useState<SavedPreset>();
+  const [restoring, setRestoring] = React.useState<SavedPreset>();
   const request = React.useRef(0);
   const refresh = React.useCallback(async () => {
     if (!api) return;
@@ -51,6 +57,8 @@ export function PresetList({ locale, api, revision, onEdit, onCopy, changes }: {
   const failedName = action?.error !== undefined ? items.find(item => item.id === action.id)?.name ?? deleting?.name ?? action.id : '';
   const failure = action?.error === undefined ? '' : action.kind === 'apply'
     ? t(`${failedName}을(를) 반영하지 못했습니다. 이전에 반영한 구성은 그대로 유지됩니다.`, `Could not apply ${failedName}. A previously applied configuration stays in effect.`, `无法应用 ${failedName}。之前已应用的配置保持不变`)
+    : action.kind === 'restore'
+      ? t(`${failedName}을(를) 기본값으로 복구하지 못했습니다. 저장된 설정과 반영 상태는 그대로입니다.`, `Could not restore ${failedName} to defaults. Its saved settings and applied state did not change.`, `无法将 ${failedName} 恢复为默认值。已保存设置和应用状态未改变`)
     : action.kind === 'recover'
       ? t(`${failedName}을(를) 복구하지 못했습니다. 이전에 반영한 구성은 그대로 유지됩니다.`, `Could not restore ${failedName}. A previously applied configuration stays in effect.`, `无法恢复 ${failedName}。之前已应用的配置保持不变`)
     : action.kind === 'unapply'
@@ -76,15 +84,17 @@ export function PresetList({ locale, api, revision, onEdit, onCopy, changes }: {
       <Badge tone="warning">{t('주의', 'Notice', '注意')}</Badge><span>{text} <span className="studio-card-meta">({t('대상', 'Affects', '涉及')}: {names.join(', ')})</span></span>
     </li>)}</ul>}
     <div className="studio-tool-cards studio-card-pair" aria-busy={load.phase === 'loading' || busy}>{items.map(item => <article className="studio-preset-card" key={item.id}>
-      <div className="studio-card-head"><h3>{item.name}</h3>{item.readOnly && <Badge tone="outline">{t('읽기 전용', 'Read-only', '只读')}</Badge>}{item.template && !item.readOnly && <Badge tone="info">{t('기본 제공', 'Built-in', '内置')}</Badge>}<Badge tone={tone[item.status]}>{status(item)}</Badge></div>
-      {item.template ? <p className="studio-card-text">{t('코딩 에이전트를 위한 최소한의 도구만 모아놓은 프리셋입니다.', 'A preset with only the minimum tools a coding agent needs.', '仅包含编码代理所需最少工具的预设')}</p> : item.description && !item.readOnly && <p className="studio-card-text">{item.description}</p>}
+      <div className="studio-card-head"><h3>{item.name}</h3>{item.readOnly && <Badge tone="outline">{t('읽기 전용', 'Read-only', '只读')}</Badge>}{item.template && !item.readOnly && <Badge tone="info">{t('기본 제공', 'Built-in', '内置')}</Badge>}{item.customized && <Badge tone="outline">{t('직접 편집함', 'Edited', '已编辑')}</Badge>}<Badge tone={tone[item.status]}>{status(item)}</Badge></div>
+      {item.template ? <p className="studio-card-text">{t('코딩 에이전트에 맞춘 도구와 지침, 작업을 맡길 Worker 역할이 포함된 기본 프리셋입니다. 편집할 수 있으며 언제든 기본값으로 복구할 수 있습니다.', 'Default preset with tools and instructions tuned for coding agents and a Worker role for delegated work. You can edit it and restore the defaults at any time.', '为编码代理调校的工具与指令，并附带承担委派工作的 Worker 角色的默认预设。可编辑，并可随时恢复默认值')}</p> : item.description && !item.readOnly && <p className="studio-card-text">{item.description}</p>}
       {item.missingFeatures && item.missingFeatures.length > 0 && <div className="studio-inline-actions"><Badge tone="warning">{t('기능 누락', 'Missing features', '缺少功能')}</Badge><span className="studio-card-meta">{item.missingFeatures.map(name => featureLabel(name, locale)).join(', ')}</span>
         <Button small disabled={busy || !api || !!item.readOnly} onClick={() => setRecovering(item)}>{t('복구', 'Restore', '恢复')}</Button></div>}
-      <p className="studio-card-meta">{t('도구', 'Tools', '工具')} {item.request.tools.length} · {t('서브에이전트 역할', 'Subagent roles', '子代理角色')} {Array.isArray(item.agents) ? item.agents.length : 0}</p>
+      {item.newDefaults && <div className="studio-inline-actions"><Badge tone="warning">{t('새 기본값', 'New defaults', '新默认值')}</Badge><span className="studio-card-meta">{t('Studio 기본값이 바뀌었습니다. 편집한 설정은 그대로 두었습니다.', 'Studio defaults changed. Your edited settings were kept.', 'Studio 默认值已更改。已保留您编辑的设置')}</span></div>}
+      <p className="studio-card-meta">{t('도구', 'Tools', '工具')} {item.request.tools.length} · {t('서브에이전트 역할', 'Subagent roles', '子代理角色')} {Array.isArray(item.agents) ? item.agents.length : 0}{!item.readOnly && executionOverrideCount(item.request.execution) > 0 && <> · {t(`실행 기본값 덮어씀 ${executionOverrideCount(item.request.execution)}`, `Execution defaults overridden: ${executionOverrideCount(item.request.execution)}`, `已覆盖执行默认值 ${executionOverrideCount(item.request.execution)}`)}</>}</p>
       {item.readOnly ? <p className="studio-card-meta studio-card-note">{t('DSH standard 프리셋에 Studio 플러그인과 직접 추가한 플러그인을 더한 기준 프리셋입니다. 편집하거나 삭제할 수 없습니다.', 'Reference preset: DSH standard plus Studio plugins and the ones you added. It cannot be edited or deleted.', '基准预设：DSH standard 加上 Studio 插件和您添加的插件，无法编辑或删除')}</p> : <div className="studio-card-footer">
-        <Button small disabled={busy || item.readOnly || item.template || !onEdit} title={item.template ? t('기본 제공 프리셋은 편집할 수 없습니다. 복사해서 고쳐 쓰세요.', 'Built-in presets cannot be edited. Create a copy to customize it.', '内置预设无法编辑，请创建副本后修改') : undefined} onClick={() => onEdit?.(item)}>{t('편집', 'Edit', '编辑')}</Button>
+        <Button small disabled={busy || item.readOnly || !onEdit} onClick={() => onEdit?.(item)}>{t('편집', 'Edit', '编辑')}</Button>
         <Button small disabled={busy || !onCopy} onClick={() => onCopy?.(item)}>{t('복사', 'Create copy', '创建副本')}</Button>
         <Button small disabled={busy || !api || item.readOnly || item.nonDeletable} title={item.nonDeletable ? t('기본 제공 프리셋은 삭제할 수 없습니다.', 'Built-in presets cannot be deleted.', '内置预设无法删除') : undefined} onClick={() => { setDeleting(item); setConfirming(true); }}>{t('삭제', 'Delete', '删除')}</Button>
+        {item.template && <Button small disabled={busy || !api?.restoreOptimized} onClick={() => setRestoring(item)}>{pending(item, 'restore') ? t('복구 중…', 'Restoring…', '恢复中…') : t('기본값으로 복구', 'Restore defaults', '恢复默认值')}</Button>}
         <span className="studio-card-footer-end">
           <SplitButton primary={item.status !== 'applied'} disabled={busy || !api || !!item.readOnly} onClick={() => void run(item.id, "apply", () => api!.apply(item.id))} menuLabel={t('반영 옵션', 'Apply options', '应用选项')}
             label={pending(item, 'apply') ? t('반영 중…', 'Applying…', '应用中…') : pending(item, 'unapply') ? t('해제 중…', 'Unapplying…', '取消中…') : item.status === 'draft' ? t('DSH에 반영', 'Apply to DSH', '应用到 DSH') : t('DSH에 다시 반영', 'Reapply to DSH', '重新应用到 DSH')}
@@ -97,6 +107,10 @@ export function PresetList({ locale, api, revision, onEdit, onCopy, changes }: {
       <p className="studio-muted">{t('이전 버전에서 반영할 때 빠진 기능입니다. 복구하면 저장된 설정으로 다시 반영하며, 아래 기능이 DSH 기본값으로 포함됩니다.', 'An earlier version left these out when applying. Restoring reapplies the saved settings and includes the features below with DSH defaults.', '早期版本应用时遗漏了这些功能。恢复后将按已保存设置重新应用，并以 DSH 默认值包含以下功能')}</p>
       <ul className="studio-change-list">{(recovering?.missingFeatures ?? []).map(name => <li key={name}>+ {featureLabel(name, locale)} <span className="studio-mono studio-card-meta">{name}</span></li>)}</ul>
       <p className="studio-muted">{t('덮어쓰기, 서브에이전트 역할, Pixie Gate 연결, 프리셋 ID는 그대로입니다. 빼고 싶은 기능은 편집에서 끈 뒤 반영하세요. 실행 중인 세션은 바뀌지 않습니다.', 'Overrides, subagent roles, Pixie Gate links and the preset ID are kept. To leave a feature out, turn it off in Edit and apply. Running sessions are not changed.', '覆盖、子代理角色、Pixie Gate 连接和预设 ID 保持不变。如需排除某功能，请在编辑中关闭后应用。正在运行的会话不受影响')}</p>
+    </DetailDialog>
+    <DetailDialog compact open={restoring !== undefined} onClose={() => setRestoring(undefined)} title={t('기본값으로 복구', 'Restore defaults', '恢复默认值')} subtitle={restoring?.name}
+      footer={<><Button disabled={busy} onClick={() => setRestoring(undefined)}>{t('취소', 'Cancel', '取消')}</Button><Button primary disabled={busy || !restoring} onClick={() => { const target = restoring!; setRestoring(undefined); void run(target.id, 'restore', () => api!.restoreOptimized!()); }}>{t('복구하고 반영', 'Restore and apply', '恢复并应用')}</Button></>}>
+      <p className="studio-muted">{t('도구, 지침, 도구 설명, Config, 실행 기본값, 서브에이전트 역할을 Studio가 제공하는 현재 기본값으로 바꾸고 DSH에 반영합니다. 직접 편집한 내용은 사라집니다. 실행 중인 세션은 바뀌지 않습니다.', 'Replaces tools, instructions, tool descriptions, Configs, execution defaults and subagent roles with the current Studio defaults, then applies them to DSH. Your edits are discarded. Running sessions are not changed.', '将工具、指令、工具描述、Config、执行默认值和子代理角色替换为 Studio 当前默认值，并应用到 DSH。您的编辑将被丢弃。正在运行的会话不受影响')}</p>
     </DetailDialog>
     <DetailDialog compact open={confirming} onClose={() => setConfirming(false)} title={t('프리셋 삭제', 'Delete preset', '删除预设')} subtitle={deleting?.name}
       footer={<><Button disabled={busy} onClick={() => setConfirming(false)}>{t('취소', 'Cancel', '取消')}</Button><Button primary disabled={busy || !deleting} onClick={() => { const target = deleting!; setConfirming(false); void run(target.id, 'delete', () => api!.delete(target.id)).then(() => setDeleting(undefined)); }}>{t('삭제 확인', 'Confirm delete', '确认删除')}</Button></>}>

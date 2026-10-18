@@ -43,7 +43,7 @@ const button = (text, scope = document) => [...scope.querySelectorAll('button')]
 const { Simulate } = await import('react-dom/test-utils');
 const change = async (_dom, element, value) => act(async () => { element.value = value; Simulate.change(element, { target: element }); });
 
-test('editing a preset role saves only model, reasoning and persona, and the card shows the session copy', async () => {
+test('editing a preset role saves model, reasoning, persona and spawn, and the card shows the session copy', async () => {
   const { dom, root } = setup();
   const h = host();
   await act(async () => root.render(React.createElement(SessionRolesTab, { actions: h.actions, locale: 'en' })));
@@ -54,12 +54,14 @@ test('editing a preset role saves only model, reasoning and persona, and the car
   assert.ok(dialog.open);
   assert.equal(dialog.querySelectorAll('input').length, 0, 'name and role id are not editable for a preset role');
   assert.match(dialog.textContent, /first change copies this role/);
-  const [model, reasoning] = dialog.querySelectorAll('select');
+  const [model, reasoning, spawn] = dialog.querySelectorAll('select');
   assert.deepEqual([...reasoning.options].map(o => o.value), ['inherit', 'high', 'low']);
+  assert.equal(spawn.value, 'fork');
+  await change(dom, spawn, 'fresh');
   await change(dom, model, 'provider/b');
   await change(dom, dialog.querySelector('textarea'), 'Session persona');
   await act(async () => button('Save', dialog).click());
-  assert.deepEqual(h.calls, [['edit', 'review', { model: 'provider/b', reasoning: 'inherit', persona: 'Session persona' }]]);
+  assert.deepEqual(h.calls, [['edit', 'review', { model: 'provider/b', reasoning: 'inherit', persona: 'Session persona', spawn: 'fresh' }]]);
   assert.equal(document.querySelector('dialog'), null);
   const card = document.querySelector('.studio-role-card');
   assert.match(card.textContent, /Changed in this session/);
@@ -78,15 +80,18 @@ test('a temporary role is added with name and id, and removed with Remove', asyn
   await act(async () => button('Add role').click());
   const dialog = document.querySelector('dialog');
   assert.equal(button('Save', dialog).disabled, true, 'name and id are required');
+  const spawn = dialog.querySelectorAll('select')[2];
+  assert.equal(spawn.value, 'fresh');
+  await change(dom, spawn, 'fork');
   const [name, id] = dialog.querySelectorAll('input');
   await change(dom, name, 'Scout'); await change(dom, id, 'scout');
   assert.match(dialog.textContent, /Saved instructions are used for new subagents/);
   await change(dom, dialog.querySelector('textarea'), 'Investigate primary sources');
   await act(async () => button('Save', dialog).click());
-  assert.deepEqual(h.calls[0], ['add', { name: 'Scout', role: 'scout', model: 'inherit', reasoning: 'inherit', persona: 'Investigate primary sources' }]);
+  assert.deepEqual(h.calls[0], ['add', { name: 'Scout', role: 'scout', model: 'inherit', reasoning: 'inherit', persona: 'Investigate primary sources', spawn: 'fork' }]);
   const card = document.querySelector('.studio-role-card');
   assert.match(card.textContent, /This session/);
-  assert.match(card.textContent, /New conversation/);
+  assert.match(card.textContent, /Continue parent/);
   await act(async () => button('Remove', card).click());
   assert.match(document.body.textContent, /No roles/);
   await act(async () => root.unmount()); dom.window.close();

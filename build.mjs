@@ -21,6 +21,7 @@ await compile({
 // zod is bundled because DSH does not expose it to plugins; minify keeps the published package small.
 // task_run (src/host/task-tool.ts) is withdrawn from the Master and is not built or shipped.
 await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/batch-tool.ts'], outfile: 'packages/shell/batch.js', bundle: true, minify: true, platform: 'node', format: 'esm', target: 'node22', external: ['@deepseek-ai/*'] });
+await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/edit-batch-tool.ts'], outfile: 'packages/shell/edit-batch.js', bundle: true, minify: true, platform: 'node', format: 'esm', target: 'node22', external: ['@deepseek-ai/*'] });
 await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/judge-tool.ts'], outfile: 'packages/shell/judge.js',
   bundle: true, platform: 'node', format: 'esm', target: 'node22', packages: 'external', external: ['@deepseek-ai/*'] });
 await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/pixie-loop-tool.ts'], outfile: 'packages/shell/loop.js',

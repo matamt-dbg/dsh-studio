@@ -786,7 +786,7 @@ var bucketOf = (spec, attempt) => {
   const answer = spec.route && attempt?.answers?.[spec.route.question];
   return answer?.type === "choice" ? answer.choice : void 0;
 };
-async function runItem(item, checks, spec, deps, lock, signal, usage, onAttempt, budget) {
+async function runItem(item, checks, spec, deps, lock, signal, usage, onAttempt, budget, outputSource) {
   const spent = () => {
     budget();
     signal.throwIfAborted();
@@ -817,7 +817,7 @@ async function runItem(item, checks, spec, deps, lock, signal, usage, onAttempt,
         return result;
       }
     } else {
-      output = await pixieCall(deps, system, requestMessages(thread, deps.model), signal, usage.pixie);
+      output = outputSource === "input" ? item.input.trim() : await pixieCall(deps, system, requestMessages(thread, deps.model), signal, usage.pixie);
       spent();
       thread.push({ role: "assistant", text: output });
     }
@@ -953,7 +953,7 @@ async function runLoop(spec, items, deps, options) {
             live.set(item.id, structuredClone(partial));
             checkTokens();
             publish();
-          }, checkTokens);
+          }, checkTokens, options.outputSource);
         } catch (error) {
           const partial = live.get(item.id);
           result = signal.aborted ? { id: item.id, status: "cancelled", attempts: partial?.attempts ?? [] } : { id: item.id, status: "error", attempts: partial?.attempts ?? [], error: error instanceof Error ? error.message : String(error) };
@@ -1108,11 +1108,6 @@ function throttledWriter(write, intervalMs = 500, onError = () => {
   };
 }
 
-// src/host/pixie-loop-recipe-store.ts
-import { randomUUID as randomUUID3 } from "node:crypto";
-import { mkdir as mkdir2, readFile as readFile2, rename as rename2, rm as rm2, writeFile as writeFile2 } from "node:fs/promises";
-import { dirname } from "node:path";
-
 // src/pixie-loop-recipes.ts
 var RECIPE_NAME = /^[a-z0-9][a-z0-9-]{0,63}$/;
 var object2 = (value) => !!value && typeof value === "object" && !Array.isArray(value);
@@ -1139,7 +1134,31 @@ function recipeSpec(recipe, items, output) {
   return { ...structuredClone(recipe.spec), items, ...output ? { output } : {} };
 }
 
+// src/host/pixie-loop-recording.ts
+async function runRecordedTool(execute, options) {
+  const writer = throttledWriter(options.record, 500, options.warn);
+  const run = await execute((value) => {
+    writer.update(value);
+    options.progress?.(value);
+  });
+  if (options.output && run.items.some((item) => item.status !== "skipped")) {
+    const body = run.items.filter((item) => item.status !== "skipped").map((item) => JSON.stringify({ id: item.id, status: item.status, ...item.output !== void 0 ? { output: item.output } : {}, ...item.bucket ? { bucket: item.bucket } : {}, attempts: item.attempts.length, ...item.error ? { error: item.error } : {} })).join("\n") + "\n";
+    try {
+      await options.output.write(body);
+    } catch (error) {
+      run.reason = `${run.reason ? `${run.reason}; ` : ""}results file not written: ${error instanceof Error ? error.message : String(error)}`;
+      delete run.outputPath;
+    }
+  }
+  writer.update(run);
+  await writer.flush();
+  return summarizeRun(run);
+}
+
 // src/host/pixie-loop-recipe-store.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
+import { mkdir as mkdir2, readFile as readFile2, rename as rename2, rm as rm2, writeFile as writeFile2 } from "node:fs/promises";
+import { dirname } from "node:path";
 var PixieLoopRecipes = class {
   constructor(file) {
     this.file = file;
@@ -1290,6 +1309,7 @@ var PACKAGE_NAME = "@matamt-dbg/dsh-studio";
 var POLICY_PLUGIN = `${PACKAGE_NAME}/policy`;
 var ROLE_PLUGIN = `${PACKAGE_NAME}/roles`;
 var BATCH_PLUGIN = `${PACKAGE_NAME}/batch`;
+var EDIT_BATCH_PLUGIN = `${PACKAGE_NAME}/edit-batch`;
 var JUDGE_PLUGIN = `${PACKAGE_NAME}/judge`;
 var LOOP_PLUGIN = `${PACKAGE_NAME}/loop`;
 
@@ -1303,6 +1323,7 @@ var OPTIMIZED_TOOLS = [
   "read",
   "write",
   "edit",
+  "edit_batch",
   "glob",
   "grep",
   "job_output",
@@ -1320,7 +1341,11 @@ var OPTIMIZED_TOOLS = [
   "interrupt_agent",
   "list_agents",
   "workflow",
-  "subagent_role"
+  "subagent_role",
+  "judge",
+  "pixie_loop",
+  "cordis_inspect_list",
+  "cordis_inspect_query"
 ];
 var ALLOWED_TOOLS = /* @__PURE__ */ new Set([...OPTIMIZED_TOOLS, ...GENERIC_DELEGATION_TOOLS, LEGACY_ROLE_TOOL]);
 
@@ -1344,6 +1369,11 @@ var POLICY_SECTION_ORDERS = Object.freeze({
   "tool:workflow": "TOOL_WORKFLOW"
 });
 
+// src/host/preset-store.ts
+import { dirname as dirname3, join as join3 } from "node:path";
+import { dump } from "js-yaml";
+import { entryListSchema as entryListSchema2 } from "@deepseek-ai/cordis-plugin-include";
+
 // src/config-overrides.ts
 var LEGACY_DROPPED_PACKAGES = Object.freeze([
   "@deepseek-ai/dsh-agent-instructions",
@@ -1356,11 +1386,6 @@ var LEGACY_DROPPED_PACKAGES = Object.freeze([
 var CONFIG_REQUIRES = Object.freeze({
   "@deepseek-ai/dsh-command-compact": "@deepseek-ai/dsh-compaction-basic"
 });
-
-// src/host/preset-store.ts
-import { dirname as dirname3, join as join3 } from "node:path";
-import { dump } from "js-yaml";
-import { entryListSchema as entryListSchema2 } from "@deepseek-ai/cordis-plugin-include";
 
 // src/provider-fields.ts
 var field = (key, type, value, minimum) => ({ key, type, ...value === void 0 ? {} : { value }, ...minimum === void 0 ? {} : { minimum } });
@@ -1538,7 +1563,6 @@ function installLoop(ctx, life, deps) {
       throw new Error("DSH llm service is unavailable");
     } };
     const judge = judgeEngineFor(settings, { llm, credentials: deps.credentials() });
-    const writer = throttledWriter((run2) => deps.store.put(run2), 500, (error) => ctx.logger?.warn?.(`studio pixie_loop: record write failed: ${String(error)}`));
     const act = async (command, timeoutMs, actSignal) => {
       const value = await nested(exec, "bash", { command, description: "pixie_loop act", timeoutMs }, actSignal, true);
       if (value.kind === "promoted" && typeof value.jobId === "string") {
@@ -1551,27 +1575,17 @@ ${value.stderr.text}` : ""].filter(Boolean).join("\n");
       return { ok: value.exitCode === 0 && !value.timedOut, text: `${out}${value.timedOut ? "\n[timed out]" : ""}
 [exit code: ${value.exitCode ?? "none"}]` };
     };
-    const run = await runLoop(
+    return runRecordedTool((update) => runLoop(
       spec,
       items,
-      { llm, model: settings.model, judge, act, update: (value) => {
-        writer.update(value);
-        onProgress?.(value);
-      } },
+      { llm, model: settings.model, judge, act, update },
       { sessionId: exec.agent.id, signal, runId, source: "tool", ...outputPath ? { outputPath } : {}, ...recipe ? { recipe: recipe.name, ...recipe.checks ? { checks: recipe.checks } : {} } : {} }
-    );
-    if (outputPath && run.items.some((item) => item.status !== "skipped")) {
-      const body = run.items.filter((item) => item.status !== "skipped").map((item) => JSON.stringify({ id: item.id, status: item.status, ...item.output !== void 0 ? { output: item.output } : {}, ...item.bucket ? { bucket: item.bucket } : {}, attempts: item.attempts.length, ...item.error ? { error: item.error } : {} })).join("\n") + "\n";
-      try {
-        await nested(exec, "write", { file_path: outputPath, content: body }, new AbortController().signal);
-      } catch (error) {
-        run.reason = `${run.reason ? `${run.reason}; ` : ""}results file not written: ${error instanceof Error ? error.message : String(error)}`;
-        delete run.outputPath;
-      }
-    }
-    writer.update(run);
-    await writer.flush();
-    return summarizeRun(run);
+    ), {
+      record: (run) => deps.store.put(run),
+      warn: (error) => ctx.logger?.warn?.(`studio pixie_loop: record write failed: ${String(error)}`),
+      ...onProgress ? { progress: onProgress } : {},
+      ...outputPath ? { output: { write: (content) => nested(exec, "write", { file_path: outputPath, content }, new AbortController().signal) } } : {}
+    });
   }
   return tools.register({
     name: LOOP_TOOL,

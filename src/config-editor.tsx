@@ -13,11 +13,11 @@ export interface ConfigEditorProps {
 }
 type Schema = Record<string, unknown>;
 const copy = {
-  en: { list: 'Configs', reset: 'Reset override', unavailable: 'Schema unavailable; editing is disabled.', delegated: 'Merged into subagent_role. Configure subagents in the Subagent settings tab.', inherited: 'Base value (not overridden)', overridden: 'Override', unset: 'Not set', unsupported: 'This schema type is not yet supported by the form. Existing values are preserved; turn off the Config to reset them.', json: 'Config', invalid: 'Enter valid JSON.', object: 'Enter a JSON object.', number: 'Enter a valid number.',
+  en: { list: 'Configs', reset: 'Reset override', unavailable: 'Schema unavailable; editing is disabled.', fixed: 'Schema unavailable; editing is disabled. Studio set this value; only restoring the preset defaults changes it.', delegated: 'Merged into subagent_role. Configure subagents in the Subagent settings tab.', inherited: 'Base value (not overridden)', overridden: 'Override', unset: 'Not set', unsupported: 'This schema type is not yet supported by the form. Existing values are preserved; turn off the Config to reset them.', json: 'Config', invalid: 'Enter valid JSON.', object: 'Enter a JSON object.', number: 'Enter a valid number.',
     picker: { filter: 'Show', search: 'Search execution settings', searchHint: 'Search plugin names, fields or descriptions', all: 'All', selected: 'On', modified: 'Modified', settings: 'Edit', done: 'Done', empty: 'No Configs', noResults: 'No matching results.', modifiedTag: 'Modified', clear: 'Show all' }, items: { add: 'Add', remove: 'Remove', draft: 'New item', key: 'New key' } },
-  ko: { list: 'Config', reset: '기본값으로', unavailable: '스키마를 읽을 수 없어 편집할 수 없습니다.', delegated: 'subagent_role로 통합되었습니다. 서브에이전트 탭에서 설정하세요.', inherited: '기본값', overridden: '변경됨', unset: '미설정', unsupported: '이 형식은 아직 편집할 수 없습니다. 기존 값은 그대로 두며, Config를 끄면 초기화됩니다.', json: 'Config', invalid: '올바른 JSON을 입력하세요.', object: 'JSON 객체를 입력하세요.', number: '올바른 숫자를 입력하세요.',
+  ko: { list: 'Config', reset: '기본값으로', unavailable: '스키마를 읽을 수 없어 편집할 수 없습니다.', fixed: '스키마를 읽을 수 없어 편집할 수 없습니다. Studio가 넣은 값이며, 프리셋을 기본값으로 복구할 때만 바뀝니다.', delegated: 'subagent_role로 통합되었습니다. 서브에이전트 탭에서 설정하세요.', inherited: '기본값', overridden: '변경됨', unset: '미설정', unsupported: '이 형식은 아직 편집할 수 없습니다. 기존 값은 그대로 두며, Config를 끄면 초기화됩니다.', json: 'Config', invalid: '올바른 JSON을 입력하세요.', object: 'JSON 객체를 입력하세요.', number: '올바른 숫자를 입력하세요.',
     picker: { filter: '보기', search: '설정 검색', searchHint: '플러그인 이름, 필드, 설명으로 검색', all: '전체', selected: '켜짐', modified: '변경됨', settings: '설정', done: '완료', empty: '항목이 없습니다.', noResults: '검색 결과가 없습니다.', modifiedTag: '변경됨', clear: '전체 보기' }, items: { add: '추가', remove: '삭제', draft: '새 항목', key: '새 키' } },
-  zh: { list: 'Config', reset: '重置覆盖', unavailable: '架构不可用，无法编辑', delegated: '已合并到 subagent_role。请在子代理设置页中配置。', inherited: '基础值（未覆盖）', overridden: '覆盖', unset: '未设置', unsupported: '表单暂不支持此设置类型。保留现有值；关闭 Config 可重置。', json: 'Config', invalid: '请输入有效的 JSON', object: '请输入 JSON 对象', number: '请输入有效的数字',
+  zh: { list: 'Config', reset: '重置覆盖', unavailable: '架构不可用，无法编辑', fixed: '架构不可用，无法编辑。此值由 Studio 设置，仅在将预设恢复为默认值时更改', delegated: '已合并到 subagent_role。请在子代理设置页中配置。', inherited: '基础值（未覆盖）', overridden: '覆盖', unset: '未设置', unsupported: '表单暂不支持此设置类型。保留现有值；关闭 Config 可重置。', json: 'Config', invalid: '请输入有效的 JSON', object: '请输入 JSON 对象', number: '请输入有效的数字',
     picker: { filter: '显示', search: '搜索执行设置', searchHint: '按插件名称、字段或描述搜索', all: '全部', selected: '已开启', modified: '已修改', settings: '设置', done: '完成', empty: '没有 Config', noResults: '没有匹配结果。', modifiedTag: '已修改', clear: '显示全部' }, items: { add: '添加', remove: '删除', draft: '新项', key: '新键' } },
 };
 type Labels = typeof copy.en;
@@ -312,7 +312,9 @@ export function ConfigEditor({ entries, value, onChange, locale }: ConfigEditorP
   const labels = copy[locale.startsWith('ko') ? 'ko' : locale.startsWith('zh') ? 'zh' : 'en'];
   const items: PickerItem[] = [
     ...entries.map(entry => ({ name: entry.id, title: pluginTitle(entry.name, locale), subtitle: pluginTitle(entry.name, locale) === entry.name ? entry.id : `${entry.id} · ${entry.name}`, description: pluginPurpose(entry.name, locale), searchText: `${entry.name} ${pluginTitle(entry.name, locale)} ${JSON.stringify(entry.schema ?? {})}`,
-      ...(isDelegationPlugin(entry.name) ? { disabledReason: labels.delegated } : entry.error || !entry.schema ? { disabledReason: entry.error || labels.unavailable } : {}) })),
+      // Without a schema there is no form: a value Studio set stays on and locked, since turning it
+      // off would drop it with no way back except restoring the preset defaults.
+      ...(isDelegationPlugin(entry.name) ? { disabledReason: labels.delegated } : entry.error || !entry.schema ? own(value, entry.id) ? { lockedReason: labels.fixed } : { disabledReason: entry.error || labels.unavailable } : {}) })),
     ...Object.keys(value).filter(id => !entries.some(entry => entry.id === id)).map(id => ({ name: id, title: id, description: labels.unavailable })),
   ];
   const selected = items.filter(item => own(value, item.name)).map(item => item.name);

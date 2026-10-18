@@ -10,16 +10,17 @@ test('preset roles pass through when the session owns none', () => {
   assert.deepEqual(mergeRoles(preset, emptySessionRoles()).map(r => [r.role, r.source]), [['review', 'preset'], ['write', 'preset']]);
 });
 
-test('first edit copies the whole preset role and only model, reasoning and persona change', () => {
+test('first edit copies the whole preset role while keeping identity and tool filter fixed', () => {
   const record = editSessionRole(emptySessionRoles(), preset, 'review', { model: 'route/b', persona: 'Be brief', spawn: 'fresh', toolFilter: { mode: 'replace', deny: [] }, name: 'X' });
-  assert.deepEqual(record.roles, [{ ...reviewer, model: 'route/b', persona: 'Be brief' }]);
+  assert.deepEqual(record.roles, [{ ...reviewer, model: 'route/b', persona: 'Be brief', spawn: 'fresh' }]);
   const merged = mergeRoles(preset, record);
   assert.deepEqual(merged.map(r => [r.role, r.source]), [['review', 'session'], ['write', 'preset']]);
-  assert.equal(merged[0].spawn, 'fork');
+  assert.equal(merged[0].spawn, 'fresh');
+  assert.equal(reviewer.spawn, 'fork');
   assert.deepEqual(merged[0].toolFilter, reviewer.toolFilter);
   // A second edit works on the session copy, not the preset.
   const again = editSessionRole(record, preset, 'review', { reasoning: 'low' });
-  assert.deepEqual(again.roles, [{ ...reviewer, model: 'route/b', persona: 'Be brief', reasoning: 'low' }]);
+  assert.deepEqual(again.roles, [{ ...reviewer, model: 'route/b', persona: 'Be brief', spawn: 'fresh', reasoning: 'low' }]);
 });
 
 test('session copies survive later preset changes and deletion', () => {
@@ -31,9 +32,9 @@ test('session copies survive later preset changes and deletion', () => {
   assert.deepEqual(removed.map(r => [r.role, r.source]), [['write', 'preset'], ['review', 'session']]);
 });
 
-test('temporary roles start fresh with the preset tool filter and reject taken identifiers', () => {
+test('temporary roles accept fork with the preset tool filter and reject taken identifiers', () => {
   const record = addSessionRole(emptySessionRoles(), preset, { name: 'Scout', role: 'scout', model: 'route/c', reasoning: 'medium', persona: 'Look around', spawn: 'fork', toolFilter: { mode: 'replace', deny: [] } });
-  assert.deepEqual(record.roles, [{ name: 'Scout', role: 'scout', model: 'route/c', reasoning: 'medium', spawn: 'fresh', persona: 'Look around' }]);
+  assert.deepEqual(record.roles, [{ name: 'Scout', role: 'scout', model: 'route/c', reasoning: 'medium', spawn: 'fork', persona: 'Look around' }]);
   assert.deepEqual(mergeRoles(preset, record).map(r => r.role), ['review', 'write', 'scout']);
   assert.throws(() => addSessionRole(record, preset, { name: 'Again', role: 'scout' }), /already/);
   assert.throws(() => addSessionRole(record, preset, { name: 'Clash', role: 'review' }), /already/);
@@ -72,4 +73,17 @@ test('call selection uses merged roles and falls back to the parent role when th
   assert.equal(selectRole(mergeRoles([], record), 'missing'), undefined);
   assert.equal(selectRole([], 'anything'), PARENT_ROLE);
   assert.equal(selectRole([], undefined), PARENT_ROLE);
+});
+
+test('spawn defaults, round trips, reversals and invalid values', () => {
+  const added = addSessionRole(emptySessionRoles(), preset, { name: 'Temp', role: 'temp' });
+  assert.equal(added.roles[0].spawn, 'fresh');
+  const fork = editSessionRole(added, preset, 'temp', { spawn: 'fork' });
+  assert.deepEqual(parseSessionRoles(JSON.parse(JSON.stringify(fork))), fork);
+  assert.equal(editSessionRole(fork, preset, 'temp', { persona: 'keep' }).roles[0].spawn, 'fork');
+  assert.equal(editSessionRole(fork, preset, 'temp', { spawn: 'fresh' }).roles[0].spawn, 'fresh');
+  for (const spawn of ['invalid', '', null, 1]) {
+    assert.throws(() => addSessionRole(emptySessionRoles(), preset, { name: 'Bad', role: 'bad', spawn }), /spawn/);
+    assert.throws(() => editSessionRole(fork, preset, 'temp', { spawn }), /spawn/);
+  }
 });

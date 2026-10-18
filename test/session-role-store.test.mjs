@@ -94,7 +94,7 @@ test('Remote view, edit, add and remove follow the root and its preset', async (
     let view = await h.remote.view('root');
     assert.deepEqual({ ...view, roles: view.roles.map(r => [r.role, r.source]) }, { available: true, rootSessionId: 'root', readOnly: false, presetId: 'studio', roles: [['review', 'preset']], presetRoleIds: ['review'] });
     view = await h.remote.editRole('root', JSON.stringify({ role: 'review', persona: 'Session persona', spawn: 'fresh' }));
-    assert.deepEqual([view.roles[0].source, view.roles[0].persona, view.roles[0].spawn], ['session', 'Session persona', 'fork']);
+    assert.deepEqual([view.roles[0].source, view.roles[0].persona, view.roles[0].spawn], ['session', 'Session persona', 'fresh']);
     view = await h.remote.addRole('root', JSON.stringify({ name: 'Scout', role: 'scout', reasoning: 'low' }));
     assert.deepEqual(view.roles.map(r => r.role), ['review', 'scout']);
     // The child sees the root's roles and cannot change them.

@@ -11,6 +11,7 @@ import { LoopRunsPanel } from '../src/pixie-loop-runs.tsx';
 import { PixieTab } from '../src/pixie-tab.tsx';
 import { pixieDescriptors } from '../src/pixie-client.tsx';
 import { PixieLoopStore, STALE_MS, throttledWriter } from '../src/host/pixie-loop-store.ts';
+import { runRecordedTool } from '../src/host/pixie-loop-recording.ts';
 const dom = new JSDOM('<!doctype html><body></body>');
 globalThis.window = dom.window; globalThis.document = dom.window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -84,6 +85,52 @@ test('store: put replaces by id, keeps retention, and marks silent active runs i
   for (let index = 0; index < 55; index++) await store.put(loopRun({ id: `x${index}` }));
   assert.equal((await store.read('s')).runs.length, 50);
   assert.deepEqual(await store.prune(async () => [{ sessionId: 'other' }]), ['s']);
+});
+
+test('recorded tool finalizes output before recording and awaits the final write', async () => {
+  const events = [];
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  let started;
+  const writing = new Promise(resolve => { started = resolve; });
+  let settled = false;
+  const result = runRecordedTool(async update => { update(loopRun({ status: 'running' })); return loopRun(); }, {
+    progress: run => events.push(`progress:${run.status}`),
+    output: { write: async content => { assert.equal(content.trim().split('\n').length, 2); events.push('output'); } },
+    record: async run => { events.push(`record:${run.status}`); started(); await held; },
+    warn: error => { throw error; },
+  }).then(value => { settled = true; return value; });
+  await writing;
+  assert.equal(settled, false);
+  assert.deepEqual(events, ['progress:running', 'output', 'record:done']);
+  release();
+  assert.equal((await result).status, 'done');
+});
+
+test('recorded tool reports rejected writes and still returns its summary', async () => {
+  const error = new Error('disk unavailable');
+  const warnings = [];
+  const summary = await runRecordedTool(async () => loopRun(), {
+    record: async () => { throw error; }, warn: value => warnings.push(value),
+  });
+  assert.deepEqual(warnings, [error]);
+  assert.equal(summary.status, 'done');
+});
+
+test('heartbeat rewrites live snapshots and flush stops it', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const writes = [];
+  const writer = throttledWriter(async run => { writes.push(run.status); }, 5, () => {}, 20);
+  writer.update(loopRun({ status: 'running' }));
+  t.mock.timers.tick(5);
+  await new Promise(resolve => setImmediate(resolve));
+  t.mock.timers.tick(20);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(writes, ['running', 'running']);
+  writer.update(loopRun()); await writer.flush();
+  t.mock.timers.tick(100);
+  await Promise.resolve();
+  assert.deepEqual(writes, ['running', 'running', 'done']);
 });
 
 test('the throttled writer coalesces updates and flushes the last one', async () => {

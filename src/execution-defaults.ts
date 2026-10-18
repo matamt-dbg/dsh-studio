@@ -53,6 +53,23 @@ export function validateExecutionDefault(parameters: Record<string, unknown>, fi
     || (Array.isArray(schema.enum) && !schema.enum.includes(value))
     || (own(schema, 'const') && value !== schema.const)) throw new Error(`Execution default outside schema: ${field}`);
 }
+/**
+ * The execution overrides worth saving for a tool selection: defaults of unselected tools, empty
+ * per-tool maps and a batch limit for an unselected tool are dropped. Nothing left means no override.
+ */
+export function selectedExecution(value: ExecutionDefaults | undefined, tools: readonly string[]): ExecutionDefaults | undefined {
+  if (!value) return undefined;
+  const selected = new Set(tools);
+  const defaults = Object.fromEntries(Object.entries(value.defaults).filter(([tool, fields]) => selected.has(tool) && Object.keys(fields).length > 0).map(([tool, fields]) => [tool, { ...fields }]));
+  const batch = value.batch && selected.has(value.batch.tool) ? { ...value.batch } : undefined;
+  if (!Object.keys(defaults).length && !batch) return undefined;
+  return { defaults, ...(batch ? { batch } : {}) };
+}
+/** Number of execution values a preset overrides (each wait default and the batch limit). */
+export function executionOverrideCount(value: ExecutionDefaults | undefined): number {
+  if (!value) return 0;
+  return Object.values(value.defaults).reduce((sum, fields) => sum + Object.keys(fields).length, 0) + (value.batch ? 1 : 0);
+}
 /** Only absent own fields receive defaults; explicit null/undefined are left for original validation. */
 export function applyExecutionDefaults(args: unknown, defaults: Record<string, number>): unknown {
   if (!record(args)) return args;

@@ -23,7 +23,7 @@ const messageOf = (error: unknown) => error instanceof Error ? error.message : S
 
 /** Edit target: an existing role, or a new temporary role. */
 type Draft = { mode: 'edit'; role: MergedRole; presetCopy: boolean } | { mode: 'add' };
-type Fields = { name: string; role: string; model: string; reasoning: string; persona: string };
+type Fields = { name: string; role: string; model: string; reasoning: string; persona: string; spawn: 'fresh' | 'fork' };
 
 export function SessionRolesTab({ actions, locale }: { actions: SessionRolesActions; locale: string }) {
   const t = (key: SessionRolesTextKey) => sessionRolesText(locale, key);
@@ -84,7 +84,7 @@ export function SessionRolesTab({ actions, locale }: { actions: SessionRolesActi
     {draft && <RoleDialog key={draft.mode === 'edit' ? draft.role.role : '+'} draft={draft} models={models} locale={locale} onClose={() => setDraft(undefined)}
       onSave={async fields => {
         const next = draft.mode === 'edit'
-          ? await actions.edit(draft.role.role, { model: fields.model, reasoning: fields.reasoning, persona: fields.persona })
+          ? await actions.edit(draft.role.role, { model: fields.model, reasoning: fields.reasoning, persona: fields.persona, spawn: fields.spawn })
           : await actions.add(fields);
         setView(next); setDraft(undefined);
       }} />}
@@ -97,8 +97,8 @@ function RoleDialog({ draft, models, locale, onClose, onSave }: {
 }) {
   const t = (key: SessionRolesTextKey) => sessionRolesText(locale, key);
   const initial: Fields = draft.mode === 'edit'
-    ? { name: draft.role.name, role: draft.role.role, model: draft.role.model, reasoning: draft.role.reasoning, persona: draft.role.persona }
-    : { name: '', role: '', model: 'inherit', reasoning: 'inherit', persona: '' };
+    ? { name: draft.role.name, role: draft.role.role, model: draft.role.model, reasoning: draft.role.reasoning, persona: draft.role.persona, spawn: draft.role.spawn }
+    : { name: '', role: '', model: 'inherit', reasoning: 'inherit', persona: '', spawn: 'fresh' };
   const [fields, setFields] = React.useState(initial);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -131,6 +131,11 @@ function RoleDialog({ draft, models, locale, onClose, onSave }: {
         {model?.reasoning?.efforts.map(effort => <option value={effort.id} key={effort.id}>{effort.name}</option>)}
       </select>)}
     </div>
+    {field(t('spawn'), <select value={fields.spawn} onChange={e => set({ spawn: e.target.value as Fields['spawn'] })}>
+      <option value="fresh">{t('spawnFresh')}</option>
+      <option value="fork">{t('spawnFork')}</option>
+    </select>)}
+    <p className="studio-muted studio-hint">{t('spawnHint')}</p>
     {field(t('persona'), <textarea rows={8} value={fields.persona} onChange={e => set({ persona: e.target.value })} />)}
     <p className="studio-muted studio-hint">{t('personaHint')}</p>
   </DetailDialog>;

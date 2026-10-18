@@ -18,7 +18,7 @@ const checks = { questions: { ok: { type: 'noul', instructions: 'Is `output` an 
 const spec = extra => ({ work: { instruction: 'Translate to Korean.' }, checks, codeChecks: [{ type: 'placeholders' }],
   calibration: { pass: [{ input: 'Save', output: '저장' }], fail: [{ input: 'Save', output: 'Save' }] }, limits: { tokens: 100000, timeMs: 60000 }, ...extra });
 
-async function runtime(t, { work = input => `번역 ${input}`, files = {} } = {}) {
+async function runtime(t, { work = input => `번역 ${input}`, files = {}, writeError, recordError } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'pixie-loop-'));
   const ctx = new Context();
   const prompt = ctx.plugin(SystemPrompt); await prompt;
@@ -30,12 +30,13 @@ async function runtime(t, { work = input => `번역 ${input}`, files = {} } = {}
     async execute(args) { reads.push(args); const all = (files[args.file_path] ?? '').split('\n'); const offset = args.offset ?? 1;
       return { path: args.file_path, offset, totalLines: all.length, lines: all.slice(offset - 1, offset - 1 + (args.limit ?? 2000)).map((text, index) => ({ number: offset + index, text })) }; } });
   const disposeWrite = ctx.tools.register({ name: 'write', description: 'w', output: out, parameters: { type: 'object', properties: { file_path: { type: 'string' }, content: { type: 'string' } }, required: ['file_path', 'content'] },
-    async execute(args) { written[args.file_path] = args.content; return { ok: true }; } });
+    async execute(args) { if (writeError) throw new Error(writeError); written[args.file_path] = args.content; return { ok: true }; } });
   const llm = { stream: options => (async function* () {
     const text = options.system.startsWith('A worker') ? 'keep it Korean' : work(options.messages[0].content[0].text, options);
     yield { type: 'text-delta', text }; yield { type: 'usage', usage: { inputTokens: 7, outputTokens: 3 } }; yield { type: 'finish', reason: { kind: 'stop' } };
   })() };
   const store = new PixieLoopStore(dir);
+  if (recordError) store.put = async () => { throw new Error(recordError); };
   const jobsStarted = [];
   const jobs = { start(jobSpec) { const id = `pixie-loop-${jobsStarted.length + 1}`; const hooks = jobSpec.run({ id, append() {}, updateProgress() {} }); jobsStarted.push({ id, spec: jobSpec, hooks }); return id; }, async wait() {} };
   const life = createLifetime();
@@ -79,6 +80,26 @@ test('items from a JSONL file; results written; the model sees only the summary 
   assert.equal(rows.find(row => row.id === 'k1').output, '{name} 저장');
   const record = await store.read('session-1');
   assert.equal(record.runs.length, 1); assert.equal(record.runs[0].status, 'done'); assert.equal(record.runs[0].items.length, 3);
+});
+
+test('result-file failure is reflected in the final record before returning', async t => {
+  const { call, store } = await runtime(t, { writeError: 'output unavailable' });
+  const result = await call(spec({ items: { inline: [{ id: 'a', input: 'Save' }] }, output: '/out.jsonl' }));
+  assert.equal(result.isError, false, JSON.stringify(result.content));
+  const { runs } = await store.read('session-1');
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].status, 'done');
+  assert.match(runs[0].reason, /results file not written/);
+  assert.equal(runs[0].outputPath, undefined);
+  assert.equal(result.value.outputPath, undefined);
+});
+
+test('recording failure does not change the tool verdict', async t => {
+  const { call } = await runtime(t, { recordError: 'record unavailable' });
+  const result = await call(spec({ items: { inline: [{ id: 'a', input: 'Save' }] } }));
+  assert.equal(result.isError, false, JSON.stringify(result.content));
+  assert.equal(result.value.status, 'done');
+  assert.equal(result.value.passed, 1);
 });
 
 test('an invalid spec is a tool error before any model call', async t => {

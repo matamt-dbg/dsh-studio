@@ -290,3 +290,25 @@ test('Configs folded into subagent_role are listed but cannot be turned on', asy
     assert.equal(changed, false);
   } finally { await act(async () => root.unmount()); dom.window.close(); }
 });
+
+test('A schema-less Config that carries a value stays on and locked; an empty one stays disabled', async () => {
+  const dom = new JSDOM('<div id="root"></div>');
+  globalThis.window = dom.window; globalThis.document = dom.window.document;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const { createRoot } = await import('react-dom/client');
+  const root = createRoot(document.getElementById('root'));
+  const entries = [{ id: 'studio-batch', name: '@matamt-dbg/dsh-studio/batch' }, { id: 'studio-edit-batch', name: '@matamt-dbg/dsh-studio/edit-batch' }];
+  let calls = 0;
+  try {
+    await act(async () => root.render(React.createElement(ConfigEditor, { entries, locale: 'ko', value: { 'studio-batch': { maxLines: null, noSpill: true } }, onChange() { calls++; } })));
+    const row = name => [...document.querySelectorAll('.studio-picker-row')].find(item => item.textContent.includes(name));
+    const batch = row('여러 파일 한 번에 읽기').querySelector('[role="switch"]');
+    assert.equal(batch.getAttribute('aria-checked'), 'true'); assert.equal(batch.disabled, true);
+    assert.match(row('여러 파일 한 번에 읽기').textContent, /편집할 수 없습니다\. Studio가 넣은 값이며, 프리셋을 기본값으로 복구할 때만 바뀝니다/);
+    const edit = row('한 파일 여러 곳 고치기').querySelector('[role="switch"]');
+    assert.equal(edit.getAttribute('aria-checked'), 'false'); assert.equal(edit.disabled, true);
+    assert.match(row('한 파일 여러 곳 고치기').textContent, /스키마를 읽을 수 없어 편집할 수 없습니다\./);
+    await act(async () => batch.click());
+    assert.equal(calls, 0);
+  } finally { await act(async () => root.unmount()); dom.window.close(); }
+});

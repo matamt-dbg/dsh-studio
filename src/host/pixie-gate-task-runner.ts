@@ -8,7 +8,8 @@ import type { JudgeEngine } from './pixie-judge.ts';
 import { untilAborted, type PixieLlm } from './pixie-runtime.ts';
 import type { LoopRecipe } from '../pixie-loop-recipes.ts';
 import type { LoopRun } from '../pixie-loop-contracts.ts';
-import { recipeGateOutput, runRecipeOn } from './pixie-loop-recipe-run.ts';
+import { recipeGateOutput } from './pixie-loop-recipe-run.ts';
+import { runRecordedRecipe } from './pixie-loop-recording.ts';
 
 export interface GateTaskExecution {
   status: 'done' | 'error' | 'cancelled';
@@ -131,9 +132,7 @@ export class GateTaskRunner {
     const loop = this.deps.loop;
     if (!loop) throw new Error('Pixie Loop recipes are unavailable here');
     const recipe = await loop.recipe(name);
-    const outcome = await runRecipeOn(recipe, mode, target, { llm: this.deps.llm, model: this.deps.model, judge: this.deps.judge }, { sessionId, signal, source });
-    await loop.record(outcome.run).catch(() => {});
-    return outcome;
+    return runRecordedRecipe(run => loop.record(run), recipe, mode, target, { llm: this.deps.llm, model: this.deps.model, judge: this.deps.judge }, { sessionId, signal, source });
   }
 
   /** ask/judge for one script run: same models and signal as the gate, each call recorded and counted as gate usage. */

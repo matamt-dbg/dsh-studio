@@ -10,10 +10,11 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm';
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import type { PixieSettings } from '../pixie-contracts.ts';
-import { parseLoopItemsFile, summarizeRun, validateLoopSpec, type LoopItem, type LoopRun, type LoopSpec, type LoopSummary } from '../pixie-loop-contracts.ts';
+import { parseLoopItemsFile, validateLoopSpec, type LoopItem, type LoopRun, type LoopSpec, type LoopSummary } from '../pixie-loop-contracts.ts';
 import { judgeEngineFor, type JevCredentials } from './jev-judge.ts';
 import { runLoop } from './pixie-loop-engine.ts';
-import { PixieLoopStore, throttledWriter } from './pixie-loop-store.ts';
+import { PixieLoopStore } from './pixie-loop-store.ts';
+import { runRecordedTool } from './pixie-loop-recording.ts';
 import { PixieLoopRecipes } from './pixie-loop-recipe-store.ts';
 import { recipeSpec, type LoopRecipe } from '../pixie-loop-recipes.ts';
 import type { LoopChecks } from '../pixie-loop-contracts.ts';
@@ -132,7 +133,6 @@ export function installLoop(ctx: Context, life: Lifetime, deps: LoopToolDeps): (
     const settings = await deps.settings();
     const llm = deps.llm() ?? { stream: () => { throw new Error('DSH llm service is unavailable'); } };
     const judge = judgeEngineFor(settings, { llm, credentials: deps.credentials() });
-    const writer = throttledWriter(run => deps.store.put(run), 500, error => ctx.logger?.warn?.(`studio pixie_loop: record write failed: ${String(error)}`));
     const act = async (command: string, timeoutMs: number, actSignal: AbortSignal) => {
       const value = await nested(exec, 'bash', { command, description: 'pixie_loop act', timeoutMs }, actSignal, true) as { kind?: string; jobId?: string; exitCode?: number | null; timedOut?: boolean; stdout?: { text?: string }; stderr?: { text?: string } };
       if (value.kind === 'promoted' && typeof value.jobId === 'string') {
@@ -145,16 +145,13 @@ export function installLoop(ctx: Context, life: Lifetime, deps: LoopToolDeps): (
       const out = [value.stdout?.text ?? '', value.stderr?.text ? `[stderr]\n${value.stderr.text}` : ''].filter(Boolean).join('\n');
       return { ok: value.exitCode === 0 && !value.timedOut, text: `${out}${value.timedOut ? '\n[timed out]' : ''}\n[exit code: ${value.exitCode ?? 'none'}]` };
     };
-    const run = await runLoop(spec, items, { llm, model: settings.model, judge, act, update: value => { writer.update(value); onProgress?.(value); } },
-      { sessionId: exec.agent!.id, signal, runId, source: 'tool', ...(outputPath ? { outputPath } : {}), ...(recipe ? { recipe: recipe.name, ...(recipe.checks ? { checks: recipe.checks as LoopChecks } : {}) } : {}) });
-    if (outputPath && run.items.some(item => item.status !== 'skipped')) {
-      const body = run.items.filter(item => item.status !== 'skipped').map(item => JSON.stringify({ id: item.id, status: item.status, ...(item.output !== undefined ? { output: item.output } : {}), ...(item.bucket ? { bucket: item.bucket } : {}), attempts: item.attempts.length, ...(item.error ? { error: item.error } : {}) })).join('\n') + '\n';
-      try { await nested(exec, 'write', { file_path: outputPath, content: body }, new AbortController().signal); }
-      catch (error) { run.reason = `${run.reason ? `${run.reason}; ` : ''}results file not written: ${error instanceof Error ? error.message : String(error)}`; delete run.outputPath; }
-    }
-    writer.update(run);
-    await writer.flush();
-    return summarizeRun(run);
+    return runRecordedTool(update => runLoop(spec, items, { llm, model: settings.model, judge, act, update },
+      { sessionId: exec.agent!.id, signal, runId, source: 'tool', ...(outputPath ? { outputPath } : {}), ...(recipe ? { recipe: recipe.name, ...(recipe.checks ? { checks: recipe.checks as LoopChecks } : {}) } : {}) }), {
+      record: run => deps.store.put(run),
+      warn: error => ctx.logger?.warn?.(`studio pixie_loop: record write failed: ${String(error)}`),
+      ...(onProgress ? { progress: onProgress } : {}),
+      ...(outputPath ? { output: { write: (content: string) => nested(exec, 'write', { file_path: outputPath, content }, new AbortController().signal) } } : {}),
+    });
   }
   return tools.register({
     name: LOOP_TOOL, description: DESCRIPTION, parameters: LOOP_PARAMETERS as unknown as Record<string, unknown>,

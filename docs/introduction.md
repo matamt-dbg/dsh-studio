@@ -96,12 +96,12 @@ Studio does not change DSH's safety policies such as approvals, file access and 
 
 Studio ships **Optimized**, a built-in preset for coding agents.
 
-- It fixes a starting set of 22 everyday tools; installing more plugins never enlarges the selection.
-- It folds subagent tools into a single `subagent_role`.
+- It fixes a starting set of 27 tools; installing more plugins never enlarges the selection.
+- It folds subagent tools into a single `subagent_role` and ships a **Worker** role that inherits the same instructions but leaves out delegation, questions, `judge` and `pixie_loop`.
 - Its instructions and tool descriptions are tuned so the model batches independent reads, waits on background work instead of polling, and keeps checks proportional to the task.
 - `standard` features such as compaction, AGENTS.md instructions and the skill catalog stay included.
 
-Optimized is locked and realigned each time Studio starts. Copy it to customize; see [Adapt Optimized to your work](guide.md#adapt-optimized-to-your-work).
+While unedited, Optimized is realigned each time Studio starts. Edit it directly or copy it, and **Restore defaults** brings back the Studio defaults; see [Adapt Optimized to your work](guide.md#adapt-optimized-to-your-work).
 
 ## What Studio does when things change
 

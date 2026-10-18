@@ -9,8 +9,10 @@ export async function storeRuntime({ document = '- name: "@deepseek-ai/dsh-perso
   await ctx.plugin(Tools); await ctx.plugin(SystemPrompt);
   const registrations = new Map(), scopes = new Map(); let broken = false;
   const releases = new Map();
+  // read mirrors the DSH read parameters Optimized describes (offset, limit).
+  const properties = { read: { offset: { type: 'number' }, limit: { type: 'number' } }, subagent_role: {} };
   for (const name of ['read', 'subagent_role']) releases.set(name, ctx.tools.register({ name, description: name,
-    parameters: { type: 'object', properties: {} }, execute: async () => 'ok',
+    parameters: { type: 'object', properties: properties[name] }, execute: async () => 'ok',
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] } }));
   ctx.provide('llm'); ctx.provide('agentPresets');
   ctx.set('llm', { listProviders: () => [], resolveCallConfig: async config => config });

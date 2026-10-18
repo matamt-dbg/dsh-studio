@@ -2,6 +2,64 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.6.2 — 2026-10-18
+
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+
+### Highlights
+
+- **Optimized is tuned from benchmarks and gains a Worker role.** Optimized adds `edit_batch` (several edits to one file in one atomic write), lifts the `read_batch` line cap and keeps its results out of spilling, waits 120 seconds for `bash` instead of 600, rewrites the `bash` and `read` descriptions and the `read` guidance, and ships shorter common instructions. A default **Worker** subagent role inherits these settings but cannot delegate, ask questions, or use `judge`, `pixie_loop` or `cordis_inspect_*`; the main agent keeps all of them.
+- **Optimized can be edited and restored.** Edit Optimized like any preset; it still cannot be deleted. **Restore defaults** replaces it with the current Studio defaults and applies them. An unedited Optimized follows new Studio defaults automatically. An edited one is kept as saved and shows **Edited**, plus **New defaults** when the Studio defaults change after your edit.
+- **Execution defaults are visible and resettable.** A preset can fill in a wait time when the model leaves it out (`bash` `timeoutMs`, `job_output` `timeout_ms`) and lower the `read_batch` limit. These values were saved and copied with a preset but had no screen. **Execution settings → Execution defaults** now lists them the same way as Config overrides: overridden entries show **Modified**, **Edit** changes the value, and turning an entry off removes the override. While a value is set, the DSH command timeout in **Settings → Shell** does not apply to that preset's `bash`; turning it off lets it apply again.
+- **Preset cards show overridden execution defaults.** A card shows how many execution defaults the preset overrides, so copies of Optimized that still wait 600 seconds for `bash` are easy to spot.
+
+### Changes
+
+- Config entries whose plugin has no schema (`read_batch`, `edit_batch`) cannot be edited. An entry that carries a value stays on and locked, and only restoring the preset defaults changes it.
+- Optimized's goal guidance is left out because Optimized offers no goal tools.
+- Session role dialogs allow Fresh/Fork selection. Changes affect new children only; continuing an existing child keeps its settings.
+
+### Upgrade notes
+
+- The built-in Optimized is updated on the first start after upgrading, because earlier versions could not edit it. If it was applied, it is reapplied with the new defaults; sessions that are already running keep their settings.
+- Copies of Optimized are not updated. They keep `bash` 600000 ms and `job_output` 120000 ms and do not gain `edit_batch` or the Worker role. To follow the DSH shell timeout instead, open the copy, turn off **bash command wait** under **Execution defaults**, then save and apply. To get the new defaults in a copy, copy Optimized again.
+
+### Verification
+
+- The release package was installed into isolated profiles of unmodified DSH `0.2.1-rc.2`, both fresh and as an upgrade from 0.6.1, and checked with a scripted test model. On upgrade, the built-in Optimized moved to the new defaults while an existing copy kept its tools and 600000 ms `bash` wait. The preset list and Config screens were checked in light, dark and 480 px views.
+- Optimized tuning, the Worker role and Restore defaults: checked in the same installation. The main agent received the orchestration tools; the Worker did not, a `judge` call from it was rejected and `read` ran; both received the common instructions and the new `read` guidance; saving an edit marked Optimized as edited and Restore defaults brought the defaults back. Real models were not used for this check.
+- `edit_batch` was run only on DSH `0.2.1-rc.2`. On `0.2.0-rc.2` it resolves paths against the session folder, as `edit` does there, but this was not run.
+- Execution defaults: a build of this change (packaged before the version number was raised to 0.6.2) was installed into an isolated profile of unmodified DSH `0.2.1-rc.2` and checked with a local test model. With the shell timeout set to 1500 ms, an Optimized copy still waited for `sleep 3`; after its `bash` default was turned off, the command moved to a background job after 1500 ms. The editor was checked in light, dark and 480 px views. Other DSH versions were not tested for this change.
+
+### 한국어
+
+DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` 또는 `0.2.1-rc.2`가 필요합니다.
+
+#### 주요 변경
+
+- **Optimized를 벤치 결과에 맞춰 조정하고 Worker 역할을 추가했습니다.** Optimized에 `edit_batch`(한 파일의 여러 수정 사항을 한 번에 기록하는 도구)를 추가했습니다. `read_batch`의 줄 수 제한을 없애 결과가 spill로 잘리지 않도록 했고, `bash`의 기본 대기 시간을 600초에서 120초로 줄였습니다. `bash`·`read` 설명과 `read` 지침을 수정하고, 공통 지침은 짧게 바꿨습니다. 기본 **Worker** 서브에이전트 역할은 이 설정을 그대로 상속받되, 위임·질문·`judge`·`pixie_loop`·`cordis_inspect_*`는 사용하지 않습니다. 메인 에이전트는 이 도구들을 모두 사용합니다.
+- **Optimized를 편집하고 기본값으로 복구할 수 있습니다.** 다른 프리셋처럼 편집할 수 있고, 삭제는 계속 막습니다. **기본값으로 복구**는 현재 Studio 기본값으로 바꾼 뒤 반영합니다. 편집하지 않은 Optimized는 새 기본값을 자동으로 따릅니다. 편집한 Optimized는 저장한 그대로 두고 **직접 편집함**을 표시하며, 그 뒤 Studio 기본값이 바뀌면 **새 기본값**도 함께 표시합니다.
+- **실행 기본값을 확인하고 되돌릴 수 있습니다.** 프리셋은 모델이 대기 시간을 생략할 때 넣을 값(`bash`의 `timeoutMs`, `job_output`의 `timeout_ms`)과 `read_batch` 최대 개수를 정할 수 있습니다. 이 값은 프리셋과 함께 저장되고 복사되었지만 볼 수 있는 화면이 없었습니다. 이제 **실행 설정 → 실행 기본값**에서 Config 덮어쓰기와 같은 방식으로 표시됩니다. 덮어쓴 항목에는 **변경됨**이 붙고, **설정**에서 값을 바꾸며, 항목을 끄면 덮어쓰기가 지워집니다. 값이 있는 동안에는 DSH **설정 → 셸**의 명령 타임아웃이 그 프리셋의 `bash`에 적용되지 않습니다. 항목을 끄면 다시 적용됩니다.
+- **프리셋 카드에 덮어쓴 실행 기본값 수가 표시됩니다.** `bash` 명령을 600초까지 기다리는 Optimized 복사본을 쉽게 찾을 수 있습니다.
+
+#### 변경 사항
+
+- 스키마가 없는 플러그인의 Config 항목(`read_batch`, `edit_batch`)은 편집할 수 없습니다. 값이 있는 항목은 켜진 상태로 잠기며, 프리셋을 기본값으로 복구할 때만 바뀝니다.
+- Optimized는 goal 도구를 사용하지 않으므로 goal 지침을 포함하지 않습니다.
+- 세션 역할 추가·편집 창에서 Fresh/Fork를 선택할 수 있습니다. 변경 사항은 새 자식에게만 적용되며, 기존 자식을 이어서 실행할 때는 기존 설정을 유지합니다.
+
+#### 업그레이드 참고
+
+- 이전 버전에서는 Optimized를 편집할 수 없었으므로, 업그레이드 후 처음 시작할 때 기본 제공 Optimized가 새 기본값으로 바뀝니다. 반영되어 있었다면 새 기본값으로 다시 반영합니다. 이미 실행 중인 세션의 설정은 바뀌지 않습니다.
+- Optimized 복사본은 바뀌지 않습니다. `bash`는 600000ms, `job_output`은 120000ms로 그대로 남고 `edit_batch`와 Worker 역할도 생기지 않습니다. DSH 셸 타임아웃을 따르게 하려면 복사본을 열고 **실행 기본값**에서 **bash 명령 대기 시간**을 끈 뒤 저장해 반영하세요. 복사본에 새 기본값을 사용하려면 Optimized를 다시 복사하세요.
+
+#### 검증
+
+- 배포 패키지를 수정하지 않은 DSH `0.2.1-rc.2`의 격리 프로필에 새로 설치한 경우와 0.6.1에서 업그레이드한 경우 모두 각본 테스트 모델로 확인했습니다. 업그레이드하면 기본 제공 Optimized는 새 기본값으로 바뀌었고, 기존 복사본은 도구와 `bash` 600000ms 대기를 그대로 유지했습니다. 프리셋 목록과 Config 화면은 라이트·다크 모드와 480px 너비에서 확인했습니다.
+- Optimized 조정, Worker 역할, 기본값으로 복구: 같은 설치본에서 확인했습니다. 메인 에이전트는 오케스트레이션 도구를 받았고 Worker는 받지 않았으며, Worker의 `judge` 호출은 거부되고 `read`는 실행되었습니다. 두 에이전트 모두 공통 지침과 새 `read` 지침을 받았습니다. 편집을 저장하면 Optimized가 편집됨으로 표시되었고, 기본값으로 복구하면 기본값으로 돌아왔습니다. 이 확인에는 실제 모델을 쓰지 않았습니다.
+- `edit_batch`는 DSH `0.2.1-rc.2`에서만 실행해 확인했습니다. `0.2.0-rc.2`에서는 그 버전의 `edit`처럼 세션 폴더 기준으로 경로를 찾지만, 실행해 보지는 않았습니다.
+- 실행 기본값: 이번 변경을 담은 빌드(버전 번호를 0.6.2로 올리기 전에 패키징)를 수정하지 않은 DSH `0.2.1-rc.2`의 격리 프로필에 설치하고 로컬 테스트 모델로 확인했습니다. 셸 타임아웃을 1500ms로 둔 상태에서 Optimized 복사본은 `sleep 3`이 끝날 때까지 기다렸고, `bash` 기본값을 끈 뒤에는 1500ms가 지나자 백그라운드 작업으로 넘어갔습니다. 편집 화면은 라이트·다크 모드와 480px 너비에서 확인했습니다. 이번 변경 사항은 다른 DSH 버전에서 확인하지 않았습니다.
+
 ## 0.6.1 — 2026-10-17
 
 Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.

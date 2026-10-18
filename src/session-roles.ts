@@ -11,8 +11,8 @@ export interface SessionRoles { version: 1; roles: ExecutableRole[] }
 export type RoleSource = 'preset' | 'session';
 export type MergedRole = ExecutableRole & { source: RoleSource };
 /** The fields a session may change. Everything else is fixed at copy time. */
-export type SessionRolePatch = Partial<Pick<StudioRole, 'model' | 'reasoning' | 'persona'>>;
-/** Input for a temporary role. It always starts a new conversation and uses the preset tool filter. */
+export type SessionRolePatch = Partial<Pick<StudioRole, 'model' | 'reasoning' | 'persona' | 'spawn'>>;
+/** Input for a temporary role. Defaults to a new conversation and uses the preset tool filter. */
 export type TemporaryRoleInput = Pick<StudioRole, 'name' | 'role'> & SessionRolePatch;
 
 /** What the Subagents tab shows for one session. */
@@ -57,6 +57,10 @@ export function mergeRoles(preset: readonly ExecutableRole[], record: SessionRol
 const pickPatch = (patch: SessionRolePatch): SessionRolePatch => {
   const picked: SessionRolePatch = {};
   for (const key of ['model', 'reasoning', 'persona'] as const) if (patch[key] !== undefined) picked[key] = patch[key];
+  if (patch.spawn !== undefined) {
+    if (patch.spawn !== 'fresh' && patch.spawn !== 'fork') throw new Error('Role spawn must be fresh or fork');
+    picked.spawn = patch.spawn;
+  }
   return picked;
 };
 
@@ -73,7 +77,7 @@ export function editSessionRole(record: SessionRoles, preset: readonly Executabl
 
 /** Add a role that exists only in this session. */
 export function addSessionRole(record: SessionRoles, preset: readonly ExecutableRole[], input: TemporaryRoleInput): SessionRoles {
-  const role = validated([{ model: 'inherit', reasoning: 'inherit', persona: '', ...pickPatch(input), name: input.name, role: input.role, spawn: 'fresh' }])[0]!;
+  const role = validated([{ model: 'inherit', reasoning: 'inherit', persona: '', spawn: 'fresh', ...pickPatch(input), name: input.name, role: input.role }])[0]!;
   if (preset.some(item => item.role === role.role) || record.roles.some(item => item.role === role.role)) throw new Error(`Role identifier already exists: ${role.role}`);
   return { version: 1, roles: validated([...record.roles, role]) };
 }

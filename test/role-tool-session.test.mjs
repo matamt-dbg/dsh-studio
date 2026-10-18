@@ -98,3 +98,17 @@ test('a session role whose provider disappeared is refused at call time', async 
   assert.match(result.content.map(block => block.text).join(''), /provider "gone" is not registered/);
   assert.equal(h.starts.length, 0);
 });
+
+test('spawn edits affect new children only and preserve prior start requests', async t => {
+  const h = await runtime(t, [reviewer]);
+  const root = h.agent('root');
+  parsed(await h.call(root, { action: 'call', role: 'review', task: 'fresh' }));
+  const before = structuredClone({ provider: h.starts[0].provider, options: h.starts[0].request.agentOptions });
+  await h.store.update('root', record => editSessionRole(record, [reviewer], 'review', { spawn: 'fork', model: 'route/b' }));
+  parsed(await h.call(root, { action: 'call', role: 'review', task: 'fork' }));
+  await h.store.update('root', record => editSessionRole(record, [reviewer], 'review', { spawn: 'fresh' }));
+  parsed(await h.call(root, { action: 'call', role: 'review', task: 'fresh again' }));
+  assert.deepEqual(h.starts.map(start => start.provider), ['spawn', 'fork', 'spawn']);
+  assert.equal(h.starts[1].request.agentOptions.model, 'b');
+  assert.deepEqual({ provider: h.starts[0].provider, options: h.starts[0].request.agentOptions }, before);
+});

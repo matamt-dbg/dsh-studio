@@ -99,7 +99,7 @@ export class SessionRoleService extends TypertRemoteService {
       roles: mergeRoles(preset ?? [], record), presetRoleIds: (preset ?? []).map(role => role.role) };
   }
 
-  /** Payload `{ role, model?, reasoning?, persona? }`. The first edit copies the preset role. */
+  /** Payload `{ role, model?, reasoning?, persona?, spawn? }`. The first edit copies the preset role. */
   @Remote
   async editRole(sessionId: string, payload: string): Promise<SessionRolesView> {
     const { role, ...patch } = json<{ role: string } & SessionRolePatch>(payload);
@@ -112,7 +112,7 @@ export class SessionRoleService extends TypertRemoteService {
     return this.view(sessionId);
   }
 
-  /** Payload `{ name, role, model?, reasoning?, persona? }`. */
+  /** Payload `{ name, role, model?, reasoning?, persona?, spawn? }`. */
   @Remote
   async addRole(sessionId: string, payload: string): Promise<SessionRolesView> {
     const input = json<TemporaryRoleInput>(payload);

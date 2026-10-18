@@ -13,12 +13,12 @@ export async function runRecipeOn(recipe: LoopRecipe, mode: 'check' | 'repair', 
   if (!recipe.checks) throw new Error(`Recipe ${recipe.name} has no checks to judge with`);
   const base = recipeSpec(recipe, { inline: [{ id: 'target', input: target }] });
   const spec = mode === 'check'
-    // Check: the target is the output to judge, so the worker echoes it once and never rewrites it.
+    // Keep the historical run title; input review is selected explicitly below.
     ? { ...base, maxAttempts: 1, concurrency: 1, work: { instruction: ECHO_INSTRUCTION } }
     : { ...base, concurrency: 1, ...(options.maxAttempts ? { maxAttempts: Math.min(options.maxAttempts, base.maxAttempts) } : {}) };
   const items = [{ id: 'target', input: target }];
-  const run = await runLoop(spec, items, mode === 'check' ? { ...deps, llm: echo(target, deps.llm) } : deps,
-    { sessionId: options.sessionId, signal: options.signal, recipe: recipe.name, source: options.source, checks: recipe.checks });
+  const run = await runLoop(spec, items, deps,
+    { sessionId: options.sessionId, signal: options.signal, recipe: recipe.name, source: options.source, checks: recipe.checks, ...(mode === 'check' ? { outputSource: 'input' as const } : {}) });
   const item = run.items[0];
   const last = item?.attempts.at(-1);
   if (run.status !== 'done' || !item || item.status === 'error') return { run, passed: false, reason: item?.error ?? run.reason ?? `Loop ${run.status}` };
@@ -30,11 +30,6 @@ export async function runRecipeOn(recipe: LoopRecipe, mode: 'check' | 'repair', 
 }
 
 const ECHO_INSTRUCTION = 'Reply with the user message exactly as given, unchanged.';
-/** The worker returns the target verbatim, so `check` judges exactly what the gate saw; feedback still uses Pixie. */
-const echo = (target: string, llm: LoopEngineDeps['llm']): LoopEngineDeps['llm'] => ({ stream: options => options.system?.startsWith(ECHO_INSTRUCTION) ? (async function* () {
-  yield { type: 'text-delta', text: target }; yield { type: 'finish', reason: { kind: 'stop' } };
-})() : llm.stream(options) });
-
 /** Map a recipe outcome to the gate output contract; the gate's own application rules do the rest. */
 export function recipeGateOutput(mode: 'check' | 'repair', outcome: RecipeOutcome): GateOutput {
   if (!outcome.passed) return { verdict: 'stop', reason: outcome.reason };

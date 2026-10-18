@@ -49,19 +49,20 @@ The list shows every preset Studio manages:
 | Preset | What it is |
 |---|---|
 | **Studio Master** | Read-only reference. It follows the running DSH `standard` preset and adds the plugins Studio provides (`read_batch`, `spill-policy` and others) plus any you add. Use it to see which tools and plugins you can select. |
-| **Optimized** | Built-in starting point for coding agents: a fixed list of 22 everyday tools, tuned tool descriptions and execution defaults, and short working instructions. It is locked: copy it to make changes. See [Adapt Optimized to your work](#adapt-optimized-to-your-work). |
+| **Optimized** | Built-in starting point for coding agents: a fixed list of 27 tools, tuned tool descriptions and execution defaults, short working instructions, and a **Worker** role for delegated work. You can edit it and restore the defaults at any time; it cannot be deleted. See [Adapt Optimized to your work](#adapt-optimized-to-your-work). |
 | Your presets | Anything you create or copy. |
 
 Each card shows its status — **Applied**, **Needs reapply** (saved changes not yet in DSH), or **Not applied** — and the number of tools and subagent roles. The card buttons:
 
-- **Edit** opens the preset in the editor. Built-in presets cannot be edited.
+- **Edit** opens the preset in the editor.
 - **Create copy** opens a new, unsaved preset prefilled from this one. Copies can be copied again.
-- **Delete** removes the preset from Studio and from DSH. Existing conversations are kept.
+- **Delete** removes the preset from Studio and from DSH. Existing conversations are kept. Optimized cannot be deleted.
+- **Restore defaults** (Optimized only) replaces tools, instructions, tool descriptions, Configs, execution defaults and subagent roles with the current Studio defaults, then applies them to DSH. Your edits are discarded.
 - **Apply to DSH / Reapply to DSH** registers the saved preset with DSH. The arrow next to it offers **Unapply from DSH**.
 
 If several presets share a warning, it is shown once above the cards instead of on every card.
 
-Optimized follows the installed Studio version and DSH `standard`. Each time Studio starts, it realigns Optimized. If Optimized was applied, Studio reapplies it; if you unapplied it, it stays unapplied. Your copies are never changed.
+While you have not edited Optimized, Studio realigns it with the installed Studio version's defaults and DSH `standard` each time it starts. If Optimized was applied, Studio reapplies it; if you unapplied it, it stays unapplied. An edited Optimized is kept as you saved it and its card shows **Edited**. If the Studio defaults change after that, the card also shows **New defaults**; **Restore defaults** adopts them. Your copies are never changed.
 
 - **Missing features**: if an earlier Studio version left features out when applying (compaction, for example), the card says so. **Restore** shows what will be added and, once you confirm, reapplies the saved settings. Overrides, roles and Pixie Gate links are kept.
 - **Tool and Config changes**: when a DSH update or a plugin install or removal changes what is available, a notice appears above the list on the next start. **Review** lists additions (`+`), removals (`-`) and schema changes (`~`) with the preset settings that would be cleaned; **Confirm and clean** removes the missing items from your presets. Nothing changes until you confirm.
@@ -116,7 +117,9 @@ Content that appears only while running, such as notes after tool results (a sub
 
 ![Execution settings](images/en/execution-settings.png)
 
-Execution settings has two parts.
+Execution settings has three parts.
+
+**Execution defaults**: the wait times this preset fills in when the model leaves them out (`bash`, `job_output`) and the `read_batch` item limit. Only selected tools are listed, and they work like the Config list below: check an entry and change its value in **Edit**; unchecking removes the override. While a `bash` value is set, the DSH command timeout in **Settings → Shell** does not apply to this preset. Optimized sets both `bash` and `job_output` to 120000 ms. Copies made with an earlier version may still have `bash` at 600000 ms. Preset cards show how many execution defaults a preset overrides.
 
 ![Included plugins with automatic compaction left out](images/en/plugin-exclusion.png)
 
@@ -126,7 +129,7 @@ Execution settings has two parts.
 
 ![Config overrides](images/en/config-overrides.png)
 
-**Config**: override values of included plugins for this preset only — for example, how much tool output stays inline before it is saved to a file (`spill-policy`). Check an entry and **Edit** its fields; only changed fields are saved, and unchecking returns to the defaults. Leaving a plugin out happens in Included plugins above. To turn off only automatic compaction, override `auto` to `false` here (`/compact` stays). Plugins whose settings cannot be read are shown disabled, and so are the `tool-subagent` Configs, which `subagent_role` replaces.
+**Config**: override values of included plugins for this preset only — for example, how much tool output stays inline before it is saved to a file (`spill-policy`). Check an entry and **Edit** its fields; only changed fields are saved, and unchecking returns to the defaults. Leaving a plugin out happens in Included plugins above. To turn off only automatic compaction, override `auto` to `false` here (`/compact` stays). Plugins whose settings (schema) cannot be read, such as `read_batch` and `edit_batch`, cannot be edited, and neither can the `tool-subagent` Configs, which `subagent_role` replaces. If Studio set a value for such a plugin (for example, Optimized's `read_batch`), the entry stays on and locked; only restoring the preset defaults changes it.
 
 ### Subagent settings
 
@@ -223,7 +226,7 @@ The DSH `tool-subagent` Config in **Execution settings** has its own `toolFilter
 
 ## Per-session subagent roles
 
-Without touching the preset, you can change a subagent role's model, reasoning effort and instructions **for one session only**, or add roles that exist only in that session. Use the **Subagents** tab next to **Chat** and **Trajectory** at the top of the session.
+Without touching the preset, you can change a subagent role's model, reasoning effort, start mode and instructions **for one session only**, or add roles that exist only in that session. Use the **Subagents** tab next to **Chat** and **Trajectory** at the top of the session.
 
 ![Subagents tab of a session](images/en/session-subagents.png)
 
@@ -237,7 +240,7 @@ Each card shows where the role comes from:
 
 ### Change a role
 
-**Edit** lets you change the model, reasoning effort and role instructions (persona). Name, role ID, spawn mode and Tool Filter stay as the preset defines them.
+**Edit** lets you change the model, reasoning effort, start mode and role instructions (persona). Name, role ID and Tool Filter stay as the preset defines them.
 
 ![Edit a role for this session](images/en/session-role-edit.png)
 
@@ -247,13 +250,13 @@ Each card shows where the role comes from:
 
 ### Add a role
 
-**Add role** creates a role for this session only: set its name, role ID, model, reasoning effort and instructions. Such a role always starts a **new conversation** and uses the preset's default Tool Filter. A role ID that the preset or this session already uses is rejected. **Remove** it when you no longer need it.
+**Add role** creates a role for this session only: set its name, role ID, model, reasoning effort and instructions. Such a role defaults to a **new conversation (Fresh)**, can **inherit the parent conversation (Fork)**, and uses the preset's default Tool Filter. A role ID that the preset or this session already uses is rejected. **Remove** it when you no longer need it.
 
 You can add roles even when the preset defines none; `subagent_role` then delegates to them instead of starting a child that matches the parent.
 
 ### When and where changes apply
 
-- From the **next delegation** on. Subagents already running keep their settings.
+- From the **next delegation** on. Existing subagents keep their settings, including when continued. Fork inherits conversation history but does not guarantee KV cache reuse when changing models.
 - Subagents started from this session, and subagents they start in turn, use this session's roles.
 - When you open a subagent session, its **Subagents** tab shows the main session's roles read-only. Edit them in the main session.
 
@@ -295,15 +298,18 @@ Installing Studio adds **한국어** (Korean) to DSH's language list. Choose it 
 
 ## Adapt Optimized to your work
 
-Optimized is tuned for **coding-agent work**: reading and editing code, running commands, and checking results. For anything else, treat it as a starting point. Select **Create copy** on Optimized and adjust the copy with the same screens described above — everything in the copy can be changed.
+Optimized is tuned for **coding-agent work**: reading and editing code, running commands, and checking results. The main agent has every tool, including delegation, questions, `judge` and `pixie_loop`. The default **Worker** role inherits the same instructions and execution defaults but leaves those tools out and only does the work it is given.
+
+You can **Edit** Optimized directly, or **Create copy** to keep separate presets for different kinds of work. An edited Optimized can always go back to the Studio defaults with **Restore defaults**. Copies do not follow later Studio defaults.
 
 | If you want to… | Change this |
 |---|---|
 | Track long, multi-step objectives | Turn on the goal and todo tools (`create_goal`, `get_goal`, `update_goal`, `todo_write`) in **Prompts & tools**. |
-| Develop or inspect DSH plugins | Turn on `cordis_inspect_list`, `cordis_inspect_query` and `plugin_manager`. |
+| Manage DSH plugins | Turn on `plugin_manager`. The inspection tools (`cordis_inspect_list`, `cordis_inspect_query`) are already on. |
 | Work with Office files or data using the app's bundled Python and Node | Turn on `load_workspace_dependencies` (desktop app profile only; see [Tools that depend on your profile](#tools-that-depend-on-your-profile)). |
 | Search X, or generate images and videos | Turn on `x_search`, `image_generate` or `video_generate` (only when a plugin in your profile provides them). |
 | Do research, writing or operations instead of coding | Rewrite **Additional Studio instructions** for that work, and drop tools it does not need. |
+| Let the DSH shell setting decide how long commands wait | Turn off **bash command wait** in **Execution settings → Execution defaults**. |
 | Change how much tool output stays inline | Adjust `spill-policy` in **Execution settings**. |
 | Tune any other plugin behavior | Turn on that plugin in **Execution settings → Config** and edit only the fields you need. |
 | Leave a feature out entirely | Uncheck it in **Execution settings → Included plugins**. |
@@ -312,7 +318,7 @@ Optimized is tuned for **coding-agent work**: reading and editing code, running 
 | Change a role's model or instructions for one task only | Use the session's **Subagents** tab; the preset stays as it is. See [Per-session subagent roles](#per-session-subagent-roles). |
 | Keep subagents focused | Add tools such as `ask_user_question` to the **Subagent Tool Filter**, or give a role its own list. See [Subagent Tool Filter](#subagent-tool-filter). |
 
-Use **Preview prompt** after each change to confirm what the model will receive, then save and apply the copy. Optimized itself stays available as a reference, and you can keep several presets for different kinds of work.
+Use **Preview prompt** after each change to confirm what the model will receive, then save and apply. You can keep several presets for different kinds of work.
 
 ## Apply a preset to DSH
 
@@ -360,4 +366,6 @@ Your saved presets are kept and migrated automatically.
 
 **Some text is still English after choosing Korean.** It is either not translated yet or sent by the DSH Host or desktop app. See [Show DSH in Korean](#show-dsh-in-korean).
 
-**Optimized has different tools or plugins after an update.** This is expected: Optimized follows the installed Studio version and DSH `standard`. Your copies keep their own tools.
+**Optimized has different tools or plugins after an update.** This is expected: an unedited Optimized follows the installed Studio version's defaults and DSH `standard`. An edited Optimized and your copies keep their own tools.
+
+**The Optimized card shows "New defaults".** The Studio defaults changed after you edited Optimized. Leave it to keep your settings, or select **Restore defaults** to adopt the new defaults; your edits are then discarded.

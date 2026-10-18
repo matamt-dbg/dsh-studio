@@ -30,15 +30,15 @@ Studio also ships **Optimized**, a starting preset built on a simple idea: an ag
 
 Compared with the stock setup, Optimized
 
-- **keeps a fixed starting tool set**: 22 everyday tools, so installing another plugin never enlarges the preset's selection. It is not a runtime block: tools DSH or other plugins add to a running session stay usable. It drops goal/todo tracking, runtime introspection, plugin management and environment/media tools that rarely help a coding task (you can still select them from Studio Master when your profile provides them);
-- **folds delegation into one tool**, `subagent_role`, instead of several generic subagent tools;
-- **adds working instructions and tunes tool descriptions** so the model batches independent reads, waits for background work instead of polling it, collects the jobs it starts, and keeps checks proportional before reporting.
+- **keeps a fixed starting tool set**: 27 tools, so installing another plugin never enlarges the preset's selection. It is not a runtime block: tools DSH or other plugins add to a running session stay usable. It drops goal/todo tracking, plugin management and environment/media tools that rarely help a coding task (you can still select them from Studio Master when your profile provides them);
+- **folds delegation into one tool**, `subagent_role`, instead of several generic subagent tools, and ships a **Worker** role that inherits the same instructions but cannot delegate, ask questions or use the orchestration tools (`judge`, `pixie_loop`);
+- **adds working instructions and tunes tool descriptions** so the model reads whole files at once, batches reads (`read_batch`) and edits to one file (`edit_batch`), lets long commands continue as background jobs and collects them, and keeps checks proportional before reporting.
 
 In our early internal benchmarks, this preset performed noticeably better than DSH's stock `standard` preset.
 
-Optimized is locked and follows the installed Studio version and DSH's `standard` preset: on startup Studio realigns it, keeps every `standard` feature such as compaction and AGENTS.md instructions, and never touches your copies.
+While you leave it unedited, Optimized follows the installed Studio version and DSH's `standard` preset: on startup Studio realigns it and keeps every `standard` feature such as compaction and AGENTS.md instructions. You can edit it directly and **Restore defaults** at any time; an edited Optimized and your copies are never changed by Studio.
 
-Optimized is tuned for **coding-agent work**. It is a starting point, not a fixed recipe: copy it and adjust the tools, instructions, tool descriptions and plugin Configs to fit your own tasks. See [Adapt Optimized to your work](docs/guide.md#adapt-optimized-to-your-work).
+Optimized is tuned for **coding-agent work**. It is a starting point, not a fixed recipe: edit or copy it and adjust the tools, instructions, tool descriptions and plugin Configs to fit your own tasks. See [Adapt Optimized to your work](docs/guide.md#adapt-optimized-to-your-work).
 
 > DSH Studio is a community project. It is not affiliated with, endorsed by, or supported by DeepSeek.
 
@@ -69,10 +69,10 @@ Not checked: external model calls in these checks, upgrading data from 0.5.0, an
 
 ![Preset list](docs/images/en/preset-list.png)
 
-- **Presets** — a read-only *Studio Master* that follows DSH `standard` plus Studio's own plugins, a locked built-in *Optimized* preset (22 everyday tools) to copy from, and your own presets. Edit, copy, delete, apply to DSH, or unapply.
+- **Presets** — a read-only *Studio Master* that follows DSH `standard` plus Studio's own plugins, a built-in *Optimized* preset (27 tools and a Worker role) you can edit and restore to defaults, and your own presets. Edit, copy, delete, apply to DSH, or unapply.
 - **Prompts & tools** — edit persona and additional instructions, pick tools (or whole built-in tool sets), and rewrite the descriptions the model sees for each tool and parameter.
 - **Prompt preview** — see the system prompt, tool schemas, runtime context and per-turn messages a preset produces, without starting an agent.
-- **Execution settings** — every plugin is included by default; leave plugins out of a preset, add installed packages, and override plugin configuration for one preset only.
+- **Execution settings** — every plugin is included by default; leave plugins out of a preset, add installed packages, and override plugin configuration for one preset only. Execution defaults show the wait times a preset fills in for `bash` and `job_output`, and turning one off lets DSH's shell setting apply again.
 - **Subagents** — DSH's generic subagent tools become a single `subagent_role` tool. Define roles with their own model, reasoning effort, fresh or fork start, and persona; with no roles, `subagent_role` starts a child that inherits the parent's settings.
 - **Per-session subagent roles** — a **Subagents** tab in each session changes a role's model, reasoning effort and instructions, or adds a role, for that session only.
 - **DSH in Korean** — choosing 한국어 in DSH's language setting also translates DSH's own screens.
@@ -88,7 +88,7 @@ Not checked: external model calls in these checks, upgrading data from 0.5.0, an
 
 ## Quick start
 
-1. Open **DSH Studio** and select **Create copy** on *Optimized* (the built-in itself is locked).
+1. Open **DSH Studio** and select **Edit** or **Create copy** on *Optimized*.
 2. Adjust instructions, tools, execution settings and subagent roles, then **Save preset**.
 3. In **Preset list**, select **Apply to DSH**.
 4. Start a new session and choose your preset in DSH's preset picker.
