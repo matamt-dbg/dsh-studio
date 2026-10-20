@@ -57,7 +57,9 @@ test('built client mounts read-only catalog and registers Studio optimization', 
   await plugin.apply(ctx);
   // Every session gets the Subagents view after Chat and Trajectory. Without the right sidebar, Pixie adds only
   // its Studio settings page; the tab and /pixie row need sidebarRightTabs.
-  assert.deepEqual(registrations.map(item => item.name), ['conversation.view', 'local.dsh-studio.services', 'local.dsh-studio.services', 'main', 'local.dsh-studio.services', 'sidebar.panellist']);
+  assert.deepEqual(registrations.map(item => item.name), ['conversation.view', 'local.dsh-studio.services', 'local.dsh-studio.services', 'main', 'local.dsh-studio.services', 'local.dsh-studio.services', 'sidebar.panellist']);
+  // Presets (order 0), then Plugins (order 5, #38).
+  assert.deepEqual(registrations.filter(item => item.name === 'local.dsh-studio.services').slice(-2).map(item => [item.id, item.order]), [['optimization-prototype', 0], ['plugins', 5]]);
   const subagents = registrations.shift();
   assert.deepEqual(Array.from([subagents.id, subagents.order]), ['studio-subagents', 20]);
   assert.equal(subagents.label(), 'Subagents');
@@ -71,7 +73,10 @@ test('built client mounts read-only catalog and registers Studio optimization', 
   assert.equal(registrations[1].id, 'settingsx');
   assert.equal(registrations[2].key, 'local-dsh-studio');
   assert.equal(registrations[3].id, 'optimization-prototype');
-  assert.equal(registrations[4].id, 'local-dsh-studio');
+  assert.equal(registrations[4].id, 'plugins');
+  assert.equal(registrations[5].id, 'local-dsh-studio');
+  const plugins = mounts[0].descriptors.filter(item => ['listInstalledPlugins', 'extensionMigration', 'migrateExtension', 'listProfileConfigs', 'saveProfileConfig', 'installedPluginSchema', 'registerProfilePlugin'].includes(item.method));
+  assert.equal(plugins.length, 7);
   const pixie = mounts[0].descriptors.filter(item => item.service === 'studioPixie');
   assert.ok(pixie.length > 0);
   assert.ok(pixie.every(item => item.parameters.every(parameter => parameter.codec.mode === 'strict')));

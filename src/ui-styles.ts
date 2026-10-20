@@ -439,6 +439,7 @@ ${adapter}.studio-ui *, .studio-ui *::before, .studio-ui *::after { box-sizing: 
 .studio-ui .studio-picker { display: grid; gap: 10px; min-width: 0; }
 .studio-ui .studio-picker-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .studio-ui .studio-picker-bar input[type=search] { flex: 1 1 240px; width: auto; }
+.studio-ui .studio-search { width: 100%; }
 .studio-ui .studio-picker-filters { display: inline-flex; flex: 0 0 auto; padding: 2px; border-radius: var(--studio-control-radius); background: var(--studio-neutral-fill); }
 .studio-ui .studio-picker-filter { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 0; border-radius: var(--studio-small-radius); background: none; color: var(--studio-muted); font: inherit; font-size: 12px; cursor: pointer; }
 .studio-ui .studio-picker-filter[aria-checked=true] { background: var(--studio-bg); color: var(--studio-ink); font-weight: 500; }

@@ -12,6 +12,7 @@ DSH Studio is a page inside the DeepSeek Harness web GUI for building **agent pr
   - [Execution settings](#execution-settings)
   - [Subagent settings](#subagent-settings)
 - [Per-session subagent roles](#per-session-subagent-roles)
+- [Plugins (profile-wide settings)](#plugins-profile-wide-settings)
 - [Show DSH in Korean](#show-dsh-in-korean)
 - [Studio shortcuts (SettingsX)](#studio-shortcuts-settingsx)
 - [Adapt Optimized to your work](#adapt-optimized-to-your-work)
@@ -123,9 +124,7 @@ Execution settings has three parts.
 
 ![Included plugins with automatic compaction left out](images/en/plugin-exclusion.png)
 
-**Included plugins**: every plugin in Studio Master is included in the preset by default. Each row shows its origin (`standard`, `Studio`, `Added`) and state (**Defaults**, **Override**, **Excluded**). Uncheck a row to leave that plugin out of this preset. Plugins that need it leave with it (removing automatic compaction also removes `/compact`). Applying is blocked if a selected tool loses its plugin. **Add plugin** adds or removes a package installed in your profile, by name, in Studio Master. Activation is checked first, and a failure keeps the previous state.
-
-![Add plugin](images/en/add-plugin.png)
+**Included plugins**: every plugin in Studio Master is included in the preset by default. Each row shows its origin (`standard`, `Studio`, `Added`) and state (**Defaults**, **Override**, **Excluded**). Uncheck a row to leave that plugin out of this preset. Plugins that need it leave with it (removing automatic compaction also removes `/compact`). Applying is blocked if a selected tool loses its plugin. New plugins are included from the [Plugins](#plugins-profile-wide-settings) tab; remove ones you already added under **Plugins added by Studio**.
 
 ![Config overrides](images/en/config-overrides.png)
 
@@ -267,6 +266,34 @@ You can add roles even when the preset defines none; `subagent_role` then delega
 - In a session whose preset has no Studio `subagent_role`, the tab says **This session has no subagent role tool**.
 
 Session roles are stored per session in `<profile>/studio-data/session-roles/`. Archived sessions keep them; deleting a session removes them.
+
+## Plugins (profile-wide settings)
+
+![Profile settings](images/en/plugins-profile.png)
+
+The **Plugins** tab at the top of Studio handles plugins shared by the whole profile (Host). It configures different plugins than presets do.
+
+| Screen | Plugins it configures | Applies to |
+|---|---|---|
+| Preset › Execution settings › Config | Plugins that run inside a preset composition (tools, automatic compaction, plan mode, ...) | Sessions using that applied preset |
+| Plugins › Profile settings | Plugins that run once in the profile (Host) and are shared by every session (web search providers, delegation providers, loop guards, ...) | Every session, as soon as you save |
+
+The same feature can be split by where it runs. For example, the `web_search` tool's timeout is set in the preset's Config, while which provider receives searches (Exa, DeepSeek, ...) is set in Plugins › Profile settings.
+
+**Installed plugins** lists the packages you installed in this profile and where they run.
+
+- **Agent feature** runs per preset. **Set up and include** takes initial settings and adds it to Studio Master; it then appears in the preset's tool and Config lists.
+- **Profile-wide** registers into a service every session shares and cannot go into a preset. **Register in profile › Register** adds it to the profile patch file and applies it at once. Then set its values under **Profile settings**. If an earlier version added this plugin to Studio Master, first press **Move** under **Plugins to move out of the base composition**; its settings are backed up to `studio-data/migrated-extensions.json`. While an applied preset still runs the plugin, the row shows **Reapply presets first** and the preset names instead of Register; reapply or unapply those presets, then register.
+- **Needs check** means Studio could not confirm where it runs. Check that it works per preset before including it.
+
+Install packages from the DSH **Plugins** page (bundles) or with `dsh plugin --profile <profile> add <package>`.
+
+**Profile settings** groups workflow-related profile settings by category: Web search and fetch, Delegation providers, Loop guards, Goal continuation, Context management (shared), MCP servers, and Model retry and metering. Use the search box to find plugins, categories, or provider IDs.
+
+- Web search and fetch picks a **Search provider** and a **Fetch provider** from the providers that are running. **Use default** removes the override and follows the DSH default (or auto-selection).
+- For a provider that is not listed, choose **Enter manually** and type its ID; saving an empty value uses the default. Only providers that follow DSH plugin naming conventions (a `providerName`/`serverName` setting, or a `*_PROVIDER_ID` string export) are listed and labeled automatically.
+- Secrets such as API keys are never shown; choose **Keep**, **Replace**, or **Delete**. They are stored in plain text in the profile patch file. Plugins that use the DSH credential store (such as the DeepSeek web API with `apiKeyEnv`) show only the key name and status, for example **DEEPSEEK_API_KEY: Set (credential store)**; change that key on the DSH **Plugins › Web search** page.
+- Rows that run inside presets (tools, compaction) and infrastructure with little to configure are not listed here. Listed rows with nothing to edit show **No settings**.
 
 ## Show DSH in Korean
 

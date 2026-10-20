@@ -15,6 +15,8 @@ import { mountSettingsX } from './settingsx-client.tsx';
 import { DshMarkdown } from './ui-host.tsx';
 import { mountSessionRoles, sessionRoleDescriptors } from './session-roles-client.tsx';
 import { registerDshKo } from './dsh-ko-locale.ts';
+import { PluginsPage, type PluginsActions } from './plugins-page.tsx';
+import { pluginsText } from './plugins-locale.ts';
 import { dshKo } from './dsh-ko/index.ts';
 
 export const inject = ["slots", "locale", "remote"];
@@ -31,9 +33,9 @@ export async function apply(ctx: StudioContext) {
     }, ...['updateStatus', 'updateStudio'].map(method => ({
         id: `${PACKAGE_NAME}#studioCatalog/${method}`, service: 'studioCatalog', namespace: 'studioCatalog', method,
         invocation: { kind: 'direct' }, parameters: [{ name: method === 'updateStatus' ? 'force' : 'version', wire: method === 'updateStatus' ? 'force' : 'version', source: 'json', codec: { mode: 'strict', typeSymbol: 'string', create: () => ({ parse: (value: unknown) => { if (typeof value !== 'string') throw new TypeError('Expected a string'); return value; } }) } }], result: { mode: 'src-json' },
-    })), ...['listPresets', 'savePreset', 'applyPreset', 'unapplyPreset', 'restoreOptimized', 'roleModels', 'deletePreset', 'readExtensions', 'saveExtensions', 'catalogChange', 'confirmCatalogChange', 'addMasterPlugin', 'removeMasterPlugin'].map(method => ({
+    })), ...['listPresets', 'savePreset', 'applyPreset', 'unapplyPreset', 'restoreOptimized', 'roleModels', 'deletePreset', 'readExtensions', 'saveExtensions', 'catalogChange', 'confirmCatalogChange', 'addMasterPlugin', 'removeMasterPlugin', 'listInstalledPlugins', 'extensionMigration', 'migrateExtension', 'listProfileConfigs', 'saveProfileConfig', 'installedPluginSchema', 'registerProfilePlugin'].map(method => ({
         id: `${PACKAGE_NAME}#studioCatalog/${method}`, service: 'studioCatalog', namespace: 'studioCatalog', method,
-        invocation: { kind: 'direct' }, parameters: ['listPresets', 'restoreOptimized', 'readExtensions', 'roleModels', 'catalogChange', 'confirmCatalogChange'].includes(method) ? [] : [{ name: ['savePreset', 'saveExtensions', 'addMasterPlugin'].includes(method) ? 'payload' : 'id', wire: ['savePreset', 'saveExtensions', 'addMasterPlugin'].includes(method) ? 'payload' : 'id', source: 'json', codec: { mode: 'strict', typeSymbol: 'string', create: () => ({ parse: (value: unknown) => { if (typeof value !== 'string') throw new TypeError('Expected a string'); return value; } }) } }], result: { mode: 'src-json' },
+        invocation: { kind: 'direct' }, parameters: ['listPresets', 'restoreOptimized', 'readExtensions', 'roleModels', 'catalogChange', 'confirmCatalogChange', 'listInstalledPlugins', 'extensionMigration', 'listProfileConfigs'].includes(method) ? [] : [{ name: ['savePreset', 'saveExtensions', 'addMasterPlugin', 'saveProfileConfig', 'registerProfilePlugin'].includes(method) ? 'payload' : 'id', wire: ['savePreset', 'saveExtensions', 'addMasterPlugin', 'saveProfileConfig', 'registerProfilePlugin'].includes(method) ? 'payload' : 'id', source: 'json', codec: { mode: 'strict', typeSymbol: 'string', create: () => ({ parse: (value: unknown) => { if (typeof value !== 'string') throw new TypeError('Expected a string'); return value; } }) } }], result: { mode: 'src-json' },
     })), ...pixieDescriptors(), ...sessionRoleDescriptors()] });
     mountSessionRoles(ctx);
     // `updates` is created below; the footer reads it only when the page renders.
@@ -129,7 +131,7 @@ export async function apply(ctx: StudioContext) {
             };
             const update = async (method: string, arg: string) => { setCatalog(await call(method, arg) as import('./preset-catalog.ts').PresetCatalog); };
             return { read: () => call('readExtensions'), save: (payload: string) => update('saveExtensions', payload),
-                add: (name: string) => update('addMasterPlugin', name), remove: (id: string) => update('removeMasterPlugin', id) };
+                remove: (id: string) => update('removeMasterPlugin', id) };
         }, []);
         const catalogChanges = React.useMemo(() => {
             const call = async (method: string) => {
@@ -152,6 +154,35 @@ export async function apply(ctx: StudioContext) {
         name: 'local.dsh-studio.services', id: 'optimization-prototype', order: 0,
         label: () => ({ ko: '프리셋', en: 'Presets', zh: '预设' }[ctx.locale.getLocale().active] ?? 'Presets'),
     }, OptimizationPage));
+    function PluginsServicePage() {
+        const locale = React.useSyncExternalStore(listener => ctx.locale.subscribe(listener), () => ctx.locale.getLocale().active);
+        const actions = React.useMemo<PluginsActions>(() => {
+            const call = async (method: string, ...args: unknown[]) => {
+                const service = ctx.get('remote.studioCatalog' as never) as unknown as Record<string, ((...args: unknown[]) => Promise<{ ok: boolean; value: unknown; error?: { message: string } }>) | undefined> | undefined;
+                const fn = service?.[method];
+                if (!fn) throw new Error('Studio plugin API unavailable');
+                const result = await fn(...args);
+                if (!result.ok) throw new Error(result.error?.message ?? 'Plugin request failed');
+                return result.value;
+            };
+            return {
+                installed: () => call('listInstalledPlugins') as ReturnType<PluginsActions['installed']>,
+                migration: () => call('extensionMigration') as ReturnType<PluginsActions['migration']>,
+                migrate: id => call('migrateExtension', id) as ReturnType<PluginsActions['migrate']>,
+                include: async (name, config) => { await call('addMasterPlugin', JSON.stringify({ name, config })); },
+                schema: async name => ((await call('installedPluginSchema', name)) as { schema?: Record<string, unknown> }).schema,
+                profiles: () => call('listProfileConfigs') as ReturnType<PluginsActions['profiles']>,
+                saveProfile: payload => call('saveProfileConfig', JSON.stringify(payload)) as ReturnType<PluginsActions['saveProfile']>,
+                register: entry => call('registerProfilePlugin', JSON.stringify({ entry })) as ReturnType<NonNullable<PluginsActions['register']>>,
+                copy: text => navigator.clipboard.writeText(text),
+            };
+        }, []);
+        return <PluginsPage locale={locale} actions={actions} navFooter={<VersionFooter store={updates} locale={locale} />} />;
+    }
+    ctx.slots.inject('local.dsh-studio.services', () => ctx.slots.register({
+        name: 'local.dsh-studio.services', id: 'plugins', order: 5,
+        label: () => pluginsText(ctx.locale.getLocale().active, 'serviceLabel'),
+    }, PluginsServicePage));
     syncServices();
     ctx.slots.inject("sidebar.panellist", () =>
         ctx.slots.register(

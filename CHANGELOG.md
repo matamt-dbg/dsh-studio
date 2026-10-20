@@ -2,6 +2,68 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.6.3 — 2026-10-20
+
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+
+### Highlights
+
+- **A new Plugins tab finds the plugins you install.** Studio → **Plugins** → **Installed plugins** lists the plugin packages in your profile and where they run. **Agent features** run per preset: **Set up and include** takes initial settings, checks activation, and adds the plugin to Studio Master so it appears in each preset's tools and Config. **Profile-wide** plugins register into a service every session shares, such as a web search provider, and cannot go into a preset. **Needs check** marks plugins whose scope Studio could not confirm.
+- **Register profile-wide plugins in one click.** **Register in profile › Register** adds the plugin to the profile patch file and applies it without a restart. If it fails to activate, the file is restored. The patch lines stay available under **Register manually**.
+- **Profile settings groups shared Host settings by workflow.** Studio → **Plugins** → **Profile settings** shows the plugins the Host runs once for every session, in categories: Web search and fetch, Delegation providers, Loop guards, Goal continuation, Context management (shared), MCP servers, and Model retry and metering. Built-in providers are listed next to the ones you install. Saving applies to every running session.
+- **Pick web search and fetch providers from a list.** The Web search and fetch card chooses the **Search provider** and **Fetch provider** from the providers that are running, for example Exa for search and the DeepSeek API for fetch. **Use default** removes the override. **Enter manually** takes any provider ID; saving it empty uses the default. Only providers that follow DSH plugin naming conventions are listed automatically.
+
+### Changes
+
+- Adding a plugin to a preset now happens in the Plugins tab. **Execution settings** no longer adds packages by name; it lists the plugins Studio added so you can remove them.
+- Profile-wide plugins can no longer be added to Studio Master. Adding one used to make applying presets fail with "a web provider with id … is already registered".
+- Secrets such as API keys are never shown or returned, at any depth of a plugin's settings. Choose **Keep**, **Replace**, or **Delete**. Plugins that use the DSH credential store show only the key name and whether it is set.
+- Both Plugins pages have a search box.
+- Rows with nothing to edit, such as `token-meter` and `llm-retry`, show **No settings** instead of opening an empty dialog.
+
+### Upgrade notes
+
+- If an earlier version added a profile-wide plugin to Studio Master (for example `@deepseek-ai/dsh-web-search-exa`), the Installed plugins page shows **Plugins to move out of the base composition**. **Move** backs up its settings and per-preset overrides to `studio-data/migrated-extensions.json` and removes it from Studio Master. Reapply or unapply presets that still run it before registering it in the profile; the page shows them.
+- Settings saved in Profile settings are written to the profile's `cordis.patch.yml` through DSH's configuration editor and apply to every session. Secrets saved there are stored in plain text, as with any value in that file.
+
+### Verification
+
+- Built and installed into isolated profiles of unmodified DSH `0.2.1-rc.2` with a scripted test model and a local fake Exa endpoint. The original failure was reproduced first, then checked fixed: adding Exa to Studio Master is refused, and Optimized stays applied. Registering Exa from Studio, saving its key and `searchProvider: exa`, and running `web_search` reached the fake endpoint with the saved key, also after a restart. Manual provider entry and returning to the default were checked in the patch file.
+- Concurrent moves of the same plugin, a stale temporary file, and nested or short secrets in errors were checked after the release review.
+- The release package was installed fresh and as an upgrade from 0.6.2 into isolated profiles of unmodified DSH `0.2.1-rc.2`. On upgrade, the Exa row added under 0.6.2 was listed for moving with its key masked; moving it kept the key in a 0600 backup, and Optimized applied again.
+- The Plugins tab was checked in light, dark and 480 px views. Not checked: including a real third-party agent-feature package end to end, and an actual registration that fails to activate (covered by unit tests). Other DSH versions were not tested for these changes.
+
+### 한국어
+
+DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` 또는 `0.2.1-rc.2`가 필요합니다.
+
+#### 주요 변경
+
+- **설치한 플러그인을 찾아볼 수 있는 플러그인 탭을 추가했습니다.** Studio → **플러그인** → **설치한 플러그인**에서 프로필에 설치된 플러그인 패키지와 실행 범위를 보여 줍니다. **에이전트 기능**은 프리셋별로 따로 동작합니다. **설정하고 포함**으로 초기 설정을 추가하면 활성화 여부를 확인한 뒤 Studio Master에 추가되어 각 프리셋의 도구와 Config에 표시됩니다. **프로필 공용** 플러그인은 웹 검색 공급자처럼 모든 세션이 공유하는 서비스에 등록되므로 프리셋에 포함할 수 없습니다. **확인 필요**는 Studio에서 실행 범위를 확인하지 못한 플러그인입니다.
+- **프로필 공용 플러그인을 한 번에 등록합니다.** **프로필에 등록하기 › 등록**을 누르면 프로필 설정 파일에 플러그인을 추가하고, 재시작 없이 적용합니다. 활성화에 실패하면 파일을 원래대로 되돌립니다. 붙여넣을 내용은 **직접 등록하기**에서 계속 볼 수 있습니다.
+- **프로필 설정에서 공용 Host 설정을 워크플로우별로 묶어 표시합니다.** Studio → **플러그인** → **프로필 설정**에서 Host에서 한 번 실행되어 모든 세션이 공유하는 플러그인을 카테고리별로 보여 줍니다. 카테고리에는 웹 검색·가져오기, 위임 공급자, 루프 가드, 목표 자동 진행, 컨텍스트 관리(공용), MCP 서버, 모델 재시도·측정이 있습니다. 기본 내장 공급자도 직접 설치한 공급자와 함께 표시됩니다. 저장하면 실행 중인 모든 세션에 적용됩니다.
+- **웹 검색·가져오기 공급자를 목록에서 선택합니다.** 웹 검색·가져오기 카드에서 실행 중인 공급자 중 **검색 공급자**와 **가져오기 공급자**를 고릅니다. 예를 들어 검색에는 Exa, 가져오기에는 DeepSeek API를 사용할 수 있습니다. **기본값 사용**을 선택하면 덮어쓰기를 지웁니다. **직접 입력**을 선택해 공급자 ID를 입력할 수 있으며, 비워 둔 채 저장하면 기본값이 사용됩니다. DSH가 제공하는 플러그인의 명명 규칙을 따르는 공급자만 목록에 자동으로 표시됩니다.
+
+#### 변경 사항
+
+- 프리셋에 플러그인을 추가하는 작업은 이제 플러그인 탭에서 합니다. **실행 설정**에서는 더 이상 패키지 이름으로 추가하지 않으며, Studio가 추가한 플러그인을 확인한 뒤 제거만 할 수 있습니다.
+- 프로필 공용 플러그인은 Studio Master에 추가할 수 없습니다. 이전에는 이러한 플러그인을 추가한 뒤 프리셋을 반영하면 "a web provider with id … is already registered" 오류가 발생해 실패했습니다.
+- API 키 같은 비밀 값은 플러그인 설정 어디에 있든 화면과 응답에 나타나지 않습니다. **유지**, **교체**, **삭제** 중에서 고릅니다. DSH 자격 증명 저장소를 사용하는 플러그인은 키 이름과 설정 여부만 표시합니다.
+- 플러그인 탭의 두 페이지에 검색 칸을 추가했습니다.
+- `token-meter`, `llm-retry`처럼 바꿀 설정이 없는 행은 빈 설정 창을 여는 대신 **설정 항목 없음**으로 표시합니다.
+
+#### 업그레이드 참고
+
+- 이전 버전에서 프로필 공용 플러그인(예: `@deepseek-ai/dsh-web-search-exa`)을 Studio Master에 추가했다면, 설치한 플러그인 페이지에 **기준 구성에서 옮겨야 하는 플러그인**이 표시됩니다. **옮기기**를 누르면 그 설정과 프리셋별 덮어쓰기를 `studio-data/migrated-extensions.json`에 백업하고 Studio Master에서 뺍니다. 그 플러그인을 아직 실행하는 프리셋은 다시 반영하거나 반영 해제한 뒤 프로필에 등록하세요. 해당 프리셋은 페이지에 표시됩니다.
+- 프로필 설정에서 저장한 값은 DSH 설정 편집기를 통해 프로필의 `cordis.patch.yml`에 기록되며, 모든 세션에 적용됩니다. 여기서 저장한 비밀 값은 이 파일의 다른 값과 마찬가지로 평문으로 저장됩니다.
+
+#### 검증
+
+- 수정하지 않은 DSH `0.2.1-rc.2`의 격리 프로필에 빌드를 설치하고, 각본 테스트 모델과 로컬 가짜 Exa 엔드포인트로 확인했습니다. 먼저 원래 실패를 재현한 뒤 고쳐진 것을 확인했습니다. Exa를 Studio Master에 추가하는 것은 거부되고 Optimized는 반영 상태를 유지했습니다. Studio에서 Exa를 등록하고 키와 `searchProvider: exa`를 저장한 뒤 `web_search`를 실행하자, 재시작한 뒤에도 저장한 키로 가짜 엔드포인트에 도달했습니다. 공급자 직접 입력과 기본값으로 되돌리기는 patch 파일에서 확인했습니다.
+- 배포 전 리뷰를 반영한 뒤, 같은 플러그인을 동시에 옮기는 경우와 남아 있던 임시 파일, 오류 메시지에 포함된 중첩·짧은 비밀 값의 처리를 확인했습니다.
+- 배포 패키지를 수정하지 않은 DSH `0.2.1-rc.2`의 격리 프로필에 새로 설치한 경우와 0.6.2에서 업그레이드한 경우를 확인했습니다. 업그레이드하면 0.6.2에서 추가한 Exa 행이 키가 가려진 채 옮길 대상으로 표시되었습니다. 옮기면 키는 권한 0600 백업에 보존되었고, Optimized는 다시 반영되었습니다.
+- 플러그인 탭은 라이트·다크 모드와 480px 너비에서 확인했습니다. 실제 제3자 에이전트 기능 패키지까지 포함하는 전체 흐름과, 실제로 활성화에 실패하는 등록(단위 테스트로 확인)은 확인하지 않았습니다. 이번 변경은 다른 DSH 버전에서는 시험하지 않았습니다.
+
 ## 0.6.2 — 2026-10-18
 
 Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.

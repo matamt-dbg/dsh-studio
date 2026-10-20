@@ -248,6 +248,10 @@ export class PresetStore {
     return this.applyRow(row, template.applyWarning);
   }); }
   list() { return this.serial(async () => this.rows.map(row => this.public(row))); }
+  /** Each preset's raw Config overrides and the module names its applied snapshot mounts (#38 D7). */
+  migrationSources() { return this.serial(async () => this.rows.map(row => structuredClone({ id: row.id, name: row.name,
+    overrides: (row.request.configOverrides ?? {}) as Record<string, Record<string, unknown>>,
+    appliedNames: row.applied ? packageNames(parseComposition(row.applied.plugins)) : [] }))); }
   /** Presets the catalog cleanup may rewrite; an unedited Optimized follows its template instead. */
   cleanable() { return this.serial(async (): Promise<CleanablePreset[]> => this.rows.filter(row => row.id !== OPTIMIZED_PRESET_ID || edited(row)).map(row => structuredClone({ id: row.id, name: row.name, request: row.request, agents: row.agents }))); }
   /**

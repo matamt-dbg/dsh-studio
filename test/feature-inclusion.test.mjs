@@ -54,24 +54,26 @@ test('plugin list uses the searchable picker: every Master entry except delegati
   } finally { await view.close(); }
 });
 
-test('add plugin dialog adds by package name, removes Studio-added ones, and rows show their origin', async () => {
+test('execution settings no longer add plugins by name; Studio-added ones can still be removed and show their origin (#38 D3)', async () => {
   const { FeatureInclusion } = await import('../src/feature-inclusion.tsx');
   const calls = [];
-  const actions = { add: async name => { calls.push(['add', name]); }, remove: async id => { calls.push(['remove', id]); } };
+  const actions = { remove: async id => { calls.push(['remove', id]); } };
   const view = await mount(React.createElement(FeatureInclusion, { locale: 'en', entries: [...entries, { id: 'studio-added/x', name: 'x-plugin' }], overrides: {}, excluded: [], onChange() {},
     origins: { 'tool-fs': 'standard', 'time-context': 'standard', 'studio-added/x': 'added' }, added: [{ id: 'studio-added/x', name: 'x-plugin' }], actions }));
   try {
     const rows = [...document.querySelectorAll('.studio-picker-row')].map(row => row.textContent);
     assert.match(rows[0], /tool-fs.*standard/); assert.match(rows.at(-1), /x-plugin.*Added/);
-    const click = async text => act(async () => [...document.querySelectorAll('button')].find(b => b.textContent.startsWith(text)).click());
-    await click('Add plugin');
+    assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Add plugin'), false);
+    await act(async () => [...document.querySelectorAll('button')].find(b => b.textContent === 'Plugins added by Studio').click());
     const dialog = document.querySelector('dialog[open]');
-    const { Simulate } = await import('react-dom/test-utils');
-    await act(async () => Simulate.change(dialog.querySelector('input[aria-label="Add by package name"]'), { target: { value: 'my-plugin' } }));
-    await act(async () => [...dialog.querySelectorAll('button')].find(b => b.textContent === 'Add').click());
+    assert.equal(dialog.querySelector('input'), null, 'no add-by-name input');
+    assert.match(dialog.textContent, /Studio → Plugins/);
     await act(async () => [...dialog.querySelectorAll('button')].find(b => b.textContent === 'Remove').click());
-    assert.deepEqual(calls, [['add', 'my-plugin'], ['remove', 'x']]);
+    assert.deepEqual(calls, [['remove', 'x']]);
   } finally { await view.close(); }
+  const empty = await mount(React.createElement(FeatureInclusion, { locale: 'en', entries, overrides: {}, excluded: [], onChange() {}, added: [], actions }));
+  try { assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Plugins added by Studio'), false, 'nothing to manage without additions'); }
+  finally { await empty.close(); }
 });
 
 test('missing features are detected only for applied snapshots that lack a non-excluded feature', () => {

@@ -307,6 +307,12 @@ function comparisonBase(raw: Schema | undefined, root: Schema | undefined, base:
   return value;
 }
 
+/** One entry's schema form over `base` with `value` as the override layer (profile settings, initial config). */
+export function ConfigForm({ schema, base, value, onChange, entryId, locale }: { schema: Record<string, unknown>; base: unknown; value: Record<string, unknown>; onChange(next: Record<string, unknown>): void; entryId: string; locale: string }) {
+  const labels = copy[locale.startsWith('ko') ? 'ko' : locale.startsWith('zh') ? 'zh' : 'en'];
+  return <Field schema={schema} root={schema} path={[]} base={base} override={value} entryId={entryId} labels={labels} change={(path, next, reset) => onChange(update(value, path, next, reset))} />;
+}
+
 /** Config selection is key presence; an empty override intentionally keeps a Config selected. */
 export function ConfigEditor({ entries, value, onChange, locale }: ConfigEditorProps) {
   const labels = copy[locale.startsWith('ko') ? 'ko' : locale.startsWith('zh') ? 'zh' : 'en'];
