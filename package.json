@@ -38,6 +38,9 @@
     "@deepseek-ai/dsh-client-ui-workspace": "0.2.0-rc.2",
     "@deepseek-ai/dsh-client-ui-sidebar": "0.2.0-rc.2",
     "jsdom": "29.1.1",
+    "@deepseek-ai/dsh-web": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-launch-environment": "0.2.0-rc.2",
+    "@deepseek-ai/schemastery": "~3.18.4",
     "zod": "^4.4.3"
   },
   "packageManager": "pnpm@11.7.0"

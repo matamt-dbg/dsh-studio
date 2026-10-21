@@ -2,6 +2,38 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.6.4 — 2026-10-21
+
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+
+### Highlights
+
+- **Fetch web pages through Exa.** A new, separate plugin `@matamt-dbg/dsh-web-fetch-exa` adds the fetch provider `exa-contents`, which reads pages with the Exa Contents API. Install it, register it under **Plugins → Installed plugins**, and choose `exa-contents` as the **Fetch provider** in **Profile settings → Web search and fetch**. It uses the same `EXA_API_KEY` as Exa search; a different key goes in the plugin's `apiKey`. Pages arrive as text extracted by Exa, and Exa bills Contents per page.
+
+### Changes
+
+- Studio recognizes `@matamt-dbg/dsh-web-fetch-exa` as a profile-wide web plugin before it is registered and lists `exa-contents` among fetch providers.
+
+### Verification
+
+- The plugin was installed with Studio into an isolated profile of unmodified DSH `0.2.1-rc.2`, registered from the Plugins tab, and selected as the fetch provider. A `web_fetch` call then fetched a real page through the Exa API (HTTP 200 with the page text). Real Exa responses also confirmed that a missing page returns its 404 status and that text cut at `maxCharacters` is reported as truncated. DSH `0.2.0-rc.2` was not tested for this plugin.
+
+### 한국어
+
+DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` 또는 `0.2.1-rc.2`가 필요합니다.
+
+#### 주요 변경
+
+- **Exa로 웹 페이지를 가져올 수 있습니다.** 별도 플러그인 `@matamt-dbg/dsh-web-fetch-exa`가 Exa Contents API로 페이지를 읽는 가져오기 공급자 `exa-contents`를 추가합니다. 플러그인을 설치한 다음 **플러그인 → 설치한 플러그인**에서 등록하고, 이어서 **프로필 설정 → 웹 검색·가져오기**의 **가져오기 공급자**에서 `exa-contents`를 선택합니다. Exa 검색과 동일한 `EXA_API_KEY`를 사용하며, 다른 키는 플러그인의 `apiKey`에 넣습니다. 페이지는 Exa가 추출한 텍스트로 가져오고, Exa Contents 요금은 페이지 단위로 부과됩니다.
+
+#### 변경 사항
+
+- Studio는 `@matamt-dbg/dsh-web-fetch-exa`를 등록하기 전부터 프로필 공용 웹 플러그인으로 인식하고, 가져오기 공급자 목록에 `exa-contents`를 표시합니다.
+
+#### 검증
+
+- 수정하지 않은 DSH `0.2.1-rc.2`의 격리 프로필에 Studio와 이 플러그인을 설치하고, 플러그인 탭에서 등록한 뒤 가져오기 공급자로 선택했습니다. 이어서 `web_fetch`를 호출해 실제 Exa API를 통해 페이지를 가져왔습니다(HTTP 200 응답과 페이지 본문). 실제 Exa 응답에서 존재하지 않는 페이지는 404 상태로 반환되고, `maxCharacters`에서 잘린 본문은 잘림으로 표시되는 것도 확인했습니다. 이 플러그인은 DSH `0.2.0-rc.2`에서는 시험하지 않았습니다.
+
 ## 0.6.3 — 2026-10-20
 
 Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.

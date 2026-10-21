@@ -42,6 +42,7 @@ export interface ProfileRow {
 export const COMPATIBILITY: ReadonlyArray<{ pattern: RegExp; scope: Exclude<PluginScope, 'unknown'> }> = Object.freeze([
   { pattern: /^@deepseek-ai\/dsh-web-search-[a-z0-9-]+$/, scope: 'profile' },
   { pattern: /^@deepseek-ai\/dsh-web-fetch-[a-z0-9-]+$/, scope: 'profile' },
+  { pattern: /^@matamt-dbg\/dsh-web-fetch-exa$/, scope: 'profile' },
   { pattern: /^@deepseek-ai\/dsh-session-title(-[a-z0-9-]+)?$/, scope: 'profile' },
   { pattern: /^@deepseek-ai\/dsh-token-meter$/, scope: 'profile' },
   { pattern: /^@deepseek-ai\/dsh-jobs(-[a-z0-9-]+)?$/, scope: 'profile' },

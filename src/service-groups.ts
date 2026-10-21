@@ -25,7 +25,7 @@ export interface ServiceGroup {
 export const SERVICE_GROUPS: readonly ServiceGroup[] = Object.freeze([
   { service: 'web', title: { ko: '웹 검색·가져오기', en: 'Web search and fetch', zh: '网页搜索与获取' }, owner: '@deepseek-ai/dsh-web',
     selectors: [{ field: 'searchProvider', kind: 'search' }, { field: 'fetchProvider', kind: 'fetch' }],
-    members: ['@deepseek-ai/dsh-web', '@deepseek-ai/dsh-web-search-*', '@deepseek-ai/dsh-web-fetch-*', '@deepseek-ai/dsh-web-deepseek-api'] },
+    members: ['@deepseek-ai/dsh-web', '@deepseek-ai/dsh-web-search-*', '@deepseek-ai/dsh-web-fetch-*', '@deepseek-ai/dsh-web-deepseek-api', '@matamt-dbg/dsh-web-fetch-exa'] },
   { service: 'subagents', title: { ko: '위임 공급자', en: 'Delegation providers', zh: '委派提供方' },
     members: ['@deepseek-ai/dsh-subagent-*'] },
   { service: 'guard', title: { ko: '루프 가드', en: 'Loop guards', zh: '循环防护' },
@@ -40,13 +40,14 @@ export const SERVICE_GROUPS: readonly ServiceGroup[] = Object.freeze([
     members: ['@deepseek-ai/dsh-llm-retry', '@deepseek-ai/dsh-token-meter'] },
 ]);
 
-/** Fallback provider table (step ③): ids read from DSH 0.2.1-rc.2 provider packages. */
+/** Fallback provider table (step ③): ids read from DSH 0.2.1-rc.2 provider packages, plus the Studio Exa contents provider (#39). */
 export const KNOWN_PROVIDERS: Readonly<Record<string, ReadonlyArray<{ id: string; kind: ProviderKind }>>> = Object.freeze({
   '@deepseek-ai/dsh-web-search-exa': [{ id: 'exa', kind: 'search' }],
   '@deepseek-ai/dsh-web-search-deepseek': [{ id: 'deepseek-official', kind: 'search' }],
   '@deepseek-ai/dsh-web-search-perplexity': [{ id: 'perplexity', kind: 'search' }],
   '@deepseek-ai/dsh-web-deepseek-api': [{ id: 'deepseek-search-api', kind: 'search' }, { id: 'deepseek-fetch-api', kind: 'fetch' }],
   '@deepseek-ai/dsh-web-fetch-http': [{ id: 'http', kind: 'fetch' }],
+  '@matamt-dbg/dsh-web-fetch-exa': [{ id: 'exa-contents', kind: 'fetch' }],
 });
 
 const matchMember = (pattern: string, name: string) => pattern.endsWith('*') ? name.startsWith(pattern.slice(0, -1)) : pattern === name;
