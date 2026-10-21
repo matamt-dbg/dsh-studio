@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { Context } from '@deepseek-ai/cordis';
 import { WebRuntime } from '@deepseek-ai/dsh-web';
-import * as plugin from '../src/host/web-fetch-exa.ts';
-import { ExaContentsFetchProvider, EXA_CONTENTS_PROVIDER_ID, mapContentsResponse } from '../src/host/web-fetch-exa-provider.ts';
+import * as plugin from '../src/index.ts';
+import { ExaContentsFetchProvider, EXA_CONTENTS_PROVIDER_ID, mapContentsResponse } from '../src/provider.ts';
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -147,20 +147,15 @@ test('without any key the configured provider is unavailable', async () => {
   } finally { if (previous !== undefined) process.env.EXA_API_KEY = previous; }
 });
 
-test('Studio treats the package as a profile-scoped web fetch provider before and after registration (S3)', async () => {
-  const { classifyInstalled } = await import('../src/installed-plugins.ts');
-  const { serviceOf, detectProviders, selectorOptions } = await import('../src/service-groups.ts');
-  const { isSecretField, fieldRoles } = await import('../src/secret-fields.ts');
-  const NAME = '@matamt-dbg/dsh-web-fetch-exa';
-  const [row] = classifyInstalled({ installed: { [NAME]: '0.1.0' }, pluginEntries: { [NAME]: [NAME] }, masterNames: new Set(), profileRows: [] });
-  assert.deepEqual({ scope: row.scope, evidence: row.evidence }, { scope: 'profile', evidence: 'compatibility' });
-  assert.equal(serviceOf(NAME), 'web');
-  const exportsSeen = Object.fromEntries(Object.entries(plugin).filter(([, value]) => typeof value === 'string'));
-  assert.deepEqual(detectProviders({ name: NAME, service: 'web', exports: exportsSeen }), [{ id: 'exa-contents', kind: 'fetch', source: 'export' }]);
-  assert.deepEqual(detectProviders({ name: NAME, service: 'web' }), [{ id: 'exa-contents', kind: 'fetch', source: 'table' }]);
-  assert.deepEqual(selectorOptions('fetch', [{ id: 'exa', kind: 'search' }, { id: 'exa-contents', kind: 'fetch' }, { id: 'http', kind: 'fetch' }], 'http').map(o => o.id), ['exa-contents', 'http']);
-  const { createConfigProjector } = await import('@deepseek-ai/dsh-app-boot');
-  const projected = (await createConfigProjector())(plugin.Config, 'config').schema;
-  assert.deepEqual(fieldRoles(projected), { apiKey: 'secret' }, 'the profile settings page masks apiKey');
-  assert.equal(isSecretField('apiKey', fieldRoles(projected)), true);
+test('package is a DSH bundle that inserts only its own row (Plugins page install)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { default: yaml } = await import('js-yaml');
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(manifest.dsh?.bundle?.patch, './cordis.patch.yml');
+  assert.ok(manifest.files.includes('cordis.patch.yml'));
+  const patch = yaml.load(readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8'));
+  assert.deepEqual(patch, [{ insert: [{ id: 'web-fetch-exa', name: manifest.name }] }], 'no provider selection or config is changed by installing');
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  assert.match(readme, /Do not use `npm i`/);
+  assert.match(readme, /dsh plugin --profile \w+ add @matamt-dbg\/dsh-web-fetch-exa/);
 });

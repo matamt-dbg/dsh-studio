@@ -26,9 +26,6 @@ await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints
   bundle: true, platform: 'node', format: 'esm', target: 'node22', packages: 'external', external: ['@deepseek-ai/*'] });
 await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/pixie-loop-tool.ts'], outfile: 'packages/shell/loop.js',
   bundle: true, platform: 'node', format: 'esm', target: 'node22', packages: 'external', external: ['@deepseek-ai/*'] });
-// The Exa /contents fetch provider is a separate profile plugin package (#39); its schemastery dependency stays external.
-await compile({ absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: ['src/host/web-fetch-exa.ts'], outfile: 'packages/web-fetch-exa/index.js',
-  bundle: true, platform: 'node', format: 'esm', target: 'node22', packages: 'external', external: ['@deepseek-ai/*'] });
 for (const part of ['shell']) {
   await compile({
     absWorkingDir: root, tsconfig: 'tsconfig.host.json', entryPoints: [`src/host/${part}.ts`], outfile: `packages/${part}/index.js`,

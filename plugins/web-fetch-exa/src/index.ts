@@ -12,9 +12,9 @@ import {
   EXA_CONTENTS_DEFAULT_TIMEOUT_MS,
   EXA_DEFAULT_BASE_URL,
   ExaContentsFetchProvider,
-} from './web-fetch-exa-provider.ts';
+} from './provider.ts';
 
-export { EXA_CONTENTS_PROVIDER_ID, ExaContentsFetchProvider, mapContentsResponse } from './web-fetch-exa-provider.ts';
+export { EXA_CONTENTS_PROVIDER_ID, ExaContentsFetchProvider, mapContentsResponse } from './provider.ts';
 
 export const name = 'web-fetch-exa';
 export const inject = ['web'];

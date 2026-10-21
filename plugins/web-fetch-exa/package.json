@@ -1,6 +1,6 @@
 {
   "name": "@matamt-dbg/dsh-web-fetch-exa",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Exa /contents fetch provider (exa-contents) for the DeepSeek Harness web capability (ctx.web).",
   "keywords": [
     "deepseek-harness",
@@ -21,7 +21,9 @@
   },
   "files": [
     "index.js",
-    "README.md"
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4 || ~4.0.5-alpha.1",
@@ -33,5 +35,10 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   }
 }

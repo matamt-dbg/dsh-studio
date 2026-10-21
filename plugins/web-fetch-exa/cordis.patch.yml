@@ -1,0 +1,5 @@
+# Bundle layer: installing the package adds the provider row. Selecting it stays a user choice
+# (`fetchProvider: exa-contents` on the web row), so web_fetch keeps its configured provider until then.
+- insert:
+    - id: web-fetch-exa
+      name: '@matamt-dbg/dsh-web-fetch-exa'

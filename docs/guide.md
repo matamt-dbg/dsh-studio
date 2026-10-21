@@ -13,6 +13,7 @@ DSH Studio is a page inside the DeepSeek Harness web GUI for building **agent pr
   - [Subagent settings](#subagent-settings)
 - [Per-session subagent roles](#per-session-subagent-roles)
 - [Plugins (profile-wide settings)](#plugins-profile-wide-settings)
+  - [Exa web search and fetch](#exa-web-search-and-fetch)
 - [Show DSH in Korean](#show-dsh-in-korean)
 - [Studio shortcuts (SettingsX)](#studio-shortcuts-settingsx)
 - [Adapt Optimized to your work](#adapt-optimized-to-your-work)
@@ -291,10 +292,34 @@ Install packages from the DSH **Plugins** page (bundles) or with `dsh plugin --p
 **Profile settings** groups workflow-related profile settings by category: Web search and fetch, Delegation providers, Loop guards, Goal continuation, Context management (shared), MCP servers, and Model retry and metering. Use the search box to find plugins, categories, or provider IDs.
 
 - Web search and fetch picks a **Search provider** and a **Fetch provider** from the providers that are running. **Use default** removes the override and follows the DSH default (or auto-selection).
-- To fetch pages through Exa, install the separate plugin `@matamt-dbg/dsh-web-fetch-exa`, register it in the profile, and choose `exa-contents` as the **Fetch provider**. It uses the same `EXA_API_KEY` as Exa search; put a different key in that row's `apiKey`. Pages arrive as text Exa extracts, billed at Exa Contents per-page pricing.
+- To search and fetch through Exa, see [Exa web search and fetch](#exa-web-search-and-fetch) below.
 - For a provider that is not listed, choose **Enter manually** and type its ID; saving an empty value uses the default. Only providers that follow DSH plugin naming conventions (a `providerName`/`serverName` setting, or a `*_PROVIDER_ID` string export) are listed and labeled automatically.
 - Secrets such as API keys are never shown; choose **Keep**, **Replace**, or **Delete**. They are stored in plain text in the profile patch file. Plugins that use the DSH credential store (such as the DeepSeek web API with `apiKeyEnv`) show only the key name and status, for example **DEEPSEEK_API_KEY: Set (credential store)**; change that key on the DSH **Plugins › Web search** page.
 - Rows that run inside presets (tools, compaction) and infrastructure with little to configure are not listed here. Listed rows with nothing to edit show **No settings**.
+
+
+### Exa web search and fetch
+
+`web_search` and `web_fetch` can both go through Exa. Each needs its own plugin:
+
+| Plugin | Provider ID | Tool | Install |
+| --- | --- | --- | --- |
+| `@deepseek-ai/dsh-web-search-exa` (DSH) | `exa` | `web_search` | `dsh plugin --profile <profile> add @deepseek-ai/dsh-web-search-exa`, then **Installed plugins → Register in profile** |
+| `@matamt-dbg/dsh-web-fetch-exa` (separate plugin) | `exa-contents` | `web_fetch` | DSH **Plugins → Add plugin**, or `dsh plugin --profile <profile> add @matamt-dbg/dsh-web-fetch-exa`; it adds its provider row by itself |
+
+1. **Install.** Use the DSH Plugins page or `dsh plugin add` as in the table; quit the desktop app before using the terminal. The install command npm shows on a package page (`npm i …`) does not install a plugin into DSH. The Plugins page refuses `dsh-web-search-exa` because it is not a DSH bundle, and refused `dsh-web-fetch-exa` 0.1.0 for the same reason; use 0.1.1 or later.
+2. **Key.** In **Profile settings**, open each plugin row and set `apiKey` with **Replace**, or start DSH with `EXA_API_KEY` set. The two rows do not share a key saved on one of them.
+3. **Choose providers.** In the Web search and fetch card, choose `exa` as the **Search provider** and `exa-contents` as the **Fetch provider**. Installing does not switch providers; until you choose, `web_fetch` keeps its current provider.
+
+`exa-contents` returns the text Exa extracts from the page (no HTML), up to `maxCharacters` (100,000 by default). Exa bills Contents per page. Other settings (`timeoutMs`, `maxAgeHours`, `livecrawlTimeoutMs`) are on the same row; see the [plugin README](https://www.npmjs.com/package/@matamt-dbg/dsh-web-fetch-exa).
+
+| Message | Cause | Fix |
+| --- | --- | --- |
+| `configured web provider "exa-contents" is registered but unavailable` | The `dsh-web-fetch-exa` row has no key | Set its `apiKey`, or `EXA_API_KEY` |
+| `configured web provider "exa-contents" is not registered` | The plugin is not installed or is turned off | Install or enable it, or choose another Fetch provider |
+| `… declares no dsh.bundle` on **Add plugin** | `dsh-web-fetch-exa` 0.1.0, or `dsh-web-search-exa` | Install 0.1.1 or later, or use `dsh plugin add` |
+
+To remove `dsh-web-fetch-exa`, first set the Fetch provider back with **Use default**, then uninstall it from the DSH Plugins page.
 
 ## Show DSH in Korean
 

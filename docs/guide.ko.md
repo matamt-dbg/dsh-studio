@@ -13,6 +13,7 @@ DSH Studio는 DeepSeek Harness 웹 GUI 안에서 **에이전트 프리셋**을 �
   - [서브에이전트](#서브에이전트)
 - [세션별 서브에이전트 역할](#세션별-서브에이전트-역할)
 - [플러그인 (프로필 공용 설정)](#플러그인-프로필-공용-설정)
+  - [Exa로 웹 검색·가져오기](#exa로-웹-검색가져오기)
 - [DSH 화면을 한국어로 보기](#dsh-화면을-한국어로-보기)
 - [Studio 단축키 (SettingsX)](#studio-단축키-settingsx)
 - [Optimized를 내 작업에 맞게 고치기](#optimized를-내-작업에-맞게-고치기)
@@ -292,10 +293,34 @@ Studio 상단의 **플러그인** 탭은 프로필(Host) 단위로 공유되는 
 **프로필 설정**: 워크플로우와 관련된 프로필 공용 설정을 카테고리별로 묶어 보여 줍니다. 웹 검색·가져오기, 위임 공급자, 루프 가드, 목표 자동 진행, 컨텍스트 관리(공용), MCP 서버, 모델 재시도·측정이 있습니다. 위쪽 검색 칸에서 플러그인, 카테고리, 공급자 ID로 찾을 수 있습니다.
 
 - 웹 검색·가져오기에서는 **검색 공급자**와 **가져오기 공급자**를 선택합니다. 목록에는 실행 중인 공급자만 표시됩니다. **기본값 사용**을 선택하면 덮어쓴 값을 지우고 DSH 기본값(또는 자동 선택)을 따릅니다.
-- Exa로 페이지를 가져오려면 별도 플러그인 `@matamt-dbg/dsh-web-fetch-exa`를 설치하고 프로필에 등록한 뒤 **가져오기 공급자**에서 `exa-contents`를 선택합니다. Exa 검색과 동일한 `EXA_API_KEY`를 사용하며, 다른 키는 해당 행의 `apiKey`에 입력합니다. 페이지 본문은 Exa가 추출한 텍스트로 받고, 페이지당 Exa Contents 요금이 부과됩니다.
+- Exa로 검색하고 페이지를 가져오려면 아래 [Exa로 웹 검색·가져오기](#exa로-웹-검색가져오기)를 참고하세요.
 - 목록에 없는 공급자는 **직접 입력**에서 ID를 입력합니다. 비워 두고 저장하면 기본값을 사용합니다. DSH에서 제공하는 플러그인의 명명 규칙(설정의 `providerName`/`serverName` 또는 `*_PROVIDER_ID` 문자열 export)을 따르는 공급자만 목록과 공급자 ID 표시에 자동으로 나타납니다.
 - API 키 같은 비밀 값은 화면에 보이지 않습니다. **유지 / 교체 / 삭제** 중에서 고릅니다. 이 값은 프로필 설정 파일에 평문으로 저장됩니다. DSH 자격 증명 저장소를 쓰는 플러그인(예: `apiKeyEnv`가 있는 DeepSeek 웹 API)은 **DEEPSEEK_API_KEY: 설정됨 (자격 증명 저장소)**처럼 키 이름과 상태만 표시합니다. 이 키는 DSH **플러그인 › 웹 검색** 페이지에서 바꿉니다.
 - 프리셋 구성에서 실행되는 행(도구, 압축)과 설정할 것이 거의 없는 기반 서비스는 여기에 나오지 않습니다. 목록에 있어도 바꿀 설정이 없는 행은 **설정 항목 없음**으로 표시합니다.
+
+
+### Exa로 웹 검색·가져오기
+
+`web_search`와 `web_fetch`는 둘 다 Exa를 거치게 할 수 있습니다. 각각 별도의 플러그인이 필요합니다.
+
+| 플러그인 | 공급자 ID | 도구 | 설치 |
+| --- | --- | --- | --- |
+| `@deepseek-ai/dsh-web-search-exa` (DSH) | `exa` | `web_search` | `dsh plugin --profile <프로필> add @deepseek-ai/dsh-web-search-exa` 후 **설치한 플러그인 → 프로필에 등록하기** |
+| `@matamt-dbg/dsh-web-fetch-exa` (별도 플러그인) | `exa-contents` | `web_fetch` | DSH **플러그인 → 플러그인 추가** 또는 `dsh plugin --profile <프로필> add @matamt-dbg/dsh-web-fetch-exa`. 공급자 행은 자동으로 추가됩니다 |
+
+1. **설치:** 표에 적힌 대로 DSH 플러그인 페이지에서 설치하거나 `dsh plugin add`로 설치합니다. 터미널을 쓸 때는 데스크톱 앱을 먼저 종료합니다. npm 패키지 페이지에 나와 있는 설치 명령(`npm i …`)으로는 DSH에 플러그인이 설치되지 않습니다. `dsh-web-search-exa`는 DSH 번들이 아니어서 플러그인 페이지에서 설치할 수 없습니다. `dsh-web-fetch-exa` 0.1.0도 같은 이유로 거부되므로 0.1.1 이상을 사용하세요.
+2. **키:** **프로필 설정**에서 각 플러그인 행을 열고 **교체**로 `apiKey`를 넣거나, `EXA_API_KEY`를 설정한 상태로 DSH를 시작합니다. 한 행에 저장한 키는 다른 행과 공유되지 않습니다.
+3. **공급자 선택:** 웹 검색·가져오기 카드에서 **검색 공급자**는 `exa`, **가져오기 공급자**는 `exa-contents`로 고릅니다. 설치만으로는 공급자가 바뀌지 않으며, 고르기 전까지 `web_fetch`는 지금 쓰는 공급자를 그대로 씁니다.
+
+`exa-contents`는 Exa가 페이지에서 추출한 텍스트(HTML 제외)를 `maxCharacters`(기본 100,000자)까지 반환합니다. Exa Contents 요금은 페이지 단위로 부과됩니다. 다른 설정(`timeoutMs`, `maxAgeHours`, `livecrawlTimeoutMs`)도 같은 행에 있습니다. [플러그인 README](https://www.npmjs.com/package/@matamt-dbg/dsh-web-fetch-exa)를 참고하세요.
+
+| 메시지 | 원인 | 해결 |
+| --- | --- | --- |
+| `configured web provider "exa-contents" is registered but unavailable` | `dsh-web-fetch-exa` 행에 키가 없음 | 그 행의 `apiKey`나 `EXA_API_KEY` 설정 |
+| `configured web provider "exa-contents" is not registered` | 플러그인이 설치되지 않았거나 꺼져 있음 | 설치하거나 켜기, 또는 다른 가져오기 공급자 선택 |
+| **플러그인 추가**에서 `… declares no dsh.bundle` | `dsh-web-fetch-exa` 0.1.0 또는 `dsh-web-search-exa` | 0.1.1 이상 설치, 또는 `dsh plugin add` 사용 |
+
+`dsh-web-fetch-exa`를 제거하려면 먼저 가져오기 공급자를 **기본값 사용**으로 되돌린 다음, DSH 플러그인 페이지에서 제거합니다.
 
 ## DSH 화면을 한국어로 보기
 
