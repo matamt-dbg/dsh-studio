@@ -150,6 +150,28 @@ export function installPolicy(ctx: Context, scopeKey: object, config: PresetPoli
 
 interface PolicyAgent { ctx: Context; id?: unknown }
 interface AgentRegistry { list(): PolicyAgent[]; roots?(): PolicyAgent[] }
+interface PolicyOwner { owner: object; release: () => void }
+interface SharedPolicyState {
+  /** The Studio preset whose policy each Agent carries. */
+  owners: WeakMap<object, PolicyOwner>;
+  /** Agents whose policy is being disposed; their tool view is mid-change. */
+  releasing: WeakSet<object>;
+  /** Every mounted preset's reconcile, rerun once a release has finished. */
+  reconcilers: Set<() => void>;
+}
+
+/**
+ * Coordination across every mounted Studio preset. installPolicy masks a snapshot of the tools
+ * the Agent sees, so it must never run while another Studio preset's policy still masks and
+ * re-registers tools on that Agent. Switching Studio A -> B (agentPresets.select -> recompose)
+ * emits one tools/change that both presets handle in mount order, and releasing A emits more
+ * tools/change synchronously while A is half disposed. Without this, B's snapshot could miss what
+ * A hid, and A's release then exposed those tools again. Shared through a global symbol so preset
+ * instances that load separate copies of this module (HMR reloads) still agree.
+ */
+const SHARED = Symbol.for('@matamt-dbg/dsh-studio/preset-policy-state');
+const shared = ((globalThis as Record<symbol, unknown>)[SHARED] ??= { owners: new WeakMap(), releasing: new WeakSet(), reconcilers: new Set() }) as SharedPolicyState;
+const { owners, releasing } = shared;
 
 export const name = 'studio-preset-policy';
 export const inject = ['tools', 'systemPrompt'];
@@ -174,14 +196,33 @@ export function apply(ctx: Context, config: PresetPolicyConfig): void {
   const warn = (message: string) => { ctx.logger?.warn?.(message); };
   const installed = new Map<PolicyAgent, () => void>();
   const installing = new Set<PolicyAgent>();
+  /** Identifies this preset instance in {@link owners}. */
+  const owner = {};
+  const remove = (agent: PolicyAgent) => {
+    const dispose = installed.get(agent);
+    if (!dispose) return;
+    // Forget first: disposing emits tools/change, which re-enters reconcile synchronously.
+    installed.delete(agent);
+    if (owners.get(agent)?.owner === owner) owners.delete(agent);
+    releasing.add(agent);
+    try { dispose(); } finally { releasing.delete(agent); }
+    // Installs skipped during the release see the settled tool set now.
+    for (const reconcile of [...shared.reconcilers]) reconcile();
+  };
   const install = (agent: PolicyAgent) => {
-    if (installed.has(agent) || installing.has(agent)) return;
-    // Reserve first: registering the patched definitions emits tools/change synchronously.
+    if (installed.has(agent) || installing.has(agent) || releasing.has(agent)) return;
+    // Reserve first: releasing the previous policy and registering the patched definitions
+    // both emit tools/change synchronously.
     installing.add(agent);
-    try { installed.set(agent, installPolicy(agent.ctx, agent, policyFor(agent), warn)); }
+    try {
+      // Another Studio preset's policy leaves first, so this snapshot sees the unmasked tools.
+      const previous = owners.get(agent);
+      if (previous && previous.owner !== owner) { owners.delete(agent); previous.release(); }
+      installed.set(agent, installPolicy(agent.ctx, agent, policyFor(agent), warn));
+      owners.set(agent, { owner, release: () => remove(agent) });
+    }
     finally { installing.delete(agent); }
   };
-  const remove = (agent: PolicyAgent) => { installed.get(agent)?.(); installed.delete(agent); };
   ctx.on('agent/created', ({ agent }) => { install(agent as PolicyAgent); return undefined; });
   ctx.on('agent/disposed', ({ agent }) => { remove(agent as PolicyAgent); });
 
@@ -192,7 +233,7 @@ export function apply(ctx: Context, config: PresetPolicyConfig): void {
   const composition = scopeOf(ctx);
   const agents = registry;
   if (composition === undefined || agents === undefined) {
-    ctx.effect(() => () => { for (const dispose of installed.values()) dispose(); installed.clear(); });
+    ctx.effect(() => () => { for (const agent of [...installed.keys()]) remove(agent); });
     return;
   }
   const belongs = (agent: PolicyAgent) => scopeChainOf(scopeOf(agent.ctx)).includes(composition);
@@ -220,9 +261,11 @@ export function apply(ctx: Context, config: PresetPolicyConfig): void {
   };
   ctx.on('tools/change', reconcile);
   ctx.on('agent/disposed', ({ agent }) => { unblock(agent as PolicyAgent); });
+  shared.reconcilers.add(reconcile);
   reconcile();
   ctx.effect(() => () => {
-    for (const dispose of installed.values()) dispose(); installed.clear();
+    shared.reconcilers.delete(reconcile);
+    for (const agent of [...installed.keys()]) remove(agent);
     for (const agent of [...blocked.keys()]) unblock(agent);
   });
 }

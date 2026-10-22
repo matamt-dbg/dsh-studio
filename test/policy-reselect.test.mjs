@@ -53,6 +53,39 @@ test('selecting a Studio preset after creation installs its policy; switching aw
   assert.equal(ctx.tools.get('read', agent).description, 'read original');
 });
 
+// Production: the default preset is itself a Studio preset (e.g. Optimized Creator) and the session
+// picks another one (Optimized Copy). Both policies react to the same tools/change in mount order;
+// either order must leave exactly the target's selection and overrides.
+for (const order of ['target mounted first', 'source mounted first']) test(`switching between two Studio presets applies only the target policy (${order})`, async () => {
+  const ctx = new Context();
+  await ctx.plugin(SystemPrompt); await ctx.plugin(Tools);
+  for (const name of ['read', 'write', 'x_search']) ctx.tools.register(tool(name));
+  const live = [];
+  ctx.provide('agents'); ctx.set('agents', { list: () => [...live], roots: () => [...live] });
+  const holder = ctx.inject(['tools', 'systemPrompt'], () => {});
+  const presetScope = () => { const key = {}; return { key, scope: createScope(holder.ctx, key) }; };
+  const source = presetScope(), target = presetScope();
+  const policies = new Map([[source, { ...config, toolOverrides: { read: { description: 'Source read' } } }], [target, config]]);
+  for (const preset of order === 'target mounted first' ? [target, source] : [source, target]) await preset.scope.ctx.plugin(policyPlugin, policies.get(preset));
+  const agent = { id: 'a0' };
+  agent.ctx = createScope(holder.ctx, agent).ctx; agent.binding = bindScopeParent(agent, source.key);
+  live.push(agent);
+  await ctx.serial(scopeTarget(agent, agent), 'agent/created', { agent, source: 'startup' }).catch(() => {});
+  assert.equal(ctx.tools.get('read', agent).description, 'Source read');
+
+  agent.binding.rebind(target.key); ctx.emit('tools/change');
+  assert.deepEqual(ctx.tools.schemas(agent).map(t => t.name), ['read']);
+  assert.equal(ctx.tools.get('read', agent).description, 'Studio read');
+  const denied = await ctx.tools.execute({ name: 'x_search', callId: 'c', arguments: {}, agent, signal: new AbortController().signal });
+  assert.equal(denied.isError, true);
+  // Settling notifications leave it as is; switching back restores the source policy.
+  ctx.emit('tools/change');
+  assert.deepEqual(ctx.tools.schemas(agent).map(t => t.name), ['read']);
+  agent.binding.rebind(source.key); ctx.emit('tools/change');
+  assert.deepEqual(ctx.tools.schemas(agent).map(t => t.name), ['read']);
+  assert.equal(ctx.tools.get('read', agent).description, 'Source read');
+});
+
 test('an Agent created directly under the Studio preset gets the policy exactly once', async () => {
   const { ctx, studio, createAgent } = await runtime();
   const agent = await createAgent(studio);

@@ -382,6 +382,9 @@ var POLICY_SECTION_ORDERS = Object.freeze({
   "tool:goal": "TOOL_GOAL",
   "tool:workflow": "TOOL_WORKFLOW"
 });
+var SHARED = Symbol.for("@matamt-dbg/dsh-studio/preset-policy-state");
+var shared = globalThis[SHARED] ??= { owners: /* @__PURE__ */ new WeakMap(), releasing: /* @__PURE__ */ new WeakSet(), reconcilers: /* @__PURE__ */ new Set() };
+var { owners, releasing } = shared;
 
 // src/host/preset-store.ts
 import { dirname as dirname2, join as join2 } from "node:path";

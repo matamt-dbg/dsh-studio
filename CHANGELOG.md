@@ -2,6 +2,30 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.6.5 — 2026-10-22
+
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+
+### Changes
+
+- **Fixed:** when DSH's default preset was a Studio preset and a new session switched to another Studio preset (for example, default *Optimized Creator*, session set to its copy), the session could receive tools the chosen preset leaves out, such as `x_search`, and lose that preset's tool descriptions. A session now gets exactly the chosen preset's tools and descriptions, whichever Studio presets are involved. Sessions that already started keep the tools they began with; start a new session to get the corrected set.
+
+### Verification
+
+- Studio was installed with the desktop profile's plugins into an isolated profile of unmodified DSH `0.2.1-rc.2` and driven with a scripted local model. Two Studio presets with different tool selections were switched in both directions. With 0.6.4, switching to the smaller preset added 13 tools it leaves out, including `x_search`. With 0.6.5, each session's first request held only the chosen preset's tools. The existing Web checks and the Optimized/Worker scenario also passed. Other DSH versions were not tested for this fix.
+
+### 한국어
+
+DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` 또는 `0.2.1-rc.2`가 필요합니다.
+
+#### 변경 사항
+
+- **수정:** DSH 기본 프리셋이 Studio 프리셋일 때 새 세션에서 다른 Studio 프리셋으로 바꾸면(예: 기본값 *Optimized Creator*에서 그 복사본으로 변경), 선택한 프리셋에서 제외한 `x_search` 같은 도구가 세션에 들어가고 그 프리셋의 도구 설명이 빠질 수 있었습니다. 이제 어떤 Studio 프리셋 사이에서 바꾸든 세션에는 선택한 프리셋의 도구와 설명만 적용됩니다. 이미 시작한 세션의 도구는 바뀌지 않으므로, 수정된 구성을 쓰려면 새 세션을 시작하세요.
+
+#### 검증
+
+- 수정하지 않은 DSH `0.2.1-rc.2`의 격리 프로필에 데스크톱 프로필의 플러그인과 함께 Studio를 설치하고, 각본 로컬 모델로 시험했습니다. 도구 선택이 다른 두 Studio 프리셋을 양방향으로 바꿨습니다. 0.6.4에서는 도구가 적은 프리셋으로 바꿀 때 그 프리셋이 제외한 `x_search` 등 도구 13개가 추가됐습니다. 0.6.5에서는 각 세션의 첫 요청에 선택한 프리셋의 도구만 들어 있었습니다. 기존 Web 검사와 Optimized·Worker 시나리오도 통과했습니다. 이 수정은 다른 DSH 버전에서 시험하지 않았습니다.
+
 ## 0.6.4 — 2026-10-21
 
 Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
