@@ -44,7 +44,7 @@ Optimized is tuned for **coding-agent work**. It is a starting point, not a fixe
 
 ## Install
 
-Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1`, `0.2.1-rc.2` or `0.2.1-rc.3`.
 
 ```sh
 dsh plugin --profile web add @matamt-dbg/dsh-studio       # dsh web
@@ -55,10 +55,11 @@ Restart the web GUI or the app, then open **DSH Studio** from the sidebar. Each 
 
 ### Compatibility
 
-Each supported DSH version was checked on macOS with a fresh install into an isolated profile of the unmodified runtime. What was checked differs by version, and none of it is a full compatibility guarantee:
+The following checks were performed on macOS with isolated profiles of unmodified DSH runtimes. Earlier runtime rows describe previous releases; they were not rerun for 0.6.6. None of these checks is a full compatibility guarantee:
 
 | DSH | Checked |
 |---|---|
+| `0.2.1-rc.3` | 0.6.6: install, Web startup, four HTTP checks; Fresh/Fork role instructions, Tool Filter and history with a local test model; Studio/Pixie and the Subagents overflow menu at 480 px |
 | `0.2.1-rc.2` | Install, Web startup and four HTTP checks (Master, Optimized copy, session roles, role save/reapply/restore); Studio loading in the desktop app |
 | `0.2.1-rc.1` | The same HTTP checks; Fresh and Fork role subagents keeping their instructions and Tool Filter, also after a restart, with a local test model |
 | `0.2.0-rc.2`, `0.2.1-alpha.2` | The same HTTP checks |

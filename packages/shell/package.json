@@ -1,6 +1,6 @@
 {
   "name": "@matamt-dbg/dsh-studio",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "DSH Studio: build, edit and apply DeepSeek Harness agent presets — tools, prompts, Configs and role-based subagents — from the web GUI.",
   "keywords": [
     "deepseek-harness",
@@ -44,14 +44,14 @@
     "js-yaml": "^4.3.2"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-app-boot": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-scope": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-jobs": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2",
+    "@deepseek-ai/dsh-app-boot": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-scope": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-jobs": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-alpha.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3",
     "@deepseek-ai/cordis-plugin-include": "*"
   },
   "peerDependenciesMeta": {

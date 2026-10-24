@@ -2,6 +2,36 @@
 
 Release notes for `@matamt-dbg/dsh-studio`. Each version lists English notes first, then Korean.
 
+## 0.6.6 — 2026-10-24
+
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1`, `0.2.1-rc.2` or `0.2.1-rc.3`.
+
+### Changes
+
+- Adds DSH `0.2.1-rc.3` to the supported runtime versions, fixing the compatibility block after updating DSH. Existing supported versions are retained.
+- If you also use `@matamt-dbg/dsh-web-fetch-exa`, update that separate plugin to `0.1.2` for DSH `0.2.1-rc.3` support.
+
+### Verification
+
+- Installed into an isolated profile of unmodified DSH `0.2.1-rc.3`. Four Web RPC checks and Fresh/Fork role checks passed with a local test model: instructions, tool visibility and execution restrictions, parent history inheritance and parent tool isolation.
+- Studio and Pixie loaded, including Studio in dark mode and at 480 px; Subagents remained accessible through the new conversation overflow menu. The Exa `0.1.2` package installed through the Plugins page and fetched a page through `web_fetch` against a local fixture endpoint.
+- External model responses, the real Exa API, cold resume of existing role children and other DSH versions were not tested for this release.
+
+### 한국어
+
+DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1`, `0.2.1-rc.2` 또는 `0.2.1-rc.3`가 필요합니다.
+
+#### 변경 사항
+
+- DSH `0.2.1-rc.3`을 지원 버전에 추가해 DSH 업데이트 후 발생하는 호환성 차단을 해결합니다. 기존 지원 버전은 유지합니다.
+- `@matamt-dbg/dsh-web-fetch-exa`도 사용한다면 DSH `0.2.1-rc.3`을 지원하는 별도 플러그인 버전 `0.1.2`로 업데이트하세요.
+
+#### 검증
+
+- 수정하지 않은 DSH `0.2.1-rc.3`의 격리 프로필에 설치했습니다. Web RPC 검사 4개와 로컬 테스트 모델을 이용한 Fresh/Fork 역할 검사가 통과했습니다. 역할 지침, 도구 노출·실행 제한, 부모 대화 상속, 부모 도구 격리를 확인했습니다.
+- Studio와 Pixie 화면이 열렸고, Studio는 다크 모드와 480px 너비에서도 확인했습니다. Subagents는 새 대화 탭의 더 보기 메뉴로 접근할 수 있었습니다. Exa `0.1.2`는 플러그인 페이지에서 설치했고, 로컬 응답 서버를 대상으로 `web_fetch` 호출을 확인했습니다.
+- 이번 릴리스에서는 외부 모델 응답, 실제 Exa API, 기존 역할 자식의 프로세스 재시작 후 복원, 다른 DSH 버전을 검사하지 않았습니다.
+
 ## 0.6.5 — 2026-10-22
 
 Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.

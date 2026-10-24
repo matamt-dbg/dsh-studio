@@ -27,7 +27,7 @@ DSH Studio는 DeepSeek Harness 웹 GUI 안에서 **에이전트 프리셋**을 �
 
 ## 설치하고 열기
 
-DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` 또는 `0.2.1-rc.2`가 필요합니다.
+DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1`, `0.2.1-rc.2` 또는 `0.2.1-rc.3`가 필요합니다.
 
 사용하는 DSH 프로필에 설치합니다. `web`은 `dsh web`의 프로필이고, `desktop`은 DeepSeek Harness 데스크톱 앱의 프로필입니다.
 

@@ -27,7 +27,7 @@ DSH Studio is a page inside the DeepSeek Harness web GUI for building **agent pr
 
 ## Install and open Studio
 
-Studio requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+Studio requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1`, `0.2.1-rc.2` or `0.2.1-rc.3`.
 
 Install Studio into the DSH profile you use. `web` is the profile of `dsh web`; `desktop` is the profile of the DeepSeek Harness desktop app.
 

@@ -2,7 +2,7 @@
 
 Exa [`/contents`](https://docs.exa.ai/reference/get-contents) fetch provider for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It adds the fetch provider `exa-contents` to the shared web service, so `web_fetch` can read pages through Exa instead of a direct HTTP request.
 
-Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
+Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1`, `0.2.1-rc.2` or `0.2.1-rc.3`.
 
 ## Install
 

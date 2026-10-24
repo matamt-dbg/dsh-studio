@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 — 2026-10-24
+
+- Adds DSH `0.2.1-rc.3` to the supported runtime versions, fixing the compatibility block after updating DSH. Existing supported versions and provider settings are retained.
+- Verified GUI installation and activation on unmodified DSH `0.2.1-rc.3`, followed by `web_fetch` through a local Contents fixture endpoint. No real Exa API request was made for this release.
+
 ## 0.1.1 — 2026-10-21
 
 Requires DSH `0.2.0-rc.2`, `0.2.1-alpha.2`, `0.2.1-rc.1` or `0.2.1-rc.2`.
